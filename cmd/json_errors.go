@@ -67,9 +67,12 @@ type jsonError struct {
 	RetryAfterSeconds int64  `json:"retry_after_seconds,omitempty"`
 }
 
-func writeJSONError(w io.Writer, exitCode int, failureType string, err error) {
+func writeJSONError(w io.Writer, exitCode int, failureType string, err error, hint string) {
 	failure := jsonError{ExitCode: exitCode, HTTPStatus: httpStatusFromError(err)}
 	failure.Type, failure.Message, failure.Hint = safeJSONErrorDetails(exitCode, failureType, failure.HTTPStatus, err)
+	if exitCode == ExitUsage && hint != "" {
+		failure.Hint = hint
+	}
 	if delay := asc.GetRetryAfter(err); delay > 0 {
 		failure.RetryAfterSeconds = 1 + int64((delay-1)/time.Second)
 	}

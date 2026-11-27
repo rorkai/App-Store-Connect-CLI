@@ -1389,6 +1389,49 @@ func TestRun_UnknownFlagReturnsConciseRecovery(t *testing.T) {
 	}
 }
 
+func TestRun_MetadataInitAppGuidance(t *testing.T) {
+	resetReportFlags(t)
+	t.Setenv("DO_NOT_TRACK", "1")
+
+	dir := filepath.Join(t.TempDir(), "metadata")
+	for _, format := range []string{"text", "json"} {
+		t.Run(format, func(t *testing.T) {
+			stdout, stderr := captureCommandOutput(t, func() {
+				args := []string{"--error-format", format, "metadata", "init", "--dir", dir, "--app", "DO_NOT_PRINT"}
+				if code := Run(args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+			if stdout != "" || strings.Contains(stderr, "DO_NOT_PRINT") {
+				t.Fatalf("unexpected stdout or input echoed: stdout = %q, stderr = %q", stdout, stderr)
+			}
+			if format == "json" {
+				var envelope struct {
+					Error struct {
+						Type string
+						Hint string
+					}
+				}
+				if err := json.Unmarshal([]byte(stderr), &envelope); err != nil {
+					t.Fatalf("invalid JSON error: %v", err)
+				}
+				if envelope.Error.Type != "invalid_flag" {
+					t.Fatalf("unexpected error type: %q", envelope.Error.Type)
+				}
+				stderr = envelope.Error.Hint
+			}
+			for _, want := range []string{"Omit --app", "asc metadata pull --app APP_ID --dir DIR"} {
+				if !strings.Contains(stderr, want) {
+					t.Fatalf("stderr guidance = %q, want %q", stderr, want)
+				}
+			}
+		})
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatalf("metadata init wrote to %q before rejecting the flag: %v", dir, err)
+	}
+}
+
 func TestRun_GroupsBuildsListRecoversGroupsListFlags(t *testing.T) {
 	resetReportFlags(t)
 	t.Setenv("ASC_APP_ID", "")
