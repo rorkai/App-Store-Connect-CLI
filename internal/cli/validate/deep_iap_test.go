@@ -23,7 +23,8 @@ func TestIAPAttachmentEvidence(t *testing.T) {
 		want                                                            validation.DeepStatus
 		command                                                         bool
 	}{
-		{name: "prepare version can attach", versions: strings.ReplaceAll(versions, "READY_FOR_REVIEW", "PREPARE_FOR_SUBMISSION"), items: items(appItem), want: validation.DeepStatusBlocked, command: true},
+		{name: "first prepare version can attach through web", versions: strings.ReplaceAll(versions, "READY_FOR_REVIEW", "PREPARE_FOR_SUBMISSION"), items: items(appItem), want: validation.DeepStatusBlocked, command: true},
+		{name: "subsequent type prepare version can attach through web", catalog: append(append([]validation.IAP{}, baseCatalog...), validation.IAP{ID: "approved", ProductID: "com.example.approved", Type: "CONSUMABLE", State: "APPROVED"}), versions: strings.ReplaceAll(versions, "READY_FOR_REVIEW", "PREPARE_FOR_SUBMISSION"), items: items(appItem), want: validation.DeepStatusBlocked, command: true},
 		{name: "later version approval", versions: strings.ReplaceAll(versions, `"links":{}`, `"links":{"next":"https://api.appstoreconnect.apple.com/v2/inAppPurchases/iap-1/versions?page=2"}`), later: strings.ReplaceAll(strings.ReplaceAll(versions, "iap-v1", "approved-v"), "READY_FOR_REVIEW", "APPROVED"), want: validation.DeepStatusPassed},
 		{name: "malformed later version", versions: strings.ReplaceAll(versions, `"links":{}`, `"links":{"next":"https://api.appstoreconnect.apple.com/v2/inAppPurchases/iap-1/versions?page=2"}`), later: `{"links":{}}`, want: validation.DeepStatusUnverified},
 		{name: "same type submitted product satisfies unused ready", catalog: append(append([]validation.IAP{}, baseCatalog...), validation.IAP{ID: "iap-submitted", ProductID: "com.example.submitted", Type: "NON_CONSUMABLE", State: "IN_REVIEW"}), items: items(appItem, strings.ReplaceAll(iapItem, "iap-v1", "submitted-v")), want: validation.DeepStatusPassed},
@@ -147,9 +148,9 @@ func TestIAPAttachmentEvidence(t *testing.T) {
 				t.Fatalf("remediation = %#v, want command %t", check.Resolution, tt.command)
 			}
 			if tt.command {
-				wantCommand := `asc review items add --submission "draft-1" --item-type inAppPurchaseVersions --item-id "iap-v1" --if-exists skip`
-				if check.Resolution.Fixability != validation.FixabilityAPIFixable || len(check.Resolution.Commands) != 1 || check.Resolution.Commands[0] != wantCommand {
-					t.Fatalf("recovery = %#v, want api-fixable with %q", check.Resolution, wantCommand)
+				wantCommand := `asc web review iaps attach --app "app-1" --iap-id "com.example.item" --submission "draft-1" --confirm`
+				if check.Resolution.Fixability != validation.FixabilityWebFixable || len(check.Resolution.Commands) != 1 || check.Resolution.Commands[0] != wantCommand {
+					t.Fatalf("recovery = %#v, want web-fixable with %q", check.Resolution, wantCommand)
 				}
 			} else if check.Resolution != nil && check.Resolution.Fixability != validation.FixabilityManual {
 				t.Fatalf("unexpected actionable recovery: %#v", check.Resolution)

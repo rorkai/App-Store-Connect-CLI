@@ -11,8 +11,8 @@ import (
 )
 
 type iapAttachmentCandidate struct {
-	versionID string
-	editable  bool
+	productID, versionID string
+	editable             bool
 }
 type iapAttachmentType struct {
 	products            []validation.IAP
@@ -173,7 +173,7 @@ func collectIAPAttachmentDeepCheck(ctx context.Context, client *asc.Client, repo
 				if !currentKnown || len(current) != 1 || current[0].Attributes.State == "REJECTED" || current[0].Attributes.State == "DEVELOPER_REJECTED" {
 					group.uncertain = true
 				} else {
-					group.candidates = append(group.candidates, iapAttachmentCandidate{current[0].ID, p.State == "READY_TO_SUBMIT" && (current[0].Attributes.State == "PREPARE_FOR_SUBMISSION" || current[0].Attributes.State == "READY_FOR_REVIEW")})
+					group.candidates = append(group.candidates, iapAttachmentCandidate{p.ProductID, current[0].ID, p.State == "READY_TO_SUBMIT" && (current[0].Attributes.State == "PREPARE_FOR_SUBMISSION" || current[0].Attributes.State == "READY_FOR_REVIEW")})
 				}
 			}
 			if p.State == "REMOVED_FROM_SALE" || p.State == "DEVELOPER_REMOVED_FROM_SALE" {
@@ -334,8 +334,8 @@ func collectIAPAttachmentDeepCheck(ctx context.Context, client *asc.Client, repo
 	}
 	if len(missing) > 0 {
 		if len(missingCandidates) == 1 && len(editableDrafts) == 1 && missingCandidates[0].editable && isSubscriptionAttachmentEditableVersionState(report.VersionState) {
-			resolution.Fixability = validation.FixabilityAPIFixable
-			resolution.Commands = []string{fmt.Sprintf("asc review items add --submission %q --item-type inAppPurchaseVersions --item-id %q --if-exists skip", editableDrafts[0], missingCandidates[0].versionID)}
+			resolution.Fixability = validation.FixabilityWebFixable
+			resolution.Commands = []string{fmt.Sprintf("asc web review iaps attach --app %q --iap-id %q --submission %q --confirm", report.AppID, missingCandidates[0].productID, editableDrafts[0])}
 		}
 		message := "First-of-type IAP attachment is missing from the selected app version submission: " + strings.Join(missing, "; ")
 		if len(unknown) > 0 {
