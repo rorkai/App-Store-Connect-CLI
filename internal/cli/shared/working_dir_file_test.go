@@ -46,26 +46,55 @@ func TestOpenMessageFilePreservesSymlinkParentTraversal(t *testing.T) {
 	}
 }
 
-func TestOpenMessageFileWorkingDirectoryAliasDoesNotWarn(t *testing.T) {
-	project := t.TempDir()
-	alias := filepath.Join(t.TempDir(), "project")
+func TestOpenMessageFilePreservesWorkingDirectoryAlias(t *testing.T) {
+	physicalParent, logicalParent := t.TempDir(), t.TempDir()
+	project := filepath.Join(physicalParent, "project")
+	if err := os.Mkdir(project, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(logicalParent, "project")
 	if err := os.Symlink(project, alias); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(project, "reply.txt"), []byte("Reply body."), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	for path, body := range map[string]string{
+		filepath.Join(physicalParent, "reply.txt"): "Physical parent reply.",
+		filepath.Join(logicalParent, "reply.txt"):  "Different logical parent reply.",
+	} {
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	t.Chdir(alias)
 	t.Setenv("PWD", alias)
-	var stderr bytes.Buffer
-	d := &Deps{Getwd: os.Getwd, IO: &IO{ErrOut: &stderr}}
-	file, err := d.OpenMessageFile("--file", "copy the file into the project directory", "reply.txt", true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-	body, err := io.ReadAll(file)
-	if err != nil || string(body) != "Reply body." || stderr.Len() != 0 {
-		t.Fatalf("body=%q error=%v stderr=%q; want an ordinary in-directory read", body, err, stderr.String())
+	for _, mode := range []struct {
+		name           string
+		followSymlinks bool
+	}{{"legacy", true}, {"regular", false}} {
+		for _, path := range []string{"reply.txt", "../reply.txt"} {
+			t.Run(mode.name+"/"+path, func(t *testing.T) {
+				want, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var stderr bytes.Buffer
+				d := &Deps{Getwd: os.Getwd, IO: &IO{ErrOut: &stderr}}
+				file, err := d.OpenMessageFile("--file", "copy the file into the project directory", path, mode.followSymlinks)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer file.Close()
+				body, err := io.ReadAll(file)
+				if err != nil || !bytes.Equal(body, want) {
+					t.Fatalf("body=%q error=%v; want OS-selected body %q", body, err, want)
+				}
+				warned := strings.Contains(stderr.String(), "Warning: --file outside the working directory or through a symlink is deprecated")
+				if wantWarning := path == "../reply.txt"; warned != wantWarning {
+					t.Fatalf("warning=%q; want warning=%t", stderr.String(), wantWarning)
+				}
+			})
+		}
 	}
 }
