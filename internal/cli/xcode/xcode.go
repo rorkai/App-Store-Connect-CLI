@@ -90,6 +90,7 @@ Examples:
 			newXcodeArchiveCommand(d),
 			newXcodeExportCommand(d),
 			newXcodeInstallCommand(d),
+			newXcodeInstallSimulatorCommand(d),
 			newXcodeExportOptionsGroupCommand(d),
 			newXcodeDoctorCommand(d),
 			newXcodeValidateCommand(d),
