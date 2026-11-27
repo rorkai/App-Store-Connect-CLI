@@ -15,6 +15,10 @@ func TestXcodeSigningOutputsUseRegisteredHumanRenderers(t *testing.T) {
 		Ready:    true,
 		PlanPath: "/tmp/plan.json",
 		PlanHash: "plan-hash",
+		Inferences: []XcodeSigningPlanInferenceOutput{{
+			ProfileUUID:  "profile-uuid",
+			Verification: SigningProfileVerification{CMSSignature: "verified", AppleTrust: "notChecked"},
+		}},
 		Changes: []XcodeSigningSettingChangeOutput{{
 			Target:        "Demo",
 			Configuration: "Release",
@@ -36,7 +40,7 @@ func TestXcodeSigningOutputsUseRegisteredHumanRenderers(t *testing.T) {
 		data any
 		want []string
 	}{
-		{name: "plan", data: plan, want: []string{"ready", "plan hash", "changes"}},
+		{name: "plan", data: plan, want: []string{"ready", "plan hash", "changes", "profile-uuid: cms signature verified; apple trust notchecked"}},
 		{name: "apply", data: apply, want: []string{"completed", "receipt", "changed files"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {

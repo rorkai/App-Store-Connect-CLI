@@ -602,7 +602,7 @@ func TestExecuteSigningReconcileApplyCreatesAndVerifiesWithoutPatchOrDelete(t *t
 	}
 }
 
-func TestGetProfileCandidatesPaginatesAndRejectsExtraDevices(t *testing.T) {
+func TestPlanSigningTargetReportsProfileVerificationAndRejectsExtraDevices(t *testing.T) {
 	distributionCertificate, distributionKey := newReconcileTestCertificate(t, "Distribution")
 	profileBytes := buildReconcileTestMobileProvision(t, map[string]any{
 		"UUID": "00000000-0000-0000-0000-0000000000AD", "ExpirationDate": time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -613,6 +613,10 @@ func TestGetProfileCandidatesPaginatesAndRejectsExtraDevices(t *testing.T) {
 
 	client := newSigningFetchTestClient(t, func(request *http.Request) *http.Response {
 		switch {
+		case request.URL.Path == "/v1/bundleIds":
+			return signingFetchJSONResponse(http.StatusOK, `{"data":[{"type":"bundleIds","id":"bundle-1","attributes":{"identifier":"com.example.app","platform":"IOS"}}]}`)
+		case request.URL.Path == "/v1/bundleIds/bundle-1/bundleIdCapabilities":
+			return signingFetchJSONResponse(http.StatusOK, `{"data":[]}`)
 		case request.URL.Path == "/v1/bundleIds/bundle-1/profiles" && request.URL.Query().Get("cursor") == "":
 			return signingFetchJSONResponse(http.StatusOK, `{"data":[{"type":"profiles","id":"p-extra","attributes":{"name":"Extra","profileType":"IOS_APP_ADHOC","profileState":"ACTIVE","expirationDate":"2100-01-01T00:00:00Z"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/bundleIds/bundle-1/profiles?cursor=2"}}`)
 		case request.URL.Path == "/v1/bundleIds/bundle-1/profiles" && request.URL.Query().Get("cursor") == "2":
@@ -625,28 +629,56 @@ func TestGetProfileCandidatesPaginatesAndRejectsExtraDevices(t *testing.T) {
 			return signingFetchJSONResponse(http.StatusOK, `{"data":[{"type":"devices","id":"device-2","attributes":{}}]}`)
 		case request.URL.Path == "/v1/profiles/p-exact/devices":
 			return signingFetchJSONResponse(http.StatusOK, `{"data":[{"type":"devices","id":"device-1","attributes":{}}]}`)
-		case request.URL.Path == "/v1/profiles/p-extra" || request.URL.Path == "/v1/profiles/p-exact":
+		case request.URL.Path == "/v1/profiles/p-exact":
 			id := strings.TrimPrefix(request.URL.Path, "/v1/profiles/")
 			return signingFetchJSONResponse(http.StatusOK, `{"data":{"type":"profiles","id":"`+id+`","attributes":{"name":"Profile","profileType":"IOS_APP_ADHOC","profileState":"ACTIVE","uuid":"00000000-0000-0000-0000-0000000000AD","expirationDate":"2100-01-01T00:00:00Z","profileContent":"`+content+`"}}}`)
 		default:
 			return signingFetchJSONResponse(http.StatusInternalServerError, `{}`)
 		}
 	})
-	candidates, err := getProfileCandidates(
+	observed, actions, blockers, err := planSigningTarget(
 		context.Background(), time.Now, client,
-		asc.Resource[asc.BundleIDAttributes]{ID: "bundle-1", Attributes: asc.BundleIDAttributes{Identifier: "com.example.app", Platform: asc.BundleIDPlatformIOS}},
 		signingTarget{BundleID: "com.example.app", Entitlements: map[string]any{"com.apple.developer.team-identifier": "TEAM1"}},
 		[]signingDesiredDevice{{Fingerprint: fingerprintDevice(normalizeReconcileUDID("SECRET-UDID")), ResourceID: "device-1", Status: "ENABLED"}},
-		signingCertificateRef{ID: "cert-1", SHA256: reconcileTestCertificateFingerprint(distributionCertificate)}, 7,
+		&signingCertificateRef{ID: "cert-1", SHA256: reconcileTestCertificateFingerprint(distributionCertificate)}, 7,
 	)
 	if err != nil {
-		t.Fatalf("getProfileCandidates(time.Now) error=%v", err)
+		t.Fatalf("planSigningTarget() error=%v", err)
 	}
-	if len(candidates) != 2 || !candidates[0].Suitable || candidates[0].Profile.ID != "p-exact" || candidates[0].ExtraDevices != 0 {
-		t.Fatalf("candidates=%#v", candidates)
+	if len(blockers) != 0 || len(actions) != 1 || actions[0].ProfileID != "p-exact" || observed.SelectedProfileID != "p-exact" {
+		t.Fatalf("observed=%#v actions=%#v blockers=%v", observed, actions, blockers)
 	}
-	if candidates[1].Profile.ID != "p-extra" || candidates[1].Suitable {
-		t.Fatalf("extra-device candidate was considered suitable: %#v", candidates[1])
+	if len(observed.Profiles) != 2 || !observed.Profiles[0].Suitable || observed.Profiles[1].Suitable || observed.Profiles[1].DeviceCount != 2 {
+		t.Fatalf("profiles = %#v", observed.Profiles)
+	}
+	encoded, err := json.Marshal(observed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output struct {
+		Profiles []struct {
+			Verification map[string]string `json:"verification"`
+		} `json:"profiles"`
+	}
+	if err := json.Unmarshal(encoded, &output); err != nil {
+		t.Fatal(err)
+	}
+	for index, want := range []string{"verified", "notChecked"} {
+		got := output.Profiles[index].Verification
+		if got["cmsSignature"] != want || got["appleTrust"] != "notChecked" {
+			t.Fatalf("profile %d verification = %v, want CMS %s and Apple trust not checked", index, got, want)
+		}
+	}
+	for _, markdown := range []bool{false, true} {
+		var rendered bytes.Buffer
+		if err := renderSigningPlan(&rendered, signingReconcilePlanArtifact{ObservedBundles: []signingObservedBundle{observed}}, markdown); err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range []string{"CMS Signature", "Apple Trust", "p-exact", "verified", "notChecked"} {
+			if !strings.Contains(rendered.String(), want) {
+				t.Fatalf("plan output omitted %q: %s", want, rendered.String())
+			}
+		}
 	}
 }
 
@@ -897,16 +929,16 @@ func TestDecodeReconcileMobileProvisionRejectsForgedCMS(t *testing.T) {
 	}, certificate, key)
 	forged := append([]byte(nil), signed...)
 	forged[len(forged)-1] ^= 0xff
-	if _, err := decodeReconcileMobileProvision(forged); err == nil {
-		t.Fatal("decodeReconcileMobileProvision() accepted forged CMS")
+	if profile, err := decodeReconcileMobileProvision(forged); err == nil || profile.Verification.CMSSignature != "failed" || profile.Verification.AppleTrust != "notChecked" {
+		t.Fatalf("forged CMS verification=%+v error=%v", profile.Verification, err)
 	}
 
 	raw, err := plist.Marshal(map[string]any{"UUID": "00000000-0000-0000-0000-0000000000AD"}, plist.XMLFormat)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := decodeReconcileMobileProvision(raw); err == nil {
-		t.Fatal("decodeReconcileMobileProvision() accepted unsigned plist")
+	if profile, err := decodeReconcileMobileProvision(raw); err == nil || profile.Verification.CMSSignature != "notChecked" || profile.Verification.AppleTrust != "notChecked" {
+		t.Fatalf("unsigned plist verification=%+v error=%v", profile.Verification, err)
 	}
 }
 
@@ -916,17 +948,18 @@ func TestProfileContentMatchesTargetRejectsWrongEmbeddedCertificate(t *testing.T
 	profileBytes := buildReconcileTestMobileProvision(t, map[string]any{
 		"UUID":                  "00000000-0000-0000-0000-0000000000AD",
 		"ProvisionedDevices":    []string{"SECRET-UDID"},
+		"ExpirationDate":        time.Now().Add(time.Hour),
 		"Entitlements":          map[string]any{"com.apple.developer.team-identifier": "TEAM1"},
 		"DeveloperCertificates": [][]byte{otherCertificate.Raw},
 	}, otherCertificate, otherKey)
-	if profileContentMatchesTarget(
+	if matches, verification := profileContentMatchesTarget(
 		base64.StdEncoding.EncodeToString(profileBytes),
 		signingTarget{Entitlements: map[string]any{"com.apple.developer.team-identifier": "TEAM1"}},
 		[]signingDesiredDevice{{Fingerprint: fingerprintDevice(normalizeReconcileUDID("SECRET-UDID")), ResourceID: "device-1"}},
 		reconcileTestCertificateFingerprint(selectedCertificate),
 		time.Time{},
-	) {
-		t.Fatal("profileContentMatchesTarget() accepted the wrong embedded certificate")
+	); matches || verification.CMSSignature != "verified" || verification.AppleTrust != "notChecked" {
+		t.Fatalf("wrong embedded certificate: matches=%t verification=%+v", matches, verification)
 	}
 }
 
@@ -944,10 +977,10 @@ func TestProfileContentMatchesTargetRejectsWrongDeviceAndExpiredContent(t *testi
 	desired := []signingDesiredDevice{{Fingerprint: fingerprintDevice(normalizeReconcileUDID("SECRET-UDID"))}}
 	target := signingTarget{Entitlements: map[string]any{"com.apple.developer.team-identifier": "TEAM1"}}
 	fingerprint := reconcileTestCertificateFingerprint(certificate)
-	if profileContentMatchesTarget(build("OTHER-UDID", time.Now().Add(30*24*time.Hour)), target, desired, fingerprint, time.Now()) {
+	if matches, _ := profileContentMatchesTarget(build("OTHER-UDID", time.Now().Add(30*24*time.Hour)), target, desired, fingerprint, time.Now()); matches {
 		t.Fatal("profile with different embedded UDID was accepted")
 	}
-	if profileContentMatchesTarget(build("SECRET-UDID", time.Now().Add(-time.Hour)), target, desired, fingerprint, time.Now()) {
+	if matches, _ := profileContentMatchesTarget(build("SECRET-UDID", time.Now().Add(-time.Hour)), target, desired, fingerprint, time.Now()); matches {
 		t.Fatal("profile with expired embedded content was accepted")
 	}
 }

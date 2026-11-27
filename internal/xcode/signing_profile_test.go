@@ -16,6 +16,8 @@ import (
 
 	"github.com/fullsailor/pkcs7"
 	"howett.net/plist"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestSelectSigningProfilePrefersExactOverWildcard(t *testing.T) {
@@ -64,6 +66,9 @@ func TestInferSigningPlanFromProfilesAppliesUnchanged(t *testing.T) {
 		if inference.ProfileUUID == "" || inference.CertificateSHA256 == "" || inference.ProfilePath == "" {
 			t.Fatalf("inference missing provenance: %#v", inference)
 		}
+		if inference.Verification.CMSSignature != "verified" || inference.Verification.AppleTrust != "notChecked" {
+			t.Fatalf("self-signed profile verification = %+v, want CMS verified and Apple trust not checked", inference.Verification)
+		}
 		if inference.Match != "exact" {
 			t.Fatalf("match = %s, want exact", inference.Match)
 		}
@@ -76,6 +81,29 @@ func TestInferSigningPlanFromProfilesAppliesUnchanged(t *testing.T) {
 	}
 	if _, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath}); err != nil {
 		t.Fatalf("ApplySigningPlan() error = %v", err)
+	}
+}
+
+func TestInferSigningLegacyPlanAppliesWithoutVerification(t *testing.T) {
+	requireStrictSigningPlatform(t)
+	root := t.TempDir()
+	profile := writeSigningTestProfile(t, filepath.Join(root, "App.mobileprovision"), "App Profile", "11111111-1111-1111-1111-111111111111", "ABCDE12345.com.example.demo", time.Now().Add(time.Hour))
+	plan, err := BuildSigningPlan(SigningPlanOptions{
+		ProjectPath: writeInferredSigningProject(t), ProfilePaths: []string{profile},
+		Configuration: "Debug", SkipTargets: []string{"Widget", "Watch"}, StateDir: filepath.Join(root, "state"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index := range plan.Inferences {
+		plan.Inferences[index].Verification = asc.SigningProfileVerification{}
+	}
+	plan.PlanHash = signingPlanHash(plan)
+	if err := WriteSigningPlanArtifact(plan, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath}); err != nil {
+		t.Fatalf("apply legacy plan: %v", err)
 	}
 }
 

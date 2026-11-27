@@ -54,6 +54,16 @@ func ApplySigningPlan(opts SigningApplyOptions) (*SigningApplyResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("re-resolve signing plan: %w", err)
 	}
+	// Older plans omit verification diagnostics. Keep their comparison shape
+	// while retaining every re-resolved source digest and signing setting.
+	if len(built.plan.Inferences) == len(plan.Inferences) {
+		for index, inference := range plan.Inferences {
+			if inference.Verification.CMSSignature == "" && inference.Verification.AppleTrust == "" {
+				built.plan.Inferences[index].Verification = inference.Verification
+			}
+		}
+		built.plan.PlanHash = signingPlanHash(built.plan)
+	}
 	if !built.plan.Ready || built.plan.PlanHash != plan.PlanHash {
 		return nil, fmt.Errorf("signing plan is stale; regenerate it before applying")
 	}
