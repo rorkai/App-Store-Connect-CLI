@@ -485,7 +485,14 @@ func RunAppsCreate(ctx context.Context, d *shared.Deps, opts AppsCreateRunOption
 				err = errors.Join(err, fmt.Errorf("failed to roll back created bundle id %q: %w", opts.BundleID, rollbackErr))
 			}
 		}
-		return explainAppsCreateError(err)
+		err = explainAppsCreateError(err)
+		if !opts.AutoRename && !conflictHandled && webcore.IsDuplicateAppNameError(err) {
+			return &shared.HintedError{
+				Err:  err,
+				Hint: "Apple reports that the app name is already in use. Choose a different --name before retrying.",
+			}
+		}
+		return err
 	}
 
 	fmt.Fprintf(d.IO.ErrOut, "Created app successfully (id=%s)\n", strings.TrimSpace(app.Data.ID))
