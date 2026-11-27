@@ -351,6 +351,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("telemetry", "Manage CLI telemetry settings.", func() *ffcli.Command {
 			return telemetrycmd.NewTelemetryCommand(d)
 		}),
+		commandFactory("commands", "Discover registered command families and their inputs.", func() *ffcli.Command {
+			return catalog.newCommandsCommand(d)
+		}),
 		commandFactory("search", "Search asc commands and examples for agent-oriented command discovery.", func() *ffcli.Command {
 			return searchcmd.NewSearchCommand(d, catalog.All)
 		}),

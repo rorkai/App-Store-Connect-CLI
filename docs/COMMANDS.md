@@ -149,6 +149,7 @@ asc <subcommand> [flags]
 - `diff` - Generate deterministic non-mutating diff plans.
 - `capabilities` - Show CLI, API, web-only, and public-API-limited capability coverage.
 - `search` - Search asc commands and examples for agent-oriented command discovery.
+- `commands` - Discover registered command families and their inputs.
 - `snitch` - Report CLI friction as a GitHub issue.
 - `version` - Print version information and exit.
 - `completion` - Print shell completion scripts.
