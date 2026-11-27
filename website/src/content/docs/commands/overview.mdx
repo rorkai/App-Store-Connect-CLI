@@ -16,6 +16,17 @@ asc <command> <subcommand> --help  # Show all flags for a specific subcommand
 
 **Do not memorize commands.** Always check `--help` for the current interface.
 
+For JSON discovery, use `asc commands --family "PATH"`, for example
+`asc commands --family "metadata validate"`. Each flag includes a parsing `type`:
+`string`, `boolean`, `integer`, `number`, `duration`, or `unknown`.
+
+`defaultKind` is `static`, `dynamic`, or `unknown`. A textual `default` appears
+only when the binding explicitly declares a static parser default. Dynamic
+values and undeclared defaults are omitted. Parser defaults do not describe
+later environment or account fallbacks. Unknown metadata is incomplete; runtime
+validation still applies. Discovery does not yet describe every constraint or
+host/tool requirement.
+
 ## Usage Pattern
 
 All commands follow this structure:

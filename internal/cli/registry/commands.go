@@ -37,6 +37,7 @@ type commandFlag struct {
 	Name        string `json:"name"`
 	TakesValue  bool   `json:"takes_value"`
 	Description string `json:"description"`
+	shared.FlagMetadata
 }
 
 func (c *Catalog) newCommandsCommand(d *shared.Deps) *ffcli.Command {
@@ -50,6 +51,9 @@ func (c *Catalog) newCommandsCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Discover registered command families and their inputs.",
 		LongHelp: `List command families from the CLI registry. Use --family to describe
 an exact path and its visible subcommands, including their flags and usage.
+Flags include parsing types and declared defaults. Only static defaults are
+shown; dynamic and unclassified defaults have no value. Parser defaults do not
+describe later environment or account fallbacks. Unknown metadata is incomplete.
 Deprecated, removed, and compatibility aliases are omitted from listings;
 an exact alias path can still be inspected with --family.
 An unknown write intent or human interaction marks an unclassified command.
@@ -123,9 +127,10 @@ func appendCommandEntries(entries *[]commandEntry, command *ffcli.Command, path 
 	for _, option := range shared.VisibleHelpFlags(command.FlagSet) {
 		boolean, isBoolean := option.Value.(interface{ IsBoolFlag() bool })
 		entry.Flags = append(entry.Flags, commandFlag{
-			Name:        "--" + option.Name,
-			TakesValue:  !isBoolean || !boolean.IsBoolFlag(),
-			Description: option.Usage,
+			Name:         "--" + option.Name,
+			TakesValue:   !isBoolean || !boolean.IsBoolFlag(),
+			Description:  option.Usage,
+			FlagMetadata: shared.DescribeFlagValue(option.Value),
 		})
 	}
 	*entries = append(*entries, entry)
