@@ -91,6 +91,9 @@ func loadRunState(path string) (_ *persistedRunState, returnErr error) {
 	if err := json.Unmarshal(data, &state); err != nil {
 		return nil, fmt.Errorf("parse workflow run state: %w", err)
 	}
+	if previous, key, ambiguous := ambiguousEnvironmentKeys(state.Params); ambiguous {
+		return nil, markError(fmt.Errorf("workflow: saved run parameters have ambiguous environment keys %q and %q on Windows", previous, key), ErrResumeRejected)
+	}
 	if state.Steps == nil {
 		state.Steps = map[string]persistedStepState{}
 	}

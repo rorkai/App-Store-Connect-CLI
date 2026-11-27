@@ -26,6 +26,15 @@ previews; importing them where that preview does not exist requires the original
 `asc workflow` lets you compose existing `asc` commands and shell commands into
 repeatable release pipelines once you know which top-level path you want.
 
+On Windows, workflow environment names are case-insensitive: a later workflow or
+step layer overrides an earlier layer even when the spelling uses different case.
+A single `env` or `with` object cannot contain differently cased forms of the same
+name; validation rejects that ambiguity. Ordered parameters and environment-file
+entries retain their last-value precedence. On Unix, differently cased names stay
+separate. Read-only mode still takes precedence over a step's declared environment.
+Saved runs with case-ambiguous parameter names cannot resume on Windows; resolve
+the conflicting names and start a new run.
+
 ## Verified local Xcode -> TestFlight workflow
 
 This pattern was validated against a real app using:

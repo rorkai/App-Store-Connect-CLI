@@ -14,6 +14,7 @@ import (
 type ValidationCode string
 
 const (
+	ErrAmbiguousEnv                ValidationCode = "ambiguous_env"
 	ErrNoWorkflows                 ValidationCode = "no_workflows"
 	ErrInvalidWorkflowName         ValidationCode = "invalid_workflow_name"
 	ErrEmptySteps                  ValidationCode = "empty_steps"
@@ -68,6 +69,12 @@ var (
 // Returns all validation errors found (not just the first).
 func Validate(def *Definition) []*ValidationError {
 	var errs []*ValidationError
+	validateEnv := func(env map[string]string, path, workflow string, step int) {
+		if previous, key, ambiguous := ambiguousEnvironmentKeys(env); ambiguous {
+			errs = append(errs, &ValidationError{Code: ErrAmbiguousEnv, Path: path, Workflow: workflow, Step: step, Message: fmt.Sprintf("%s has ambiguous environment keys %q and %q on Windows", path, previous, key)})
+		}
+	}
+	validateEnv(def.Env, "env", "", 0)
 
 	if len(def.Workflows) == 0 {
 		errs = append(errs, &ValidationError{
@@ -94,6 +101,7 @@ func Validate(def *Definition) []*ValidationError {
 
 	for _, name := range names {
 		wf := def.Workflows[name]
+		validateEnv(wf.Env, workflowValidationPath(name)+".env", name, 0)
 		if len(wf.Steps) == 0 {
 			errs = append(errs, &ValidationError{
 				Code:     ErrEmptySteps,
@@ -106,6 +114,8 @@ func Validate(def *Definition) []*ValidationError {
 		for i, step := range wf.Steps {
 			idx := i + 1
 			stepPath := fmt.Sprintf("%s.steps[%d]", workflowValidationPath(name), i)
+			validateEnv(step.Env, stepPath+".env", name, idx)
+			validateEnv(step.With, stepPath+".with", name, idx)
 			hasRun := strings.TrimSpace(step.Run) != ""
 			hasWorkflow := strings.TrimSpace(step.Workflow) != ""
 			hasRawRun := step.Run != ""
@@ -452,4 +462,16 @@ func detectCycles(def *Definition) *ValidationError {
 		}
 	}
 	return nil
+}
+
+func ambiguousEnvironmentKeys(env map[string]string) (string, string, bool) {
+	seen := make(map[string]string, len(env))
+	for _, key := range slices.Sorted(maps.Keys(env)) {
+		identity := environmentKey(key)
+		if previous, exists := seen[identity]; exists {
+			return previous, key, true
+		}
+		seen[identity] = key
+	}
+	return "", "", false
 }
