@@ -298,7 +298,7 @@ func registerAllOutputRenderers() {
 	registerSingleToListRowsAdapter[BuildUploadResponse, BuildUploadsResponse](buildUploadsRows)
 	registerRows(buildsNextBuildNumberRows)
 	registerRows(dsymDownloadResultRows)
-	registerRows(artifactIPAInfoRows)
+	registerDirect(artifactIPAInfoTables)
 	registerRows(artifactPKGInfoRows)
 	registerDirect(developerIDCheckTables)
 	registerRows(buildWaitResultRows)

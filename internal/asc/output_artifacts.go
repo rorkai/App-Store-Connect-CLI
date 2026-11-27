@@ -1,10 +1,15 @@
 package asc
 
-import "strings"
+import (
+	"encoding/json"
+	"strconv"
+	"strings"
+)
 
 // ArtifactIPAInfo is the offline IPA inspection receipt.
 type ArtifactIPAInfo struct {
-	SignatureVerification string `json:"signatureVerification"`
+	PrivacyManifests      *ArtifactPrivacyManifestInventory `json:"privacyManifests,omitempty"`
+	SignatureVerification string                            `json:"signatureVerification"`
 	// SignatureVerificationDetail explains a requested verification result.
 	SignatureVerificationDetail string                  `json:"signatureVerificationDetail,omitempty"`
 	Path                        string                  `json:"path"`
@@ -154,4 +159,42 @@ func artifactSignerLabel(commonName, signature string) string {
 		return commonName
 	}
 	return "(" + signature + ")"
+}
+
+// ArtifactPrivacyManifestInventory reports the packaged files, not compliance.
+type ArtifactPrivacyManifestInventory struct {
+	Complete  bool                      `json:"complete"`
+	Manifests []ArtifactPrivacyManifest `json:"manifests"`
+}
+
+type ArtifactPrivacyManifest struct {
+	Path         string         `json:"path"`
+	BundlePath   string         `json:"bundlePath,omitempty"`
+	BundleKind   string         `json:"bundleKind,omitempty"`
+	BundleID     string         `json:"bundleId,omitempty"`
+	Declarations map[string]any `json:"declarations"`
+	Error        string         `json:"error,omitempty"`
+}
+
+func artifactIPAInfoTables(result *ArtifactIPAInfo, render func([]string, [][]string)) error {
+	headers, rows := artifactIPAInfoRows(result)
+	render(headers, rows)
+	if result == nil || result.PrivacyManifests == nil {
+		return nil
+	}
+	inventory := result.PrivacyManifests
+	render([]string{"Privacy Inventory Complete", "Manifests"}, [][]string{{formatBool(inventory.Complete), strconv.Itoa(len(inventory.Manifests))}})
+	if len(inventory.Manifests) == 0 {
+		return nil
+	}
+	rows = nil
+	for _, item := range inventory.Manifests {
+		declarations, err := json.Marshal(item.Declarations)
+		if err != nil {
+			return err
+		}
+		rows = append(rows, []string{item.Path, item.BundlePath, item.BundleKind, item.BundleID, string(declarations), item.Error})
+	}
+	render([]string{"Manifest", "Bundle", "Kind", "Bundle ID", "Declarations", "Error"}, rows)
+	return nil
 }
