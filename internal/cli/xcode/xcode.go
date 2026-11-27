@@ -116,6 +116,7 @@ func newXcodeArchiveCommand(d *shared.Deps) *ffcli.Command {
 	archivePath := fs.String("archive-path", "", "Destination path for the .xcarchive output (required)")
 	clean := fs.Bool("clean", false, "Run clean before archive")
 	noCodeSigning := fs.Bool("no-code-signing", false, "Set CODE_SIGNING_ALLOWED=NO explicitly")
+	sourceProvenance := fs.Bool("source-provenance", false, "Include Git revision and dirty state observed in the --project checkout at build start")
 	overwrite := fs.Bool("overwrite", false, "Replace an existing archive at --archive-path")
 	var xcodebuildFlags shared.MultiStringFlag
 	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass a raw argument through to xcodebuild (repeatable)")
@@ -131,6 +132,11 @@ Provide exactly one of --workspace or --project, plus --scheme and
 --archive-path. When both are omitted, asc uses the only .xcworkspace, or else
 the only .xcodeproj, in the current directory. Signing follows Xcode defaults; --no-code-signing explicitly
 sets CODE_SIGNING_ALLOWED=NO.
+
+--source-provenance requires --project in a Git checkout with a committed HEAD.
+It records that checkout's revision and dirty state observed at build start,
+without source paths. It does not attest to all build inputs or reproducibility;
+workspace and prebuilt inputs cannot supply this observation.
 
 When --derived-data-path is omitted, xcodebuild uses its own default
 DerivedData location. Use --result-bundle-path to write a new .xcresult bundle;
@@ -168,6 +174,9 @@ Examples:
 				fmt.Fprintln(d.IO.ErrOut, "Error: exactly one of --workspace or --project is required")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
+			if *sourceProvenance && strings.TrimSpace(*projectPath) == "" {
+				return d.UsageError("--source-provenance requires --project; a workspace does not identify the producing checkout")
+			}
 			opts := localxcode.ArchiveOptions{
 				WorkspacePath:    osPath(d, strings.TrimSpace(*workspacePath)),
 				ProjectPath:      osPath(d, strings.TrimSpace(*projectPath)),
@@ -179,6 +188,7 @@ Examples:
 				ArchivePath:      osPath(d, strings.TrimSpace(*archivePath)),
 				Clean:            *clean,
 				NoCodeSigning:    *noCodeSigning,
+				SourceProvenance: *sourceProvenance,
 				Overwrite:        *overwrite,
 				XcodebuildArgs:   []string(xcodebuildFlags),
 				LogWriter:        d.IO.ChildStderr(),
@@ -461,6 +471,7 @@ Examples:
 				BundleID:          result.BundleID,
 				Version:           result.Version,
 				BuildNumber:       result.BuildNumber,
+				DisplayName:       result.DisplayName,
 				ExportDir:         result.ExportDir,
 				ExportFiles:       result.ExportFiles,
 			}
@@ -734,6 +745,12 @@ func archiveResultRows(result *localxcode.ArchiveResult) [][]string {
 	if strings.TrimSpace(result.Configuration) != "" {
 		rows = append(rows, []string{"configuration", result.Configuration})
 	}
+	if result.DisplayName != "" {
+		rows = append(rows, []string{"display_name", result.DisplayName})
+	}
+	if result.ProjectCheckout != nil {
+		rows = append(rows, []string{"project_checkout_revision", result.ProjectCheckout.Revision}, []string{"project_checkout_dirty", fmt.Sprint(result.ProjectCheckout.Dirty)}, []string{"project_checkout_observed_at", result.ProjectCheckout.ObservedAt})
+	}
 	return rows
 }
 
@@ -745,6 +762,7 @@ type xcodeExportCommandResult struct {
 	BundleID          string `json:"bundle_id,omitempty"`
 	Version           string `json:"version,omitempty"`
 	BuildNumber       string `json:"build_number,omitempty"`
+	DisplayName       string `json:"displayName,omitempty"`
 	BuildID           string `json:"build_id,omitempty"`
 	ProcessingState   string `json:"processing_state,omitempty"`
 
@@ -775,6 +793,9 @@ func exportResultRows(result xcodeExportCommandResult) [][]string {
 	)
 	if strings.TrimSpace(result.BuildID) != "" {
 		rows = append(rows, []string{"build_id", result.BuildID})
+	}
+	if result.DisplayName != "" {
+		rows = append(rows, []string{"display_name", result.DisplayName})
 	}
 	if strings.TrimSpace(result.ProcessingState) != "" {
 		rows = append(rows, []string{"processing_state", result.ProcessingState})
