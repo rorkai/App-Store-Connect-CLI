@@ -436,21 +436,24 @@ func TestAppStoreVersionCreateConflictDiagnosticsNameDuplicateVersion(t *testing
 	for _, tt := range []struct {
 		name    string
 		explain func(context.Context, *asc.Client, string, string, string, error) error
+		state   string
 		reuse   string
 	}{
-		{name: "versions create", explain: WithAppStoreVersionCreateConflictDiagnostics, reuse: "Reuse it with --if-exists skip or --if-exists update"},
-		{name: "rerun", explain: WithAppStoreVersionCreateConflictRerunDiagnostics, reuse: "Run the command again to use it"},
+		{name: "versions create", explain: WithAppStoreVersionCreateConflictDiagnostics, state: "PREPARE_FOR_SUBMISSION", reuse: "Reuse it with --if-exists skip or --if-exists update"},
+		{name: "rerun", explain: WithAppStoreVersionCreateConflictRerunDiagnostics, state: "PREPARE_FOR_SUBMISSION", reuse: "Run the command again to use it"},
+		{name: "versions create live", explain: WithAppStoreVersionCreateConflictDiagnostics, state: "READY_FOR_DISTRIBUTION", reuse: "Reuse it with --if-exists skip or --if-exists update"},
+		{name: "rerun live", explain: WithAppStoreVersionCreateConflictRerunDiagnostics, state: "READY_FOR_DISTRIBUTION", reuse: "Choose a new version number"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			client, _ := newDiagnosticTestClient(t, func(req diagnosticRequest) (*http.Response, error) {
-				return diagnosticJSONResponse(http.StatusOK, diagnosticVersionsList)
+				return diagnosticJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-120","attributes":{"versionString":"1.2.0","platform":"IOS","appVersionState":"`+tt.state+`","createdDate":"2026-08-01T10:00:00-07:00"}}]}`)
 			})
 			original := asc.ParseErrorWithStatus([]byte(diagnosticVersionsDuplicate409), http.StatusConflict)
 
 			err := tt.explain(context.Background(), client, "app-1", "1.2.0", "IOS", original)
 			want := strings.Join([]string{
 				original.Error(),
-				`Version "1.2.0" already exists on IOS as ver-120 (PREPARE_FOR_SUBMISSION). ` + tt.reuse + `, or inspect it: asc versions view --version-id "ver-120"`,
+				`Version "1.2.0" already exists on IOS as ver-120 (` + tt.state + `). ` + tt.reuse + `, or inspect it: asc versions view --version-id "ver-120"`,
 			}, "\n")
 			if err.Error() != want {
 				t.Fatalf("error =\n%s\nwant\n%s", err.Error(), want)
