@@ -207,6 +207,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `version` - Print version information and exit.
 - `completion` - Print shell completion scripts.
 - `schema` - Inspect App Store Connect API endpoint schemas at runtime.
+- `commands` - Discover registered command families and their inputs.
 - `api` - Send an authenticated raw request to the App Store Connect API.
 - `snitch` - Report CLI friction as a GitHub issue.
 - `telemetry` - Manage CLI telemetry settings.
@@ -215,6 +216,7 @@ Use `asc <command> --help` for subcommands and flags.
 
 - `--api-debug` - HTTP request/response logging (redacted)
 - `--debug` - Debug logging
+- `--error-format` - Emit structured errors on stderr. Set before the command name.
 - `--no-telemetry` - Send no telemetry for this invocation (see `DO_NOT_TRACK`)
 - `--profile` - Use a named authentication profile (accepted before or after the command name)
 - `--read-only` - Refuse every mutating request before it is sent (see `ASC_READ_ONLY`)

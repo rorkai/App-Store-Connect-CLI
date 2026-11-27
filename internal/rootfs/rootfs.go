@@ -689,6 +689,16 @@ func openAnchoredFile(root Root, relative string, err error) (*os.File, error) {
 	return file, nil
 }
 
+// CreateNewFileAtomic publishes a new regular file through the same rooted
+// traversal as OpenFile. It fails if the destination exists.
+func CreateNewFileAtomic(path string, data []byte, perm os.FileMode) error {
+	root, relative, err := trustedAnchorFor(path)
+	if err != nil {
+		return err
+	}
+	return errors.Join(root.CreateNewFileAtomic(relative, data, perm), root.Close())
+}
+
 // CheckContainedPath verifies an operator-supplied path through the same
 // rooted traversal used by OpenFile without opening the target. It rejects a
 // symlink in any component below the selected trusted anchor.

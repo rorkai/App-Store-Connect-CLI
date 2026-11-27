@@ -17,7 +17,6 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 type manifest struct {
@@ -62,9 +61,12 @@ func newCommand(d *shared.Deps, mode string) *ffcli.Command {
 	app := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	file := fs.String("file", "", "Catalog JSON file")
 	confirm := new(bool)
+	planFlag, planHelp := "out", "Save the exact reviewed plan to a new file"
 	if mode == "apply" {
 		confirm = fs.Bool("confirm", false, "Confirm removal of existing availability or replacement of offers")
+		planFlag, planHelp = "plan", "Apply only the exact plan in this file"
 	}
+	planPath := fs.String(planFlag, "", planHelp)
 	out := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: mode, ShortUsage: "asc catalog " + mode + " --app APP_ID --file catalog.json [flags]",
@@ -78,6 +80,19 @@ Groups match by explicit id or unique referenceName; use id to rename a group.
 Writes run in order: groups, products, localizations, prices, offers, availability.
 Re-running apply reads Apple again and skips matching items. On failure, apply
 prints completed, failed, and pending receipts and stops. It does not roll back.
+
+Use plan --out FILE to save a private plan, then apply --plan FILE with the same
+numeric app ID and manifest file. Apply checks the exact manifest bytes, current
+remote state, and intended operations before sending writes. Review a fresh plan
+if the input or remote state has changed. If a write outcome is unknown, use a
+new plan to read current state before trying the remaining work. Apple handles
+each write separately after preflight.
+Saved plans require all operation targets to be resolved. If a price, offer, or
+localization depends on a new resource, create the parent in a separate plan.
+
+Examples:
+  asc catalog plan --app APP_ID --file catalog.json --out catalog-plan.json
+  asc catalog apply --app APP_ID --file catalog.json --plan catalog-plan.json
 
 Example catalog.json:
   {
@@ -124,19 +139,63 @@ No product or group is deleted.`,
 			if strings.TrimSpace(*file) == "" {
 				return d.UsageError("--file is required")
 			}
+			useSavedPlan := false
+			fs.Visit(func(f *flag.Flag) {
+				useSavedPlan = useSavedPlan || f.Name == planFlag
+			})
+			if useSavedPlan {
+				if strings.TrimSpace(*planPath) == "" {
+					return d.UsageError("--" + planFlag + " requires a file path")
+				}
+				if !shared.IsNumericAppID(appID) {
+					return d.UsageError("saved catalog plans require a numeric app ID")
+				}
+			}
 			today := shared.PricingDate(d.Now()).Format(time.DateOnly)
-			m, err := readManifest(*file, today)
+			m, manifestHash, err := readManifest(*file, today)
 			if err != nil {
 				return d.UsageError("catalog: " + err.Error())
+			}
+			var approved []byte
+			if useSavedPlan && mode == "apply" {
+				saved, canonical, err := readSavedCatalogPlan(*planPath)
+				if err != nil {
+					return d.UsageError("catalog: " + err.Error())
+				}
+				if saved.AppID != appID || saved.ManifestSHA256 != manifestHash {
+					return d.UsageError("catalog plan does not match the selected app or manifest; generate and review a new plan")
+				}
+				approved = canonical
 			}
 			client, err := d.Client()
 			if err != nil {
 				return err
 			}
 			ctx = asc.WithNoRedirectReads(ctx)
-			ops, err := plan(ctx, client, appID, m, today)
+			planningCtx := ctx
+			var remote catalogEvidence
+			if useSavedPlan {
+				remote = make(catalogEvidence)
+				planningCtx = context.WithValue(ctx, catalogEvidenceKey{}, remote)
+			}
+			ops, err := plan(planningCtx, client, appID, m, today)
 			if err != nil {
 				return fmt.Errorf("catalog preflight: %w", err)
+			}
+			result := &asc.CatalogResult{AppID: appID, Status: "planned", Items: make([]asc.CatalogItem, len(ops))}
+			if useSavedPlan {
+				canonical, err := buildSavedCatalogPlan(appID, manifestHash, remote, ops)
+				if err != nil {
+					return d.UsageError("catalog: " + err.Error())
+				}
+				if mode == "apply" {
+					if !bytes.Equal(canonical, approved) {
+						return d.UsageError("catalog plan drifted; generate and review a new plan before applying")
+					}
+				} else if err := writeSavedCatalogPlan(*planPath, canonical); err != nil {
+					return fmt.Errorf("save catalog plan: %w", err)
+				}
+				result.PlanSHA256 = catalogDigest(canonical)
 			}
 			if mode == "apply" && !*confirm {
 				for _, op := range ops {
@@ -145,7 +204,6 @@ No product or group is deleted.`,
 					}
 				}
 			}
-			result := &asc.CatalogResult{AppID: appID, Status: "planned", Items: make([]asc.CatalogItem, len(ops))}
 			for i := range ops {
 				result.Items[i] = ops[i].item
 			}
@@ -166,6 +224,10 @@ No product or group is deleted.`,
 					if writeErr != nil {
 						item.Status = "failed"
 						item.Error = writeErr.Error()
+						if useSavedPlan {
+							item.Status, item.Error = savedCatalogFailure(writeErr)
+							result.Recovery = "Read the current catalog with a new plan, review the remaining operations, and apply that plan."
+						}
 						result.Status = "partial"
 						if err := d.PrintOutput(result, *out.Output, *out.Pretty); err != nil {
 							return errors.Join(writeErr, err)
@@ -181,20 +243,17 @@ No product or group is deleted.`,
 	}
 }
 
-func readManifest(path, today string) (manifest, error) {
+func readManifest(path, today string) (manifest, string, error) {
+	data, err := readCatalogFile(path, "manifest", 4<<20)
+	if err != nil {
+		return manifest{}, "", err
+	}
+	parsed, err := decodeManifest(data, today)
+	return parsed, catalogDigest(data), err
+}
+
+func decodeManifest(data []byte, today string) (manifest, error) {
 	var m manifest
-	f, err := rootfs.OpenFile(path)
-	if err != nil {
-		return m, err
-	}
-	defer f.Close()
-	data, err := io.ReadAll(io.LimitReader(f, (4<<20)+1))
-	if err != nil {
-		return m, err
-	}
-	if len(data) > 4<<20 {
-		return m, fmt.Errorf("manifest exceeds 4 MiB")
-	}
 	if err := validateJSON(json.NewDecoder(bytes.NewReader(data)), reflect.TypeFor[manifest]()); err != nil {
 		return m, err
 	}

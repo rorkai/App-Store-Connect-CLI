@@ -77,7 +77,7 @@ Examples:
 				Clean:            *clean,
 				NoCodeSigning:    *noCodeSigning,
 				XcodebuildArgs:   []string(xcodebuildFlags),
-				LogWriter:        d.IO.ErrOut,
+				LogWriter:        d.IO.ChildStderr(),
 			}
 			if err := localxcode.ValidateBuildOptions(opts); err != nil {
 				return d.UsageError(err.Error())

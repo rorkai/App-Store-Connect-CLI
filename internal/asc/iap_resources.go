@@ -34,6 +34,8 @@ type InAppPurchaseAppStoreReviewScreenshotCreateAttributes struct {
 // In-app purchase availability.
 type InAppPurchaseAvailabilityAttributes struct {
 	AvailableInNewTerritories bool `json:"availableInNewTerritories"`
+
+	futureTerritoriesKnown bool
 }
 
 // In-app purchase content.

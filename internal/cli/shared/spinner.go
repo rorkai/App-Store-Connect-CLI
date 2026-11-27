@@ -10,6 +10,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/diagnosticoutput"
 )
 
 const spinnerDisabledEnvVar = "ASC_SPINNER_DISABLED"
@@ -85,7 +87,7 @@ func withSpinnerTo(w io.Writer, enabled func() bool, label string, fn func() err
 // This avoids spinner “flicker” for fast operations while still providing feedback
 // for slower operations (e.g., keychain prompts).
 func WithSpinnerDelayed(label string, delay time.Duration, fn func() error) (err error) {
-	return withSpinnerDelayedTo(os.Stderr, SpinnerEnabled, time.After, label, delay, fn)
+	return withSpinnerDelayedTo(diagnosticoutput.Writer(os.Stderr), SpinnerEnabled, time.After, label, delay, fn)
 }
 
 // WithSpinnerDelayed is WithSpinnerDelayed with the spinner on d's stderr,

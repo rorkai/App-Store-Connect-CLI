@@ -28,6 +28,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/diagnosticoutput"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
@@ -1148,7 +1149,7 @@ func checkMixedCredentialSourcesForKeyType(sources credentialSource, keyType str
 		if strictAuthEnabled() {
 			return unusableCredentialsError(fmt.Errorf("mixed authentication sources detected:\n  Key ID: %s\n  Private Key: %s", keyIDSource, keyMaterialSource), DiagnosticConflictingInput)
 		}
-		fmt.Fprint(os.Stderr, message)
+		fmt.Fprint(diagnosticoutput.Writer(os.Stderr), message)
 		return nil
 	}
 
@@ -1165,7 +1166,7 @@ func checkMixedCredentialSourcesForKeyType(sources credentialSource, keyType str
 	if strictAuthEnabled() {
 		return unusableCredentialsError(fmt.Errorf("mixed authentication sources detected:\n  Key ID: %s\n  Issuer ID: %s\n  Private Key: %s", keyIDSource, issuerSource, keyMaterialSource), DiagnosticConflictingInput)
 	}
-	fmt.Fprint(os.Stderr, message)
+	fmt.Fprint(diagnosticoutput.Writer(os.Stderr), message)
 	return nil
 }
 
@@ -1191,7 +1192,7 @@ func checkIgnoredEnvCredentialIDs(storedKeyID, storedIssuerID, storedSource stri
 	if strictAuthEnabled() {
 		return unusableCredentialsError(fmt.Errorf("mixed authentication sources detected: %s ignored because the environment credentials are incomplete; using %s credentials", names, storedSource), DiagnosticConflictingInput)
 	}
-	fmt.Fprintf(os.Stderr, "Warning: %s ignored because the environment credentials are incomplete; using %s credentials\n", names, storedSource)
+	fmt.Fprintf(diagnosticoutput.Writer(os.Stderr), "Warning: %s ignored because the environment credentials are incomplete; using %s credentials\n", names, storedSource)
 	return nil
 }
 
@@ -1346,7 +1347,7 @@ func warnInvalidStrictAuthValueOnce(value string) {
 	strictAuthWarnMu.Unlock()
 
 	fmt.Fprintf(
-		os.Stderr,
+		diagnosticoutput.Writer(os.Stderr),
 		"Warning: invalid %s value %q (expected true/false, 1/0, yes/no, y/n, or on/off); strict auth disabled\n",
 		strictAuthEnvVar,
 		value,

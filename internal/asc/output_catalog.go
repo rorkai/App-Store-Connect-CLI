@@ -14,9 +14,11 @@ type CatalogItem struct {
 }
 
 type CatalogResult struct {
-	AppID  string        `json:"appId"`
-	Status string        `json:"status"`
-	Items  []CatalogItem `json:"items"`
+	AppID      string        `json:"appId"`
+	Status     string        `json:"status"`
+	Items      []CatalogItem `json:"items"`
+	PlanSHA256 string        `json:"planSha256,omitempty"`
+	Recovery   string        `json:"recovery,omitempty"`
 }
 
 func catalogResultRows(result *CatalogResult) ([]string, [][]string) {

@@ -8,6 +8,8 @@ import (
 	"net"
 	"os"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/diagnosticoutput"
 )
 
 // DefaultMaxConsecutivePollFailures bounds how many consecutive transient
@@ -201,7 +203,7 @@ func isTemporaryNetError(err net.Error) bool {
 
 func logToleratedPollFailureTo(stderr io.Writer, err error, failures, max int) {
 	if stderr == nil {
-		stderr = os.Stderr
+		stderr = diagnosticoutput.Writer(os.Stderr)
 	}
 	fmt.Fprintf(
 		stderr,

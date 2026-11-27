@@ -32,6 +32,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleauth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/diagnosticoutput"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
 )
@@ -89,7 +90,7 @@ var webTLSRootBundlePaths = []string{
 	"/usr/local/etc/openssl@3/cert.pem",
 }
 
-var webDebugLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+var webDebugLogger = slog.New(slog.NewTextHandler(diagnosticoutput.Writer(os.Stderr), &slog.HandlerOptions{
 	Level: slog.LevelInfo,
 	ReplaceAttr: func(_ []string, attr slog.Attr) slog.Attr {
 		if attr.Key == slog.TimeKey {

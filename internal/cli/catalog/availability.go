@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
@@ -79,7 +80,18 @@ func collect[T any](ctx context.Context, collection string, fetch func(context.C
 	if len(seen) < expectedTotal {
 		return nil, fmt.Errorf("incomplete collection %s: received %d of %d resources", collection, len(seen), expectedTotal)
 	}
-	return all.(*asc.Response[T]).Data, nil
+	rows := all.(*asc.Response[T]).Data
+	if ctx.Value(catalogEvidenceKey{}) != nil {
+		snapshot := slices.Clone(rows)
+		slices.SortFunc(snapshot, func(a, b asc.Resource[T]) int { return strings.Compare(a.ID, b.ID) })
+		for i := range snapshot {
+			snapshot[i].Links = nil
+		}
+		if err := recordCatalogEvidence(ctx, collection, snapshot); err != nil {
+			return nil, err
+		}
+	}
+	return rows, nil
 }
 
 func collectionContinuation(next, collection string) (string, error) {
@@ -117,7 +129,7 @@ type availabilitySnapshot struct {
 	future      bool
 }
 
-func readAvailability(ctx context.Context, c *asc.Client, kind, id string) (availabilitySnapshot, error) {
+func readAvailability(ctx context.Context, c *asc.Client, kind, id string, requireFutureDecision bool) (availabilitySnapshot, error) {
 	var snapshot availabilitySnapshot
 	if id == "" {
 		return snapshot, nil
@@ -135,6 +147,9 @@ func readAvailability(ctx context.Context, c *asc.Client, kind, id string) (avai
 		if r.Data.ID == "" || r.Data.Type != "subscriptionAvailabilities" {
 			return snapshot, fmt.Errorf("invalid subscription availability identity")
 		}
+		if requireFutureDecision && !r.Data.Attributes.FutureTerritoriesKnown() {
+			return snapshot, fmt.Errorf("subscription availability omitted availableInNewTerritories")
+		}
 		snapshot.id, snapshot.future = r.Data.ID, r.Data.Attributes.AvailableInNewTerritories
 		existing, err = collect(ctx, "/v1/subscriptionAvailabilities/"+snapshot.id+"/availableTerritories", func(ctx context.Context, next string) (*asc.TerritoriesResponse, error) {
 			return c.GetSubscriptionAvailabilityAvailableTerritories(ctx, snapshot.id, asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](200), asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](next))
@@ -149,6 +164,9 @@ func readAvailability(ctx context.Context, c *asc.Client, kind, id string) (avai
 		}
 		if r.Data.ID == "" || r.Data.Type != "inAppPurchaseAvailabilities" {
 			return snapshot, fmt.Errorf("invalid in-app purchase availability identity")
+		}
+		if requireFutureDecision && !r.Data.Attributes.FutureTerritoriesKnown() {
+			return snapshot, fmt.Errorf("in-app purchase availability omitted availableInNewTerritories")
 		}
 		snapshot.id, snapshot.future = r.Data.ID, r.Data.Attributes.AvailableInNewTerritories
 		existing, err = collect(ctx, "/v1/inAppPurchaseAvailabilities/"+snapshot.id+"/availableTerritories", func(ctx context.Context, next string) (*asc.TerritoriesResponse, error) {
@@ -170,8 +188,15 @@ func readAvailability(ctx context.Context, c *asc.Client, kind, id string) (avai
 
 func planAvailability(ctx context.Context, c *asc.Client, kind, key string, id *string, a *availability) (operation, error) {
 	op := operation{item: asc.CatalogItem{Kind: kind + "Availability", Key: key, Action: "create", Status: "pending", Changes: map[string]any{"territories": a.Territories, "availableInNewTerritories": a.AvailableInNewTerritories}}}
-	planned, err := readAvailability(ctx, c, kind, *id)
+	requireFutureDecision := ctx.Value(catalogEvidenceKey{}) != nil
+	planned, err := readAvailability(ctx, c, kind, *id, requireFutureDecision)
 	if err != nil {
+		return op, err
+	}
+	if err := recordCatalogEvidence(ctx, kind+"/availability/"+*id, struct {
+		ID     string
+		Future bool
+	}{planned.id, planned.future}); err != nil {
 		return op, err
 	}
 	matches := func(snapshot availabilitySnapshot) bool {
@@ -192,7 +217,7 @@ func planAvailability(ctx context.Context, c *asc.Client, kind, key string, id *
 		}
 	}
 	op.write = func(ctx context.Context) (string, error) {
-		actual, err := readAvailability(ctx, c, kind, *id)
+		actual, err := readAvailability(ctx, c, kind, *id, requireFutureDecision)
 		if err != nil {
 			return "", err
 		}

@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/diagnosticoutput"
 )
 
 // ReportedError marks an error whose result the command already reported,
@@ -320,7 +322,7 @@ func IsValidationError(err error) bool {
 // UsageError prints a CLI validation error and returns flag.ErrHelp so callers
 // map the failure to usage exit code semantics.
 func UsageError(message string) error {
-	return usageErrorTo(os.Stderr, message)
+	return usageErrorTo(diagnosticoutput.Writer(os.Stderr), message)
 }
 
 func usageErrorTo(stderr io.Writer, message string) error {
@@ -358,7 +360,7 @@ func MissingRequiredUsageError(parameters ...string) error {
 // "Error: <name> is required" to stderr and returns
 // MissingRequiredUsageError(name).
 func RequiredFlag(name string) error {
-	return requiredFlagTo(os.Stderr, name)
+	return requiredFlagTo(diagnosticoutput.Writer(os.Stderr), name)
 }
 
 func requiredFlagTo(stderr io.Writer, name string) error {

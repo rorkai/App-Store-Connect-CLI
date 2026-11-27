@@ -35,7 +35,7 @@ const rootGettingStartedSamples = `  Sign in with an API key from ` + auth.APIKe
 
   Add --help to any command; replace placeholders like APP_ID with real values.
   Any flag that takes a value accepts @env:NAME or @file:PATH; escape a literal @ as @@.
-  --output and the root --profile, --report, --report-file are read literally.`
+  --output and the root --profile, --report, --report-file, --error-format are read literally.`
 
 // rootLongHelp renders the GETTING STARTED block shown between USAGE and the
 // grouped command listing.
@@ -98,6 +98,7 @@ func newRootCommand(version string, d *shared.Deps, subcommands []*ffcli.Command
 
 	root.FlagSet.BoolVar(&versionRequested, "version", false, "Print version and exit")
 	root.FlagSet.Bool(noTelemetryFlagName, false, "Send no telemetry for this invocation (DO_NOT_TRACK=1 has the same effect)")
+	root.FlagSet.String(errorFormatFlagName, "text", "Error format: text, json (use before the subcommand)")
 	shared.BindRootFlags(root.FlagSet)
 
 	var (

@@ -32,9 +32,10 @@ var indirectionExcludedFlags = map[string]struct{}{
 // reserved: `signing run --profile` is a provisioning-profile path owned by
 // that command, has a single reader, and stays resolvable.
 var indirectionExcludedRootFlags = map[string]struct{}{
-	"profile":     {},
-	"report":      {},
-	"report-file": {},
+	errorFormatFlagName: {},
+	"profile":           {},
+	"report":            {},
+	"report-file":       {},
 }
 
 // isIndirectionExcluded reports whether the named flag on the command

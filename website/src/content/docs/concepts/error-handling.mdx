@@ -123,6 +123,40 @@ The CLI formats these errors with clear indentation and grouping.
 
 ## Error Messages
 
+### Structured errors for scripts
+
+Place `--error-format json` before the subcommand to receive a versioned JSON
+error on stderr. The process exit code and the command's stdout format follow
+their usual contracts. A command that reports partial changes can still return
+its receipt on stdout.
+
+```bash
+asc --error-format json apps list --output json > apps.json 2> error.json
+```
+
+```json
+{
+  "schema_version": 1,
+  "error": {
+    "type": "rate_limited",
+    "exit_code": 39,
+    "message": "The provider rate-limited the request.",
+    "hint": "Wait for the reported delay if present and verify the outcome of any write before repeating it.",
+    "http_status": 429,
+    "retry_after_seconds": 30
+  }
+}
+```
+
+`http_status` and `retry_after_seconds` are optional. A retry delay describes
+when the provider may accept another request. Check the current state before
+repeating a write whose outcome is unknown. The envelope uses safe messages
+and omits argument values and raw provider error text. JSON mode suppresses
+ASC's text warnings and debug logs. First-run telemetry disclosure, interactive
+prompts, and external process logs can still appear before the final JSON
+record on stderr. For unattended scripts that need only the JSON record,
+use `--no-telemetry` and a command that requires no prompt or child process.
+
 All error messages go to **stderr**, not stdout:
 
 ```bash

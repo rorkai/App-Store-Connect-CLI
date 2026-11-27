@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/diagnosticoutput"
 )
 
 // includedResource names the sparse-field flag of one resource type and the
@@ -140,7 +142,7 @@ func BindIncludedFieldFlagsExcept(fs *flag.FlagSet, relationships map[string]str
 // Resolve validates the provided flags against --next and the resolved
 // includes, and returns the requested fields per resource type.
 func (f *IncludedFieldFlags) Resolve(command, next string, includes []string) (asc.IncludedFields, error) {
-	return f.resolveTo(os.Stderr, command, next, includes)
+	return f.resolveTo(diagnosticoutput.Writer(os.Stderr), command, next, includes)
 }
 
 // ResolveWith is Resolve with the "Error:" line written to d's stderr.

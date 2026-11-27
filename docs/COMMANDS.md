@@ -25,6 +25,7 @@ asc <subcommand> [flags]
 
 - `--api-debug` - Enable HTTP debug logging to stderr (redacts sensitive values)
 - `--debug` - Enable debug logging to stderr
+- `--error-format` - Error format: text, json (use before the subcommand) (default: text)
 - `--no-telemetry` - Send no telemetry for this invocation (DO_NOT_TRACK=1 has the same effect) (default: false)
 - `--profile` - Use named authentication profile (accepted before or after the command name)
 - `--read-only` - Refuse every mutating request (POST/PATCH/PUT/DELETE) before it is sent; ASC_READ_ONLY=1 has the same effect (default: false)
@@ -148,6 +149,7 @@ asc <subcommand> [flags]
 - `diff` - Generate deterministic non-mutating diff plans.
 - `capabilities` - Show CLI, API, web-only, and public-API-limited capability coverage.
 - `search` - Search asc commands and examples for agent-oriented command discovery.
+- `commands` - Discover registered command families and their inputs.
 - `snitch` - Report CLI friction as a GitHub issue.
 - `version` - Print version information and exit.
 - `completion` - Print shell completion scripts.

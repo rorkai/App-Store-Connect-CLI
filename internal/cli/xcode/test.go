@@ -167,7 +167,7 @@ Examples:
 				NoCodeSigning:    *noCodeSigning,
 				CodeCoverage:     *codeCoverage,
 				XcodebuildArgs:   []string(xcodebuildFlags),
-				LogWriter:        d.IO.ErrOut,
+				LogWriter:        d.IO.ChildStderr(),
 
 				RetryTestsOnFailure:        *retryTestsOnFailure,
 				TestIterations:             *testIterations,

@@ -189,6 +189,7 @@ func planPricing(ctx context.Context, c *asc.Client, kind, key string, id *strin
 			return op, fmt.Errorf("cannot replace %s pricing for %s: %s", kind, key, comparison.replacementBlocked)
 		}
 	}
+	evidence := ctx.Value(catalogEvidenceKey{})
 	op.write = func(ctx context.Context) (string, error) {
 		if points == nil {
 			var err error
@@ -197,7 +198,11 @@ func planPricing(ctx context.Context, c *asc.Client, kind, key string, id *strin
 				return "", err
 			}
 		}
-		comparison, err := comparePricing(ctx, c, kind, *id, p, points, today)
+		readCtx := ctx
+		if evidence != nil {
+			readCtx = context.WithValue(ctx, catalogEvidenceKey{}, evidence)
+		}
+		comparison, err := comparePricing(readCtx, c, kind, *id, p, points, today)
 		if err != nil {
 			return "", err
 		}
@@ -339,9 +344,10 @@ func comparePricing(ctx context.Context, c *asc.Client, kind, id string, p *pric
 			}
 		}
 	} else {
+		scheduleKey := "inAppPurchase/priceSchedule/" + id
 		schedule, err := c.GetInAppPurchasePriceSchedule(ctx, id, asc.WithIAPPriceScheduleInclude([]string{"baseTerritory"}))
 		if asc.IsMissingResourceOfType(err, "inAppPurchasePriceSchedules") {
-			return result, nil
+			return result, recordCatalogEvidence(ctx, scheduleKey, nil)
 		}
 		if err != nil {
 			return result, err
@@ -352,6 +358,12 @@ func comparePricing(ctx context.Context, c *asc.Client, kind, id string, p *pric
 		}
 		base, err := relationshipID(schedule.Data.Relationships, "baseTerritory")
 		if err != nil {
+			return result, err
+		}
+		if err := recordCatalogEvidence(ctx, scheduleKey, struct {
+			ID            string
+			BaseTerritory string
+		}{schedule.Data.ID, base}); err != nil {
 			return result, err
 		}
 		baseMatches = base == p.BaseTerritory

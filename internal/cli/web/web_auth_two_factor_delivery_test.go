@@ -62,7 +62,6 @@ func readStubTwoFactorCode(context.Context, string) (string, error) {
 // Regression: key errors retain their stage and diagnostic, and automatic
 // sign-in cannot consume an environment PIN even when Apple requires a key.
 func TestSecurityKeyLoginPolicyAndFailures(t *testing.T) {
-	d, _, _ := newWebTestDeps()
 	for _, tc := range []struct {
 		name                  string
 		explicit              bool
@@ -87,6 +86,8 @@ func TestSecurityKeyLoginPolicyAndFailures(t *testing.T) {
 		{name: "device failure", explicit: true, submitError: errors.New("device disconnected"), wantLogin: 1, wantSubmit: 1, wantError: "2fa verification failed: device disconnected"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			d, _, stderr := newWebTestDeps()
+			d.IO = d.IO.WithQuietDiagnostics()
 			t.Setenv("ASC_TIMEOUT", "30s")
 			t.Setenv("ASC_TIMEOUT_SECONDS", "")
 			t.Setenv("ASC_WEB_SECURITY_KEY_PIN", tc.pin)
@@ -114,6 +115,9 @@ func TestSecurityKeyLoginPolicyAndFailures(t *testing.T) {
 			}
 			submitSecurityKeyFn = func(ctx context.Context, _ *webcore.AuthSession, pin string) error {
 				submitCalls++
+				if !strings.Contains(stderr.String(), "Touch your security key") {
+					t.Fatal("expected the security key instruction before waiting for touch")
+				}
 				wantPIN := ""
 				if tc.explicit {
 					wantPIN = tc.pin

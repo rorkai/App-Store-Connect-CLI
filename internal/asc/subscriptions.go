@@ -194,6 +194,8 @@ type SubscriptionPricePointLinkRelationship struct {
 // SubscriptionAvailabilityAttributes describes a subscription availability.
 type SubscriptionAvailabilityAttributes struct {
 	AvailableInNewTerritories bool `json:"availableInNewTerritories"`
+
+	futureTerritoriesKnown bool
 }
 
 // SubscriptionAvailabilityCreateData is the data portion of availability create requests.
