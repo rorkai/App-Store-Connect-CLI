@@ -100,10 +100,10 @@ func TestPublishTestflightBindsCollectionPagesAndResourceTypes(t *testing.T) {
 					}
 					payload = map[string]any{"data": map[string]string{"type": ownerType, "id": ownerID}}
 				case "GET /v1/builds/b1/preReleaseVersion":
-					if !tc.byNumber || tc.wrongApp || tc.wrongBuildNumber {
+					if tc.wrongApp || tc.wrongOwnerType || tc.wrongBuildNumber || (!tc.byNumber && tc.wrongBuild) {
 						t.Error("unexpected prerelease read for an unselected build")
 					}
-					payload = map[string]any{"data": map[string]any{"type": "preReleaseVersions", "id": "pr-1", "attributes": map[string]string{"platform": "IOS"}}}
+					payload = map[string]any{"data": map[string]any{"type": "preReleaseVersions", "id": "pr-1", "attributes": map[string]string{"version": "1.2.3", "platform": "IOS"}}}
 				case "GET /v1/builds/b1":
 					if tc.wrongApp || tc.wrongOwnerType {
 						t.Error("foreign build content was read")
@@ -186,6 +186,8 @@ func TestPublishTestflightReportsLocaleCreationBeforeBoundedNotesFailure(t *test
 			payload = `{"data":{"type":"apps","id":"123"}}`
 		case "GET /v1/builds/b1":
 			payload = `{"data":{"type":"builds","id":"b1","attributes":{"version":"42","processingState":"VALID"}}}`
+		case "GET /v1/builds/b1/preReleaseVersion":
+			payload = `{"data":{"type":"preReleaseVersions","id":"pr-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`
 		case "GET /v1/betaGroups/g1/relationships/builds":
 			payload = `{"data":[]}`
 		case "GET /v1/betaAppLocalizations":
@@ -284,6 +286,8 @@ func TestPublishTestflightBindsReviewMetadataPages(t *testing.T) {
 					payload = `{"data":{"type":"apps","id":"123"}}`
 				case "GET /v1/builds/b1":
 					payload = `{"data":{"type":"builds","id":"b1","attributes":{"version":"42","processingState":"VALID"}}}`
+				case "GET /v1/builds/b1/preReleaseVersion":
+					payload = `{"data":{"type":"preReleaseVersions","id":"pr-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`
 				case "GET /v1/builds/b1/betaAppReviewSubmission":
 					if tc.wrongResource == "submission" {
 						payload = `{"data":{"type":"apps","id":"submission1"}}`
@@ -420,6 +424,8 @@ func TestPublishTestflightScopedReadsDoNotFollowRedirects(t *testing.T) {
 					payload = `{"data":{"type":"apps","id":"123"}}`
 				case "GET /v1/builds/b1":
 					payload = `{"data":{"type":"builds","id":"b1","attributes":{"version":"42","processingState":"VALID"}}}`
+				case "GET /v1/builds/b1/preReleaseVersion":
+					payload = `{"data":{"type":"preReleaseVersions","id":"pr-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`
 				case "GET /v1/betaGroups/g1/relationships/builds":
 					payload = `{"data":[]}`
 				case "GET /v1/builds/b1/betaAppReviewSubmission":
@@ -516,6 +522,9 @@ func TestPublishTestflightKeepsConfiguredBundleProvenance(t *testing.T) {
 				case "GET /v1/builds/b1":
 					scopedReads++
 					payload = `{"data":{"type":"builds","id":"b1","attributes":{"version":"42","processingState":"VALID"}}}`
+				case "GET /v1/builds/b1/preReleaseVersion":
+					scopedReads++
+					payload = `{"data":{"type":"preReleaseVersions","id":"pr-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`
 				case "GET /v1/betaGroups/g1/relationships/builds":
 					scopedReads++
 					payload = `{"data":[]}`
@@ -539,7 +548,7 @@ func TestPublishTestflightKeepsConfiguredBundleProvenance(t *testing.T) {
 			}
 			stdout, stderr, err := runRootWithDeps(t, publishBoundOriginFixtureClient(t, server), args...)
 			if tc.explicit || tc.exactBundle {
-				if err != nil || writes != 1 || scopedReads != 4 {
+				if err != nil || writes != 1 || scopedReads != 5 {
 					t.Fatalf("scoped positive failed: reads=%d writes=%d stdout=%s stderr=%s err=%v", scopedReads, writes, stdout, stderr, err)
 				}
 				return
