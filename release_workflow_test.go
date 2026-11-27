@@ -361,12 +361,12 @@ func TestReleaseWorkflowReusesOneBuildArtifactForEveryPublisher(t *testing.T) {
 		}
 	}
 
-	if got := strings.Count(workflow, "name: candidate-release-${{ needs.prepare.outputs.version }}"); got != 3 {
-		t.Fatalf("release workflow must define two mutually exclusive uploads and one download for the candidate artifact, got %d references", got)
+	if got := strings.Count(workflow, "name: candidate-release-${{ needs.prepare.outputs.version }}"); got != 4 {
+		t.Fatalf("release workflow must define two mutually exclusive uploads and downloads for attestation and publication, got %d references", got)
 	}
-	for _, publisher := range []string{"publish", "homebrew", "winget"} {
-		if got := strings.Count(releaseWorkflowJobBlock(t, workflow, publisher), "actions/download-artifact@"); got != 1 {
-			t.Fatalf("%s must consume one qualified artifact, got %d downloads", publisher, got)
+	for publisher, downloads := range map[string]int{"attest": 1, "publish": 2, "homebrew": 1, "winget": 1} {
+		if got := strings.Count(releaseWorkflowJobBlock(t, workflow, publisher), "actions/download-artifact@"); got != downloads {
+			t.Fatalf("%s must consume its qualified artifacts, want %d downloads, got %d", publisher, downloads, got)
 		}
 	}
 }
@@ -429,8 +429,8 @@ func TestReleaseWorkflowRepairsPackageManagersWithoutRebuildingPublishedRelease(
 		`elif ! grep -Fq "HTTP 404" "$release_error"`,
 		`needs: prepare`,
 		`needs.prepare.outputs.published != 'true'`,
-		"needs:\n      - prepare\n      - build",
-		`needs.prepare.outputs.published == 'true' || needs.build.result == 'success'`,
+		"needs:\n      - prepare\n      - resolve\n      - build\n      - attest",
+		`needs.prepare.outputs.published == 'true' || (needs.build.result == 'success' && needs.attest.result == 'success')`,
 		`if: steps.published_artifact.outputs.reused != 'true' && needs.prepare.outputs.published == 'true'`,
 		`gh release download "${VERSION}" --dir published-release`,
 	} {
@@ -602,7 +602,7 @@ func TestReleaseWorkflowResumesDraftButNeverClobbersPublishedAssets(t *testing.T
 func TestReleaseWorkflowGrantsArtifactReadPermissionToArtifactJobs(t *testing.T) {
 	workflow := readReleaseWorkflow(t)
 
-	for _, job := range []string{"build", "publish", "homebrew", "winget"} {
+	for _, job := range []string{"build", "attest", "publish", "homebrew", "winget"} {
 		if !strings.Contains(releaseWorkflowJobBlock(t, workflow, job), "permissions:\n      actions: read") {
 			t.Errorf("%s job must have actions read permission for artifact access", job)
 		}
@@ -809,6 +809,13 @@ func TestReleaseCandidateAssembler(t *testing.T) {
 	command := exec.Command("python3", "scripts/test_assemble_release_candidate.py")
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("assembler tests: %v\n%s", err, output)
+	}
+}
+
+func TestReleaseProvenance(t *testing.T) {
+	command := exec.Command("python3", "scripts/test_release_provenance.py")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("provenance tests: %v\n%s", err, output)
 	}
 }
 
