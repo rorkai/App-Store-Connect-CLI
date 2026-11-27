@@ -75,6 +75,7 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) (exitCode in
 
 	errorFormat := requestedErrorFormat(d, args)
 	var diagnosticErr error
+	var diagnosticHint string
 	var failureType string
 	if errorFormat == "json" {
 		originalStderr := d.IO.ErrOut
@@ -83,7 +84,7 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) (exitCode in
 		defer func() {
 			restoreDiagnostics()
 			if exitCode != ExitSuccess {
-				writeJSONError(originalStderr, exitCode, failureType, diagnosticErr)
+				writeJSONError(originalStderr, exitCode, failureType, diagnosticErr, diagnosticHint)
 			}
 		}()
 	}
@@ -186,9 +187,13 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) (exitCode in
 		if analysis.unknownFlag && isUnknownFlagParseFailure(parseErr, parseOutput.String()) {
 			commandName := getCommandName(root, args)
 			flagName, _ := flagLookupName(unknownFlagName(analysis))
-			if commandName == "asc api" && flagName == "fields" {
+			switch {
+			case commandName == "asc api" && flagName == "fields":
 				fmt.Fprintln(d.IO.ErrOut, "Error: "+api.SparseFieldsFlagHint)
-			} else {
+			case commandName == "asc metadata init" && flagName == "app":
+				diagnosticHint = "Omit --app to scaffold local metadata. To fetch metadata for an existing app, run asc metadata pull --app APP_ID --dir DIR."
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n%s\nFor help:\n  %s --help\n", unknownFlagError(analysis, commandName), diagnosticHint, commandName)
+			default:
 				printConciseUnknownFlag(d.IO.ErrOut, root, analysis, commandName, args)
 			}
 		} else if strings.HasPrefix(badFlagSyntax, "bad flag syntax:") {
