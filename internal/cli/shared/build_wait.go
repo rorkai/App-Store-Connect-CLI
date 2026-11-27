@@ -470,7 +470,7 @@ func buildUploadRecoveryGuidance(details []asc.StateDetail) string {
 		return "rebuild with a currently supported SDK and toolchain, then upload again"
 	case allStateDetailCodesIn(details, "90771"):
 		return "add BGTaskSchedulerPermittedIdentifiers to Info.plist with every scheduled background task identifier, rebuild, and upload again"
-	case allStateDetailCodesIn(details, "90391", "90713"):
+	case allStateDetailCodesIn(details, "90022", "90023", "90391", "90713"):
 		return "add the required app icons and icon metadata (such as CFBundleIconName or CFBundleIconFiles) to every failing bundle, rebuild, and upload again"
 	default:
 		return ""
