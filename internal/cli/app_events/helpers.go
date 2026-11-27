@@ -132,6 +132,45 @@ func buildAppEventTerritorySchedule(territories []string, publishStart, start, e
 	return schedule
 }
 
+// App Store Connect's limits on an event schedule: an event lasts from 15
+// minutes to 31 days, and is published at most 14 days before it starts.
+const (
+	appEventMinDuration        = 15 * time.Minute
+	appEventMaxDuration        = 31 * 24 * time.Hour
+	appEventMaxPublishLeadTime = 14 * 24 * time.Hour
+)
+
+// validateAppEventScheduleWindow checks normalized RFC3339 schedule values
+// against App Store Connect's schedule limits, so a schedule it would reject
+// fails before any request.
+func validateAppEventScheduleWindow(start, end, publishStart string) error {
+	startTime, err := time.Parse(time.RFC3339, start)
+	if err != nil {
+		return fmt.Errorf("--start must be in RFC3339 format")
+	}
+	endTime, err := time.Parse(time.RFC3339, end)
+	if err != nil {
+		return fmt.Errorf("--end must be in RFC3339 format")
+	}
+	if endTime.Sub(startTime) < appEventMinDuration {
+		return fmt.Errorf("--end must be at least 15 minutes after --start")
+	}
+	if endTime.Sub(startTime) > appEventMaxDuration {
+		return fmt.Errorf("--end must be at most 31 days after --start (latest: %s)", startTime.Add(appEventMaxDuration).Format(time.RFC3339))
+	}
+	if publishStart == "" {
+		return nil
+	}
+	publishTime, err := time.Parse(time.RFC3339, publishStart)
+	if err != nil {
+		return fmt.Errorf("--publish-start must be in RFC3339 format")
+	}
+	if startTime.Sub(publishTime) > appEventMaxPublishLeadTime {
+		return fmt.Errorf("--publish-start must be at most 14 days before --start (earliest: %s)", startTime.Add(-appEventMaxPublishLeadTime).Format(time.RFC3339))
+	}
+	return nil
+}
+
 // appEventSchedule is the schedule given by the event schedule flags.
 // allTerritories means --territories all, which create resolves from the
 // app's availability before it sends the schedule.
@@ -160,6 +199,10 @@ func normalizeAppEventTerritorySchedule(start, end, publishStart, territories st
 	}
 	publishValue, err := normalizeRFC3339(publishStart, "--publish-start", false)
 	if err != nil {
+		return appEventSchedule{}, err
+	}
+
+	if err := validateAppEventScheduleWindow(startValue, endValue, publishValue); err != nil {
 		return appEventSchedule{}, err
 	}
 

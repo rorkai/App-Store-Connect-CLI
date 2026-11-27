@@ -119,7 +119,8 @@ asc app-events create \
   --name "Summer Challenge" \
   --event-type CHALLENGE \
   --start "2026-06-01T00:00:00Z" \
-  --end "2026-06-30T23:59:59Z"
+  --end "2026-06-30T23:59:59Z" \
+  --territories all
 
 # Create high-priority premiere
 asc app-events create \
@@ -128,6 +129,8 @@ asc app-events create \
   --event-type PREMIERE \
   --priority HIGH \
   --purpose ATTRACT_NEW_USERS \
+  --start "2026-08-01T00:00:00Z" \
+  --end "2026-08-15T00:00:00Z" \
   --territories "USA,CAN,GBR"
 
 # Create live event with deep link
@@ -137,6 +140,7 @@ asc app-events create \
   --event-type LIVE_EVENT \
   --start "2026-07-15T18:00:00Z" \
   --end "2026-07-15T21:00:00Z" \
+  --territories all \
   --deep-link "myapp://event/championship" \
   --priority HIGH
 ```
@@ -256,6 +260,12 @@ YYYY-MM-DDTHH:MM:SSZ
 
 * `2026-06-01T00:00:00Z` - June 1, 2026 at midnight UTC
 * `2026-07-15T18:30:00Z` - July 15, 2026 at 6:30 PM UTC
+
+**Schedule limits** (checked before any request):
+
+* An event lasts at least 15 minutes and at most 31 days
+* `--publish-start` is at most 14 days before `--start`
+* `--territories` is required with a schedule
 
 **Converting from Local Time:**
 
@@ -461,7 +471,8 @@ asc app-events create \
   --name "Spring Festival" \
   --event-type NEW_SEASON \
   --start "2026-03-20T00:00:00Z" \
-  --end "2026-04-20T23:59:59Z" \
+  --end "2026-04-19T23:59:59Z" \
+  --territories all \
   --priority HIGH
 
 # Summer Event
@@ -470,7 +481,8 @@ asc app-events create \
   --name "Summer Games" \
   --event-type COMPETITION \
   --start "2026-06-21T00:00:00Z" \
-  --end "2026-07-21T23:59:59Z" \
+  --end "2026-07-20T23:59:59Z" \
+  --territories all \
   --priority HIGH
 
 # Fall Event
@@ -479,7 +491,8 @@ asc app-events create \
   --name "Autumn Challenge" \
   --event-type CHALLENGE \
   --start "2026-09-22T00:00:00Z" \
-  --end "2026-10-22T23:59:59Z" \
+  --end "2026-10-21T23:59:59Z" \
+  --territories all \
   --priority HIGH
 
 # Winter Event
@@ -488,7 +501,8 @@ asc app-events create \
   --name "Winter Wonderland" \
   --event-type SPECIAL_EVENT \
   --start "2026-12-21T00:00:00Z" \
-  --end "2027-01-21T23:59:59Z" \
+  --end "2027-01-20T23:59:59Z" \
+  --territories all \
   --priority HIGH
 ```
 

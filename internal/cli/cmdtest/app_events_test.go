@@ -58,6 +58,26 @@ func TestAppEventsValidationErrors(t *testing.T) {
 			wantErr: "Error: --territories all is supported only by app-events create; pass territory codes such as USA,GBR\n",
 		},
 		{
+			name:    "create event longer than 31 days",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--start", "2026-11-29T17:00:00Z", "--end", "2027-01-03T17:00:00Z", "--territories", "USA"},
+			wantErr: "Error: --end must be at most 31 days after --start (latest: 2026-12-30T17:00:00Z)\n",
+		},
+		{
+			name:    "create event shorter than 15 minutes",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--start", "2026-11-29T17:00:00Z", "--end", "2026-11-29T17:10:00Z", "--territories", "USA"},
+			wantErr: "Error: --end must be at least 15 minutes after --start\n",
+		},
+		{
+			name:    "create publish more than 14 days before start",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--publish-start", "2026-11-01T00:00:00Z", "--start", "2026-11-29T17:00:00Z", "--end", "2026-12-30T17:00:00Z", "--territories", "USA"},
+			wantErr: "Error: --publish-start must be at most 14 days before --start (earliest: 2026-11-15T17:00:00Z)\n",
+		},
+		{
+			name:    "update event longer than 31 days",
+			args:    []string{"app-events", "update", "--event-id", "EVENT_ID", "--start", "2026-11-29T17:00:00Z", "--end", "2027-01-03T17:00:00Z", "--territories", "USA"},
+			wantErr: "Error: --end must be at most 31 days after --start (latest: 2026-12-30T17:00:00Z)\n",
+		},
+		{
 			name:    "update missing event-id",
 			args:    []string{"app-events", "update", "--name", "Launch"},
 			wantErr: "Error: --event-id is required",

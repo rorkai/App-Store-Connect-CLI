@@ -120,7 +120,7 @@ func TestAppEventsCreateAppliesScheduleAfterCreate(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected territory schedule object, got %#v", schedules[0])
 			}
-			if schedule["publishStart"] != "2026-05-15T00:00:00Z" {
+			if schedule["publishStart"] != "2026-05-18T00:00:00Z" {
 				t.Fatalf("expected publishStart to be preserved, got %#v", schedule["publishStart"])
 			}
 			if schedule["eventStart"] != "2026-06-01T00:00:00Z" {
@@ -137,7 +137,7 @@ func TestAppEventsCreateAppliesScheduleAfterCreate(t *testing.T) {
 				t.Fatalf("expected normalized territories [USA CAN], got %#v", territories)
 			}
 
-			return jsonResponse(http.StatusOK, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch","badge":"CHALLENGE","primaryLocale":"en-US","territorySchedules":[{"territories":["USA","CAN"],"publishStart":"2026-05-15T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}]}}}`)
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch","badge":"CHALLENGE","primaryLocale":"en-US","territorySchedules":[{"territories":["USA","CAN"],"publishStart":"2026-05-18T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}]}}}`)
 		default:
 			t.Fatalf("unexpected extra request %d: %s %s", requests, req.Method, req.URL.Path)
 			return nil, nil
@@ -151,7 +151,7 @@ func TestAppEventsCreateAppliesScheduleAfterCreate(t *testing.T) {
 		"--event-type", "CHALLENGE",
 		"--start", "2026-06-01T00:00:00Z",
 		"--end", "2026-06-30T23:59:59Z",
-		"--publish-start", "2026-05-15T00:00:00Z",
+		"--publish-start", "2026-05-18T00:00:00Z",
 		"--territories", "usa, can",
 		"--primary-locale", "en-US",
 	)
@@ -180,7 +180,7 @@ func TestAppEventsCreateAppliesScheduleAfterCreate(t *testing.T) {
 	if schedule.EventEnd != "2026-06-30T23:59:59Z" {
 		t.Fatalf("expected eventEnd to be preserved, got %q", schedule.EventEnd)
 	}
-	if schedule.PublishStart != "2026-05-15T00:00:00Z" {
+	if schedule.PublishStart != "2026-05-18T00:00:00Z" {
 		t.Fatalf("expected publishStart to be preserved, got %q", schedule.PublishStart)
 	}
 	if len(schedule.Territories) != 2 || schedule.Territories[0] != "USA" || schedule.Territories[1] != "CAN" {
@@ -390,28 +390,28 @@ func TestAppEventsCreateSucceedsWhenVerificationShowsScheduleApplied(t *testing.
 		{
 			name:            "exact match",
 			territoriesFlag: "USA",
-			verified:        `{"territories":["USA"],"publishStart":"2026-05-15T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}`,
+			verified:        `{"territories":["USA"],"publishStart":"2026-05-18T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}`,
 			wantStart:       "2026-06-01T00:00:00Z",
 			wantEnd:         "2026-06-30T23:59:59Z",
-			wantPublish:     "2026-05-15T00:00:00Z",
+			wantPublish:     "2026-05-18T00:00:00Z",
 			wantTerritories: []string{"USA"},
 		},
 		{
 			name:            "reordered territories",
 			territoriesFlag: "USA, CAN",
-			verified:        `{"territories":["CAN","USA"],"publishStart":"2026-05-15T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}`,
+			verified:        `{"territories":["CAN","USA"],"publishStart":"2026-05-18T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}`,
 			wantStart:       "2026-06-01T00:00:00Z",
 			wantEnd:         "2026-06-30T23:59:59Z",
-			wantPublish:     "2026-05-15T00:00:00Z",
+			wantPublish:     "2026-05-18T00:00:00Z",
 			wantTerritories: []string{"CAN", "USA"},
 		},
 		{
 			name:            "canonicalized timestamps",
 			territoriesFlag: "USA, CAN",
-			verified:        `{"territories":["USA","CAN"],"publishStart":"2026-05-15T02:00:00+02:00","eventStart":"2026-06-01T02:00:00+02:00","eventEnd":"2026-07-01T01:59:59+02:00"}`,
+			verified:        `{"territories":["USA","CAN"],"publishStart":"2026-05-18T02:00:00+02:00","eventStart":"2026-06-01T02:00:00+02:00","eventEnd":"2026-07-01T01:59:59+02:00"}`,
 			wantStart:       "2026-06-01T02:00:00+02:00",
 			wantEnd:         "2026-07-01T01:59:59+02:00",
-			wantPublish:     "2026-05-15T02:00:00+02:00",
+			wantPublish:     "2026-05-18T02:00:00+02:00",
 			wantTerritories: []string{"USA", "CAN"},
 		},
 	}
@@ -444,7 +444,7 @@ func TestAppEventsCreateSucceedsWhenVerificationShowsScheduleApplied(t *testing.
 				"--event-type", "CHALLENGE",
 				"--start", "2026-06-01T00:00:00Z",
 				"--end", "2026-06-30T23:59:59Z",
-				"--publish-start", "2026-05-15T00:00:00Z",
+				"--publish-start", "2026-05-18T00:00:00Z",
 				"--territories", test.territoriesFlag,
 			)
 			if err != nil {
