@@ -209,6 +209,10 @@ func TestRunPlan_ScreenshotStepsDoNotRelaunchApp(t *testing.T) {
 
 	writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
 set -eu
+if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID-123","state":"Booted","isAvailable":true}]}}'
+  exit 0
+fi
 printf '%s\n' "$*" >> "$XCRUN_LOG"
 `)
 	writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
@@ -283,6 +287,9 @@ func TestRunPlan_ScrollAndSwipeStepsCallAXe(t *testing.T) {
 	skipWindowsUnixExecutableFixtures(t)
 	binDir := t.TempDir()
 	axeLog := filepath.Join(t.TempDir(), "axe.log")
+	writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID-123","state":"Booted","isAvailable":true}]}}'
+`)
 	writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
 set -eu
 if [ "$1" = "--version" ]; then printf '2.0.0\n'; exit 0; fi
@@ -342,6 +349,10 @@ func TestRunPlan_TerminatesOnlyTheInitialMatrixLaunch(t *testing.T) {
 	xcrunLog := filepath.Join(t.TempDir(), "xcrun.log")
 	writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
 set -eu
+if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID-123","state":"Booted","isAvailable":true}]}}'
+  exit 0
+fi
 printf '%s\n' "$*" >> "$XCRUN_LOG"
 `)
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -375,12 +386,36 @@ printf '%s\n' "$*" >> "$XCRUN_LOG"
 	}
 }
 
-func TestRunPlanResolvesBootedSimulatorWhenUDIDOmitted(t *testing.T) {
+func TestRunPlanResolvesSimulatorBeforeDeviceActions(t *testing.T) {
 	tests := []struct {
 		name    string
+		udid    string
 		devices string
 		wantErr []string
 	}{
+		{
+			name:    "explicit normalized UDID",
+			udid:    " booted-1 ",
+			devices: `[{"udid":"BOOTED-1","name":"iPhone 17","state":"Booted","isAvailable":true}]`,
+		},
+		{
+			name:    "explicit missing UDID",
+			udid:    "MISSING",
+			devices: `[]`,
+			wantErr: []string{"MISSING", "not found", "xcrun simctl list devices"},
+		},
+		{
+			name:    "explicit unavailable simulator",
+			udid:    "BOOTED-1",
+			devices: `[{"udid":"BOOTED-1","name":"iPhone 17","state":"Booted","isAvailable":false}]`,
+			wantErr: []string{"BOOTED-1", "unavailable"},
+		},
+		{
+			name:    "explicit shutdown simulator",
+			udid:    "BOOTED-1",
+			devices: `[{"udid":"BOOTED-1","name":"iPhone 17","state":"Shutdown","isAvailable":true}]`,
+			wantErr: []string{"BOOTED-1", "not booted", "xcrun simctl list devices"},
+		},
 		{
 			name:    "one booted",
 			devices: `[{"udid":"BOOTED-1","name":"iPhone 17","state":"Booted","isAvailable":true},{"udid":"SHUTDOWN-1","name":"iPad Air","state":"Shutdown","isAvailable":true}]`,
@@ -436,7 +471,7 @@ if [ -n "$out" ]; then cp "$AXE_TEMPLATE_PNG" "$out"; fi
 			name := "home"
 			plan := &Plan{
 				Version: 1,
-				App:     PlanApp{BundleID: "com.example.app", OutputDir: t.TempDir()},
+				App:     PlanApp{BundleID: "com.example.app", UDID: test.udid, OutputDir: t.TempDir()},
 				Steps: []PlanStep{
 					{Action: ActionLaunch},
 					{Action: ActionType, Text: &text},
@@ -455,6 +490,9 @@ if [ -n "$out" ]; then cp "$AXE_TEMPLATE_PNG" "$out"; fi
 				}
 				if _, statErr := os.Stat(axeLog); !os.IsNotExist(statErr) {
 					t.Fatalf("axe ran before the simulator was resolved")
+				}
+				if _, statErr := os.Stat(xcrunLog); !os.IsNotExist(statErr) {
+					t.Fatalf("xcrun launch ran before the simulator was resolved")
 				}
 				return
 			}

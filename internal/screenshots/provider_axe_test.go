@@ -11,7 +11,11 @@ import (
 )
 
 func TestAXeProvider_MissingBinary(t *testing.T) {
-	t.Setenv("PATH", "")
+	binDir := t.TempDir()
+	writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID-123","state":"Booted","isAvailable":true}]}}'
+`)
+	t.Setenv("PATH", binDir)
 
 	provider := &AXeProvider{}
 	_, err := provider.Capture(context.Background(), CaptureRequest{
@@ -36,6 +40,10 @@ func TestAXeProvider_CaptureLaunchesRequestedBundleID(t *testing.T) {
 
 	writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
 set -eu
+if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID-123","state":"Booted","isAvailable":true}]}}'
+  exit 0
+fi
 printf '%s\n' "$*" >> "$XCRUN_LOG"
 `)
 	writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh

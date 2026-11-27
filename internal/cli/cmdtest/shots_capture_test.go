@@ -5,7 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestShotsCapture_RequiredFlagErrors(t *testing.T) {
@@ -63,7 +66,9 @@ func TestShotsCapturePreservesWhitespaceOutputDirectory(t *testing.T) {
 	writeFramePNG(t, fixturePath, makeRawImage(390, 844))
 	outputDir := filepath.Join(baseDir, "raw ")
 	binDir := t.TempDir()
+	xcrunLog := filepath.Join(t.TempDir(), "xcrun.log")
 	writeShotsMatrixExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+printf '%s\n' "$*" >> "$XCRUN_LOG"
 if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
   printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","name":"iPhone 17","state":"Booted","isAvailable":true}]}}'
 fi
@@ -78,6 +83,7 @@ done
 cp "$CAPTURE_FIXTURE" "$out"
 `)
 	t.Setenv("CAPTURE_FIXTURE", fixturePath)
+	t.Setenv("XCRUN_LOG", xcrunLog)
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	stdout, stderr, err := runRootWithDeps(t, nil, []string{
@@ -113,5 +119,36 @@ cp "$CAPTURE_FIXTURE" "$out"
 	}
 	if _, err := os.Stat(wantPath); err != nil {
 		t.Fatalf("expected captured image at literal path: %v", err)
+	}
+	calls, err := os.ReadFile(xcrunLog)
+	if err != nil || strings.Count(string(calls), "simctl list devices --json") != 1 {
+		t.Fatalf("xcrun calls = %q, error = %v; want one inventory lookup per capture", calls, err)
+	}
+}
+
+func TestShotsCaptureRejectsUnknownSimulatorBeforeLaunch(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell executable fixtures require a Unix PATH")
+	}
+	binDir := t.TempDir()
+	callLog := filepath.Join(t.TempDir(), "calls")
+	writeShotsMatrixExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+printf '%s\n' "xcrun $*" >> "$SIMULATOR_CALL_LOG"
+printf '%s\n' '{"devices":{}}'
+`)
+	writeShotsMatrixExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
+printf '%s\n' "axe $*" >> "$SIMULATOR_CALL_LOG"
+exit 1
+`)
+	t.Setenv("PATH", binDir)
+	t.Setenv("SIMULATOR_CALL_LOG", callLog)
+	stdout, stderr, code := runWithDeps(t, nil, "screenshots", "capture", "--bundle-id", "com.example.app",
+		"--udid", "MISSING", "--name", "home", "--output-dir", t.TempDir(), "--output", "json")
+	if code != rootcmd.ExitError || stdout != "" || !strings.Contains(stderr, `simulator "MISSING" was not found`) || !strings.Contains(stderr, "xcrun simctl list devices") {
+		t.Fatalf("exit = %d, stdout = %q, stderr = %q; want an actionable missing simulator error", code, stdout, stderr)
+	}
+	calls, err := os.ReadFile(callLog)
+	if err != nil || string(calls) != "xcrun simctl list devices --json\n" {
+		t.Fatalf("calls = %q, error = %v; want inventory only before rejection", calls, err)
 	}
 }
