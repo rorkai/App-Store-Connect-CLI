@@ -66,6 +66,7 @@ type InstallOptions struct {
 	IPAPath     string
 	DeviceID    string
 	Timeout     time.Duration
+	Launch      bool
 	Environment []string
 }
 
@@ -329,6 +330,20 @@ func Install(ctx context.Context, options InstallOptions) (*asc.XcodeInstallResu
 		return result, err
 	}
 	finishInstallResult(result, started, true, true, true)
+	if options.Launch {
+		result.Launch = &asc.XcodeInstallLaunch{}
+		if err := launchInstalledApp(requestContext, runner, devicectlPath, environment, jsonDir, options.Timeout, device, inspection.App.BundleID); err != nil {
+			finishInstallResult(result, started, true, true, false)
+			code := "launch_failed"
+			if contextErr := requestContext.Err(); contextErr != nil {
+				code = installContextFailureCode(contextErr)
+			}
+			setInstallFailure(result, "launch", code)
+			return result, err
+		}
+		result.Launch.Started = true
+		finishInstallResult(result, started, true, true, true)
+	}
 	return result, nil
 }
 
@@ -737,6 +752,36 @@ func verifyInstalledApp(ctx context.Context, runner installDeviceRunner, devicec
 	}
 	if !matched {
 		return &installVerificationError{reason: "expected app was not found on the device"}
+	}
+	return nil
+}
+
+// launchInstalledApp asks CoreDevice to start only the already verified bundle.
+// A successful acknowledgement is not a health check of the running app.
+func launchInstalledApp(ctx context.Context, runner installDeviceRunner, devicectlPath string, environment []string, jsonDir string, timeout time.Duration, device installDevice, bundleID string) error {
+	jsonName := "launch.json"
+	payload, runErr := runInstallJSON(ctx, runner, devicectlPath, environment, jsonDir, jsonName, []string{
+		"--quiet",
+		"--timeout", toolTimeoutSeconds(timeout),
+		"--json-output", filepath.Join(jsonDir, jsonName),
+		"--omit-deprecated-fields-in-json",
+		"device", "process", "launch", "--device", device.Identifier, bundleID,
+	})
+	if contextErr := ctx.Err(); contextErr != nil {
+		return contextErr
+	}
+	if len(payload) == 0 {
+		return &installCommandError{Stage: "devicectl app launch", ExitCode: installExitCode(runErr)}
+	}
+	envelope, err := parseDevicectlEnvelope(payload, "devicectl.device.process.launch")
+	if err != nil {
+		return err
+	}
+	if envelope.Info.Outcome != "success" {
+		return structuredInstallCommandError("devicectl app launch", envelope, runErr)
+	}
+	if runErr != nil {
+		return &installCommandError{Stage: "devicectl app launch", ExitCode: installExitCode(runErr)}
 	}
 	return nil
 }

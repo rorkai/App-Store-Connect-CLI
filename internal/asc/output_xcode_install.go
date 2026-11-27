@@ -11,11 +11,18 @@ type XcodeInstallResult struct {
 	Success       bool                 `json:"success"`
 	Installed     bool                 `json:"installed"`
 	Verified      bool                 `json:"verified"`
+	Launch        *XcodeInstallLaunch  `json:"launch,omitempty"`
 	IPA           XcodeInstallArtifact `json:"ipa"`
 	Device        *XcodeInstallDevice  `json:"device,omitempty"`
 	FailureStage  string               `json:"failureStage,omitempty"`
 	FailureCode   string               `json:"failureCode,omitempty"`
 	DurationMS    int64                `json:"durationMs"`
+}
+
+// XcodeInstallLaunch records CoreDevice launch acknowledgement only.
+// It does not claim that the application is healthy or remains running.
+type XcodeInstallLaunch struct {
+	Started bool `json:"started"`
 }
 
 // XcodeInstallArtifact contains only stable, non-path IPA identity fields.
@@ -60,6 +67,9 @@ func xcodeInstallResultRows(result *XcodeInstallResult) ([]string, [][]string) {
 			[]string{"pairing_state", result.Device.PairingState},
 			[]string{"connection_state", result.Device.ConnectionState},
 		)
+	}
+	if result.Launch != nil {
+		rows = append(rows, []string{"launch_started", fmt.Sprintf("%t", result.Launch.Started)})
 	}
 	if result.FailureStage != "" {
 		rows = append(rows, []string{"failure_stage", result.FailureStage})
