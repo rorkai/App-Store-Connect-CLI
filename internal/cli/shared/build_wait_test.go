@@ -439,7 +439,7 @@ func TestBuildUploadFailureErrorIncludesRecoveryGuidance(t *testing.T) {
 		},
 		{
 			name:  "missing app icons",
-			codes: []string{"90391", "90713"},
+			codes: []string{"90022", "90023", "90391", "90713"},
 			want:  []string{"required app icons", "CFBundleIconName"},
 		},
 	}
@@ -570,6 +570,8 @@ func TestBuildUploadFailureErrorDoesNotGuessForMixedCodes(t *testing.T) {
 		State: &state,
 		Errors: []asc.StateDetail{
 			{Code: "90189"},
+			{Code: "90022"},
+			{Code: "90023"},
 			{Code: "UNKNOWN"},
 		},
 	}
