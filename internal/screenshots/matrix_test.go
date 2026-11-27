@@ -330,6 +330,7 @@ func TestRunMatrixRejectsOutputAliasesResolvedFromMatrixPlanDirectory(t *testing
 }
 
 func TestRunMatrixWritesReviewAfterOutputRootSetupFailure(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
 	tests := []struct {
 		name      string
 		rawDir    string
@@ -379,6 +380,10 @@ func TestRunMatrixWritesReviewAfterOutputRootSetupFailure(t *testing.T) {
 			}
 			result, runErr := RunMatrixWithDependencies(context.Background(), matrixPath, matrixPlan, MatrixOptions{}, MatrixDependencies{
 				CheckDevice: func(context.Context, MatrixDevice) error { return nil },
+				RunPlan: func(context.Context, *Plan) (*RunResult, error) {
+					t.Error("plan ran despite unusable output root")
+					return nil, errors.New("unexpected plan execution")
+				},
 			})
 			if runErr == nil {
 				t.Fatal("RunMatrixWithDependencies() error = nil, want output-root failure")
