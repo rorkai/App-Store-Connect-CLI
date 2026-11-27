@@ -2479,6 +2479,10 @@ func TestRunMatrixRestartsAppBeforeEveryCellAttempt(t *testing.T) {
 
 	writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
 set -eu
+if [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","state":"Booted","isAvailable":true}]}}'
+  exit 0
+fi
 printf '%s\n' "$*" >> "$XCRUN_LOG"
 `)
 	writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
@@ -2572,6 +2576,10 @@ func TestRunMatrixAppliesAndClearsStatusBarOncePerCell(t *testing.T) {
 			writeMatrixTestFile(t, basePath, `{"version":1,"app":{"bundle_id":"com.example.app"},"defaults":{"status_bar":"screenshot"},"steps":[{"action":"launch"},{"action":"screenshot","name":"home"}]}`)
 			writeMatrixTestFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"first"},{"id":"second"}],"execution":{"max_attempts":2,"retry_backoff_ms":0},"output":{"raw_dir":"raw","review_dir":"review"}}`)
 			writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+if [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","state":"Booted","isAvailable":true}]}}'
+  exit 0
+fi
 printf 'launch\n' >> "$CALL_LOG"
 `)
 			writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
@@ -4639,6 +4647,7 @@ func TestRunPlanWithRootUsesPinnedCaptureScratch(t *testing.T) {
 	}
 	writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
 set -eu
+printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","state":"Booted","isAvailable":true}]}}'
 `)
 	writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
 set -eu

@@ -19,9 +19,14 @@ func (p *AXeProvider) Capture(ctx context.Context, req CaptureRequest) (string, 
 	if err != nil {
 		return "", err
 	}
+	req.UDID = udid
+	return captureAXe(ctx, req)
+}
+
+func captureAXe(ctx context.Context, req CaptureRequest) (string, error) {
 	bundleID := strings.TrimSpace(req.BundleID)
 	if bundleID != "" {
-		launchCmd := exec.CommandContext(ctx, "xcrun", "simctl", "launch", udid, bundleID)
+		launchCmd := exec.CommandContext(ctx, "xcrun", "simctl", "launch", req.UDID, bundleID)
 		launchOut, launchErr := launchCmd.CombinedOutput()
 		if launchErr != nil {
 			return "", fmt.Errorf("xcrun simctl launch %q: %w (output: %s)", bundleID, launchErr, strings.TrimSpace(string(launchOut)))
@@ -29,7 +34,7 @@ func (p *AXeProvider) Capture(ctx context.Context, req CaptureRequest) (string, 
 	}
 
 	pngPath := filepath.Join(req.OutputDir, req.Name+".png")
-	cmd := exec.CommandContext(ctx, "axe", "screenshot", "--output", pngPath, "--udid", udid)
+	cmd := exec.CommandContext(ctx, "axe", "screenshot", "--output", pngPath, "--udid", req.UDID)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("axe: %w (output: %s)", err, strings.TrimSpace(string(out)))
@@ -41,16 +46,27 @@ func (p *AXeProvider) Capture(ctx context.Context, req CaptureRequest) (string, 
 	return pngPath, nil
 }
 
-// resolveSimulatorUDID turns an empty or "booted" UDID into the UDID of the one
-// booted simulator, because the AXe CLI only accepts a concrete UDID.
+// resolveSimulatorUDID validates an explicit UDID or selects the one booted
+// iPhone or iPad simulator, because the AXe CLI needs a concrete, ready target.
 func resolveSimulatorUDID(ctx context.Context, requested string) (string, error) {
 	udid := strings.TrimSpace(requested)
-	if udid != "" && !strings.EqualFold(udid, "booted") {
-		return udid, nil
-	}
+	explicit := udid != "" && !strings.EqualFold(udid, "booted")
 	devices, err := readMatrixSimulatorInventory(ctx)
 	if err != nil {
+		if explicit {
+			return "", fmt.Errorf("find simulator %q: %w", udid, err)
+		}
 		return "", fmt.Errorf("find booted simulator: %w", err)
+	}
+	if explicit {
+		device, found := findMatrixSimulatorDevice(devices, udid)
+		if !found {
+			return "", fmt.Errorf("simulator %q was not found; choose a UDID from xcrun simctl list devices", udid)
+		}
+		if err := validateMatrixSimulatorDevice(device); err != nil {
+			return "", fmt.Errorf("simulator %q: %w; select an available, booted simulator from xcrun simctl list devices", udid, err)
+		}
+		return strings.TrimSpace(device.UDID), nil
 	}
 	var booted []matrixSimulatorDevice
 	for _, device := range devices {
