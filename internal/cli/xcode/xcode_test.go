@@ -1376,6 +1376,7 @@ func TestXcodeArchivePassesTypedBuildFlags(t *testing.T) {
 		"--derived-data-path", "/tmp/Derived Data",
 		"--result-bundle-path", "/tmp/Results/Demo.xcresult",
 		"--no-code-signing",
+		"--source-provenance",
 		"--output", "json",
 	}); err != nil {
 		t.Fatalf("FlagSet.Parse() error = %v", err)
@@ -1390,7 +1391,7 @@ func TestXcodeArchivePassesTypedBuildFlags(t *testing.T) {
 		t.Fatalf("Exec() error = %v", runErr)
 	}
 	if gotOpts.Destination != "generic/platform=iOS" || gotOpts.DerivedDataPath != "/tmp/Derived Data" ||
-		gotOpts.ResultBundlePath != "/tmp/Results/Demo.xcresult" || !gotOpts.NoCodeSigning {
+		gotOpts.ResultBundlePath != "/tmp/Results/Demo.xcresult" || !gotOpts.NoCodeSigning || !gotOpts.SourceProvenance {
 		t.Fatalf("unexpected archive options: %+v", gotOpts)
 	}
 }
@@ -2490,5 +2491,23 @@ func TestXcodeExportBuildProcessingWaitIncludesProcessingDetails(t *testing.T) {
 	_, err := waitForBuildProcessingFn(shared.DefaultDeps(), context.Background(), newXcodeCommandTestClient(t), "", "build-1", time.Millisecond)
 	if want := "build processing failed: INVALID; App Store Connect processing details: ITMS-90000: processing details"; err == nil || err.Error() != want {
 		t.Fatalf("error = %v, want %q", err, want)
+	}
+}
+
+func TestXcodeArchiveRejectsWorkspaceSourceProvenanceBeforeBuild(t *testing.T) {
+	t.Cleanup(overrideXcodeCommandTestHooks(t))
+	runArchive = func(context.Context, localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
+		t.Fatal("archive ran for workspace source provenance")
+		return nil, nil
+	}
+	d := newXcodeTestDeps(nil)
+	command := newXcodeArchiveCommand(d)
+	if err := command.Parse([]string{"--workspace", "Demo.xcworkspace", "--scheme", "Demo", "--archive-path", "Demo.xcarchive", "--source-provenance"}); err != nil {
+		t.Fatal(err)
+	}
+	err := command.Run(context.Background())
+	stdout, stderr := depsOutput(d)
+	if !errors.Is(err, flag.ErrHelp) || stdout != "" || !strings.Contains(stderr, "--source-provenance requires --project") {
+		t.Fatalf("stdout=%q stderr=%q error=%v", stdout, stderr, err)
 	}
 }

@@ -13,6 +13,14 @@ const (
 	maxXcodeTestHumanMessage  = 4096
 )
 
+// XcodeProjectCheckout records the project checkout observed before archiving.
+// It does not attest to every build input or to reproducibility.
+type XcodeProjectCheckout struct {
+	Revision   string `json:"revision"`
+	Dirty      bool   `json:"dirty"`
+	ObservedAt string `json:"observedAt"`
+}
+
 // XcodeTestResult is the stable output receipt for a local Xcode test action.
 // It deliberately lives in the output package so JSON and human renderers use
 // the same exported camelCase contract as other computed CLI results.
