@@ -410,11 +410,6 @@ Examples:
 				if err := validatePublishBuildIdentity(buildResp, buildIDValue); err != nil {
 					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildIDValue, "build_identity", "build_identity_mismatch", fmt.Errorf("publish testflight: %w", err))
 				}
-				// The app version is only reported, so a failed read leaves it
-				// out rather than stopping the distribution.
-				if preRelease, err := readPublishBuildPreRelease(requestCtx, client, buildIDValue); err == nil {
-					resolvedVersionValue = strings.TrimSpace(preRelease.Version)
-				}
 				resolvedBuildNumberValue = strings.TrimSpace(buildResp.Data.Attributes.Version)
 			} else {
 				buildResp, err = findPublishBuildByNumber(requestCtx, client, resolvedPublishAppID, buildNumberValue, normalizedPlatform)
@@ -442,6 +437,18 @@ Examples:
 				UploadOnly:      *uploadOnly,
 				ProcessingState: buildResp.Data.Attributes.ProcessingState,
 			}
+			populateBuildVersion := func() {
+				if buildIDValue == "" || requestCtx.Err() != nil {
+					return
+				}
+				// Enrich receipts after required work, bounded by a short timeout
+				// and the remaining publish budget, including caller cancellation.
+				receiptCtx, cancel := shared.ContextWithTimeoutDuration(requestCtx, 5*time.Second)
+				defer cancel()
+				if preRelease, err := readPublishBuildPreRelease(receiptCtx, client, buildIDValue); err == nil {
+					result.BuildVersion = strings.TrimSpace(preRelease.Version)
+				}
+			}
 			completedStages := make([]string, 0, 6)
 			hasProgress := uploaded
 			if uploaded {
@@ -462,6 +469,7 @@ Examples:
 				}
 				result.CompletedStages = append([]string(nil), completedStages...)
 				result.ProcessingState = buildResp.Data.Attributes.ProcessingState
+				populateBuildVersion()
 				attachTestFlightLocalPublishResult(result, localBuildResult)
 				return writePublishFailure(d, *output.Output, *output.Pretty, result, failure)
 			}
@@ -597,6 +605,7 @@ Examples:
 				}
 				return reportPartialFailure(publishFailureStageNotification, errors.New(result.NotificationRecovery.Message))
 			}
+			populateBuildVersion()
 			attachTestFlightLocalPublishResult(result, localBuildResult)
 
 			return d.PrintOutput(result, *output.Output, *output.Pretty)
