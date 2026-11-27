@@ -34,7 +34,8 @@ not document its order, so one page could miss the newest or matching version.
 - Create 409 from `versions create` (unless `--if-exists` resolved it),
   `release stage` or `publish appstore`: the version that already uses the
   string, with the `versions view` command and how to reuse it (`--if-exists`
-  for `versions create`; rerun for `release stage`). `publish appstore`
+  for `versions create`; rerun for `release stage`, or a new version number
+  when the version is live or no longer in progress). `publish appstore`
   suggests inspection only because rerunning would repeat its completed
   upload. The error also lists the
   platform's versions that are not live yet, with the command that fits the
