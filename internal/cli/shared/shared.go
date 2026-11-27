@@ -400,10 +400,11 @@ type OutputFlags struct {
 }
 
 type validatedOutputValue struct {
-	name    string
-	value   *string
-	pretty  *bool
-	allowed []string
+	name        string
+	value       *string
+	pretty      *bool
+	allowed     []string
+	constraints *CommandConstraints
 }
 
 func (v *validatedOutputValue) String() string {

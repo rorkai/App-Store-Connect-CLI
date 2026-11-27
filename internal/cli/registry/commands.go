@@ -25,11 +25,12 @@ type commandFamily struct {
 }
 
 type commandEntry struct {
-	Path        []string      `json:"path"`
-	Usage       string        `json:"usage"`
-	Description string        `json:"description"`
-	HasChildren bool          `json:"has_subcommands"`
-	Flags       []commandFlag `json:"flags"`
+	Path        []string                  `json:"path"`
+	Usage       string                    `json:"usage"`
+	Description string                    `json:"description"`
+	HasChildren bool                      `json:"has_subcommands"`
+	Flags       []commandFlag             `json:"flags"`
+	Constraints shared.CommandConstraints `json:"constraints"`
 	commandBehavior
 }
 
@@ -53,6 +54,8 @@ an exact path and its visible subcommands, including their flags and usage.
 Deprecated, removed, and compatibility aliases are omitted from listings;
 an exact alias path can still be inspected with --family.
 An unknown write intent or human interaction marks an unclassified command.
+Constraints describe declared shared validation only; coverage is partial or
+unknown. Custom validation and runtime app-ID fallback may add requirements.
 Runtime validation and approval requirements still apply.
 
 Examples:
@@ -118,6 +121,7 @@ func appendCommandEntries(entries *[]commandEntry, command *ffcli.Command, path 
 			return !shared.HiddenFromDiscovery(child)
 		}),
 		Flags:           []commandFlag{},
+		Constraints:     shared.CommandConstraintsFor(command.FlagSet),
 		commandBehavior: behaviorForCommand(strings.Join(path, " ")),
 	}
 	for _, option := range shared.VisibleHelpFlags(command.FlagSet) {
