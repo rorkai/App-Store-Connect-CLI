@@ -964,7 +964,7 @@ func decodeStrictDevicectlResult(payload []byte, version int, destination any) e
 
 func supportedInstallJSONVersion(version int) bool {
 	switch version {
-	case installLegacyJSONVersion, installJSONVersion:
+	case installLegacyJSONVersion, installJSONVersion, 6:
 		return true
 	default:
 		return false
@@ -1066,8 +1066,8 @@ func normalizeInstallDevice(entry installDeviceEntry) (installDevice, error) {
 	hardware, _ := objectFromObject(properties, "hardware")
 	connection, _ := objectFromObject(properties, "connection")
 	state, _ := objectFromObject(properties, "state")
-	device.Platform = firstInstallObjectString(hardware, "platform")
-	device.Reality = firstInstallObjectString(hardware, "reality")
+	device.Platform = firstInstallObjectString(hardware, "osPlatform", "platform")
+	device.Reality = firstInstallObjectString(hardware, "fidelity", "reality")
 	device.UDID = firstInstallObjectString(hardware, "udid")
 	device.PairingState = firstInstallObjectString(connection, "pairingState")
 	device.ConnectionState = firstInstallObjectString(connection, "state")
