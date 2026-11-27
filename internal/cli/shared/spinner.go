@@ -34,7 +34,7 @@ func SpinnerEnabled() bool {
 
 // SpinnerEnabled is SpinnerEnabled decided from d's stdout and stderr.
 func (d *Deps) SpinnerEnabled() bool {
-	return spinnerEnabledFor(d.IO.StdoutTTY, d.IO.StderrTTY)
+	return !d.IO.quietDiagnostics && spinnerEnabledFor(d.IO.StdoutTTY, d.IO.StderrTTY)
 }
 
 func spinnerEnabledFor(stdoutTTY, stderrTTY bool) bool {

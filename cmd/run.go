@@ -268,6 +268,7 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) (exitCode in
 	}
 
 	if err := groupFlagsBeforeSubcommandError(root); err != nil {
+		diagnosticErr = err
 		fmt.Fprint(d.IO.ErrOut, errfmt.FormatStderr(err))
 		if reportErr := writeUsageJUnitReport(commandName, err); reportErr != nil {
 			diagnosticErr = reportErr

@@ -24,7 +24,8 @@ type IO struct {
 	StdoutTTY bool
 	StderrTTY bool
 
-	operatorStderr io.Writer
+	operatorStderr   io.Writer
+	quietDiagnostics bool
 }
 
 // Deps holds what a command takes from the process: its App Store Connect
@@ -135,7 +136,7 @@ func (s *IO) WithQuietDiagnostics() *IO {
 	streams := *s
 	streams.operatorStderr = s.OperatorStderr()
 	streams.ErrOut = io.Discard
-	streams.StderrTTY = false
+	streams.quietDiagnostics = true
 	return &streams
 }
 

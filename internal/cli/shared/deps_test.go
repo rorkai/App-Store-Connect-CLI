@@ -1223,6 +1223,34 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 	}
 }
 
+func TestDepsQuietDiagnosticsKeepsProgressDisabled(t *testing.T) {
+	resetSpinnerTestState(t)
+	t.Setenv(spinnerDisabledEnvVar, "0")
+	var stderr bytes.Buffer
+	d := &Deps{
+		IO: (&IO{ErrOut: &stderr, StdoutTTY: true, StderrTTY: true}).WithQuietDiagnostics(),
+		After: func(time.Duration) <-chan time.Time {
+			t.Fatal("quiet diagnostics must not start a delayed spinner")
+			return nil
+		},
+	}
+	if d.ProgressEnabled() || d.SpinnerEnabled() {
+		t.Fatal("quiet diagnostics enabled progress or a spinner")
+	}
+	called := false
+	if err := d.WithSpinnerDelayed("Working", time.Second, func() error {
+		called = true
+		fmt.Fprintln(d.IO.ErrOut, "diagnostic")
+		fmt.Fprintln(d.IO.OperatorStderr(), "operator notice")
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !called || stderr.String() != "operator notice\n" {
+		t.Fatalf("work called = %v, stderr = %q", called, stderr.String())
+	}
+}
+
 func TestDefaultDepsStdinMatchesProcessStdin(t *testing.T) {
 	const payload = `{"data":{"type":"apps"}}`
 	// useStdin makes the process stdin a pipe holding payload, a terminal
