@@ -104,7 +104,7 @@ asc app-events create \
 * `--end` - Event end time (RFC3339 format)
 * `--publish-start` - Publish start time (when event appears on App Store)
 * `--territories` - Comma-separated territory codes (e.g., `USA,CAN,GBR`)
-* `--deep-link` - Deep link URL to open event in app
+* `--deep-link` - URL that Open on the event card leads to; App Store Connect asks for one before review
 * `--purchase-requirement` - Currently supported: `NO_COST_ASSOCIATED`
 * `--primary-locale` - Primary locale (e.g., `en-US`)
 * `--priority` - Priority: `HIGH`, `NORMAL` (see [Priority](#priority))
@@ -163,7 +163,7 @@ asc app-events update \
 * `--end` - Event end time
 * `--publish-start` - Publish start time
 * `--territories` - Territory codes
-* `--deep-link` - Deep link URL
+* `--deep-link` - URL that Open on the event card leads to; App Store Connect asks for one before review
 * `--purchase-requirement` - Purchase requirement
 * `--primary-locale` - Primary locale
 * `--priority` - Priority level
@@ -393,6 +393,7 @@ asc app-events submit --event-id "EVENT_ID" --confirm
 * At least one localization
 * At least one screenshot per localization
 * Event dates configured
+* A deep link (`submit` warns on stderr when it is missing)
 * All required metadata fields completed
 
 ## Common Workflows
@@ -415,6 +416,7 @@ EVENT_RESPONSE=$(asc app-events create \
   --priority HIGH \
   --purpose ATTRACT_NEW_USERS \
   --territories "USA,CAN,GBR" \
+  --deep-link "https://example.com/events/summer-championship" \
   --output json)
 
 EVENT_ID=$(echo "$EVENT_RESPONSE" | jq -r '.data.id')
