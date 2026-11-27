@@ -412,6 +412,9 @@ func TestAppEventsSubmitReportsPartialCreateWithoutAddingOrSubmitting(t *testing
 	requests := 0
 	client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests++
+		if requests == 1 && req.Method == http.MethodGet && req.URL.Path == "/v1/appEvents/event-1" {
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appEvents","id":"event-1","attributes":{"deepLink":"https://example.com/event"}}}`)
+		}
 		if req.Method != http.MethodPost || req.URL.Path != "/v1/reviewSubmissions" {
 			t.Fatalf("unexpected request %d: %s %s", requests, req.Method, req.URL.Path)
 		}
@@ -433,54 +436,101 @@ func TestAppEventsSubmitReportsPartialCreateWithoutAddingOrSubmitting(t *testing
 		strings.Contains(runErr.Error(), "submit cancel") {
 		t.Fatalf("run error = %v, want partial submission ID and draft guidance without a cancel", runErr)
 	}
-	if requests != 1 {
-		t.Fatalf("requests = %d, want only the create request", requests)
+	if requests != 2 {
+		t.Fatalf("requests = %d, want the event lookup and the create request", requests)
 	}
 	if stdout != "" || stderr != "" {
 		t.Fatalf("stdout = %q, stderr = %q, want no command output", stdout, stderr)
 	}
 }
 
-func TestAppEventsSubmitCleanCreateStillAddsAndSubmits(t *testing.T) {
-	requests := 0
-	client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		switch requests {
-		case 1:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/reviewSubmissions" {
-				t.Fatalf("unexpected create request: %s %s", req.Method, req.URL.Path)
-			}
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"sub-clean"}}`)
-		case 2:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/reviewSubmissionItems" {
-				t.Fatalf("unexpected item request: %s %s", req.Method, req.URL.Path)
-			}
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-clean"}}`)
-		case 3:
-			if req.Method != http.MethodPatch || req.URL.Path != "/v1/reviewSubmissions/sub-clean" {
-				t.Fatalf("unexpected submit request: %s %s", req.Method, req.URL.Path)
-			}
-			return jsonResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"sub-clean","attributes":{"submittedDate":"2026-09-18T00:00:00Z"}}}`)
-		default:
-			t.Fatalf("unexpected extra request %d: %s %s", requests, req.Method, req.URL.Path)
-			return nil, nil
-		}
-	}))
+func TestAppEventsSubmitWarnsWhenEventHasNoDeepLinkAndStillSubmits(t *testing.T) {
+	const deepLinkWarning = `Warning: app-events submit: event "event-1" has no deep link; App Store Connect asks for one so Open on the event card leads to the event in your app. Set it with: asc app-events update --event-id event-1 --deep-link "URL"` + "\n"
 
-	stdout, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil },
-		"app-events", "submit",
-		"--event-id", "event-1",
-		"--app", "app-123",
-		"--confirm",
-	)
-	if err != nil {
-		t.Fatalf("run error: %v", err)
+	tests := []struct {
+		name       string
+		lookup     func() (*http.Response, error)
+		wantStderr string
+	}{
+		{
+			name: "event with deep link submits without a warning",
+			lookup: func() (*http.Response, error) {
+				return jsonResponse(http.StatusOK, `{"data":{"type":"appEvents","id":"event-1","attributes":{"deepLink":"https://example.com/event"}}}`)
+			},
+		},
+		{
+			name: "event without deep link warns and still submits",
+			lookup: func() (*http.Response, error) {
+				return jsonResponse(http.StatusOK, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch"}}}`)
+			},
+			wantStderr: deepLinkWarning,
+		},
+		{
+			name: "failed event lookup does not block submission",
+			lookup: func() (*http.Response, error) {
+				return jsonResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","detail":"lookup failed"}]}`)
+			},
+		},
 	}
 
-	if requests != 3 {
-		t.Fatalf("requests = %d, want create, add, and submit", requests)
-	}
-	if !strings.Contains(stdout, `"submissionId":"sub-clean"`) || stderr != "" {
-		t.Fatalf("stdout = %q, stderr = %q, want successful submission output", stdout, stderr)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			requests := 0
+			client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests++
+				switch requests {
+				case 1:
+					if req.Method != http.MethodGet || req.URL.Path != "/v1/appEvents/event-1" {
+						t.Fatalf("unexpected event lookup: %s %s", req.Method, req.URL.Path)
+					}
+					return test.lookup()
+				case 2:
+					if req.Method != http.MethodPost || req.URL.Path != "/v1/reviewSubmissions" {
+						t.Fatalf("unexpected create request: %s %s", req.Method, req.URL.Path)
+					}
+					return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"sub-clean"}}`)
+				case 3:
+					if req.Method != http.MethodPost || req.URL.Path != "/v1/reviewSubmissionItems" {
+						t.Fatalf("unexpected item request: %s %s", req.Method, req.URL.Path)
+					}
+					return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-clean"}}`)
+				case 4:
+					if req.Method != http.MethodPatch || req.URL.Path != "/v1/reviewSubmissions/sub-clean" {
+						t.Fatalf("unexpected submit request: %s %s", req.Method, req.URL.Path)
+					}
+					return jsonResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"sub-clean","attributes":{"submittedDate":"2026-09-18T00:00:00Z"}}}`)
+				default:
+					t.Fatalf("unexpected extra request %d: %s %s", requests, req.Method, req.URL.Path)
+					return nil, nil
+				}
+			}))
+
+			stdout, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil },
+				"app-events", "submit",
+				"--event-id", "event-1",
+				"--app", "app-123",
+				"--confirm",
+			)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+
+			if requests != 4 {
+				t.Fatalf("requests = %d, want lookup, create, add, and submit", requests)
+			}
+			var result struct {
+				SubmissionID string `json:"submissionId"`
+				EventID      string `json:"eventId"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("failed to parse JSON output %q: %v", stdout, err)
+			}
+			if result.SubmissionID != "sub-clean" || result.EventID != "event-1" {
+				t.Fatalf("output = %+v, want submission sub-clean for event event-1", result)
+			}
+			if stderr != test.wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
+			}
+		})
 	}
 }

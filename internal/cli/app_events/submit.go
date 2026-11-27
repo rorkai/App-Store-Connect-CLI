@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -62,6 +63,8 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
+			warnIfAppEventMissingDeepLink(requestCtx, client, d.IO.ErrOut, id)
+
 			reviewSubmission, err := client.CreateReviewSubmission(requestCtx, resolvedAppID, asc.Platform(normalizedPlatform))
 			if err != nil {
 				var partialErr *asc.ReviewSubmissionCreatePartialError
@@ -114,4 +117,19 @@ Examples:
 			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// warnIfAppEventMissingDeepLink warns on w when the event has no deep link.
+// App Store Connect asks for one, but the API accepts an event without it, so
+// the warning is advisory and a failed lookup never blocks the submission.
+func warnIfAppEventMissingDeepLink(ctx context.Context, client *asc.Client, w io.Writer, eventID string) {
+	event, err := client.GetAppEvent(ctx, eventID)
+	if err != nil || event == nil {
+		return
+	}
+	if strings.TrimSpace(event.Data.Attributes.DeepLink) != "" {
+		return
+	}
+	safeID := shared.SanitizeTerminal(eventID)
+	fmt.Fprintf(w, "Warning: app-events submit: event %q has no deep link; App Store Connect asks for one so Open on the event card leads to the event in your app. Set it with: asc app-events update --event-id %s --deep-link \"URL\"\n", safeID, safeID)
 }
