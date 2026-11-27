@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -184,21 +185,22 @@ const (
 
 // MatrixCellResult is the privacy-safe result for one cell.
 type MatrixCellResult struct {
-	ID           string                   `json:"id"`
-	Device       string                   `json:"device"`
-	Locale       string                   `json:"locale"`
-	Appearance   string                   `json:"appearance"`
-	Content      string                   `json:"contentVariant"`
-	Status       string                   `json:"status"`
-	Attempts     int                      `json:"attempts"`
-	DurationMS   int64                    `json:"durationMs"`
-	RawPaths     []string                 `json:"rawPaths,omitempty"`
-	FramedPaths  []string                 `json:"framedPaths,omitempty"`
-	Screenshots  []MatrixScreenshotResult `json:"screenshots,omitempty"`
-	Steps        []RunStepResult          `json:"steps,omitempty"`
-	FailureStage string                   `json:"failureStage,omitempty"`
-	FailureCode  string                   `json:"failureCode,omitempty"`
-	Error        *MatrixCellError         `json:"error,omitempty"`
+	ID           string                        `json:"id"`
+	Device       string                        `json:"device"`
+	Locale       string                        `json:"locale"`
+	Appearance   string                        `json:"appearance"`
+	Content      string                        `json:"contentVariant"`
+	Status       string                        `json:"status"`
+	Attempts     int                           `json:"attempts"`
+	DurationMS   int64                         `json:"durationMs"`
+	RawPaths     []string                      `json:"rawPaths,omitempty"`
+	FramedPaths  []string                      `json:"framedPaths,omitempty"`
+	Screenshots  []MatrixScreenshotResult      `json:"screenshots,omitempty"`
+	Steps        []RunStepResult               `json:"steps,omitempty"`
+	Location     *asc.ScreenshotLocationResult `json:"location,omitempty"`
+	FailureStage string                        `json:"failureStage,omitempty"`
+	FailureCode  string                        `json:"failureCode,omitempty"`
+	Error        *MatrixCellError              `json:"error,omitempty"`
 
 	framedArtifacts map[string]matrixArtifactInfo
 	rawArtifacts    map[string]matrixArtifactInfo
