@@ -19,6 +19,18 @@ func init() {
 	hiddenCommandHelpRegistry.flags = make(map[*flag.Flag]struct{})
 }
 
+// HiddenFromDiscovery reports whether a command should be omitted from command
+// inventories, search results, and completion suggestions. Direct use is unchanged.
+func HiddenFromDiscovery(command *ffcli.Command) bool {
+	if command == nil {
+		return true
+	}
+	shortHelp := strings.TrimSpace(command.ShortHelp)
+	return strings.HasPrefix(shortHelp, "DEPRECATED:") ||
+		strings.HasPrefix(shortHelp, "REMOVED:") ||
+		strings.HasPrefix(shortHelp, "Compatibility alias:")
+}
+
 // RewriteCommandTreePath rewrites usage/help path prefixes for an existing command tree.
 func RewriteCommandTreePath(cmd *ffcli.Command, currentPrefix, replacementPrefix string) *ffcli.Command {
 	if cmd == nil || currentPrefix == "" || replacementPrefix == "" {
