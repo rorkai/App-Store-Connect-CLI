@@ -200,7 +200,9 @@ func (d *Deps) NewFlagSet(name string, errorHandling flag.ErrorHandling) *flag.F
 // or a CI environment decides otherwise, --output defaults to table when d's
 // stdout is a terminal and to json when it is not.
 func (d *Deps) BindOutputFlags(fs *flag.FlagSet) OutputFlags {
-	return BindOutputFlagsWith(fs, "output", d.DefaultOutputFormat(), "Output format: json, table, markdown")
+	output := BindOutputFlagsWith(fs, "output", d.DefaultOutputFormat(), "Output format: json, table, markdown")
+	fs.Lookup("output").Value.(*validatedOutputValue).defaultKind = "dynamic"
+	return output
 }
 
 // DefaultOutputFormat returns the default output format for CLI commands.
