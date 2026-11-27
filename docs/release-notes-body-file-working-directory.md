@@ -10,9 +10,13 @@ stderr:
 - `asc reviews respond-batch --file`.
 
 Slack and batch review replies also preserve their existing support for
-symlink inputs that resolve to regular files, with the same warning. Web review
-commands retain their existing symlink restrictions. All inputs reject
-directories, FIFOs, and other non-regular files before reading their content.
+symlink inputs, with the same warning. Slack also continues to read streams,
+including process substitution, FIFOs and `/dev/stdin`, with a deprecation
+warning. Batch review replies preserve seekable descriptor inputs such as
+`--file /dev/stdin < replies.json`; non-seekable pipes remain unsupported.
+The batch byte and token limits still apply. Web review commands retain their
+existing symlink restrictions and reject directories, FIFOs and other
+non-regular files before reading their content.
 
 Copy deprecated input files into the project directory as regular files before
 a future release refuses those paths. Web review also accepts inline text with

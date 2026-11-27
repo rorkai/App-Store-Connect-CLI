@@ -41,10 +41,11 @@ ASC_SLACK_WEBHOOK=$WEBHOOK asc notify slack --message "Release v2.1 ready"
 * `--pretext` - Optional text shown above attachment payload fields (requires `--payload-json`/`--payload-file`)
 * `--success` - Set attachment color to success (`true`) or failure (`false`, default: `true`)
 
-File inputs must resolve to regular files. Previously supported paths outside
-the working directory and symlink inputs still work, with a warning on stderr.
-Copy those files into the project directory or use `--blocks-json` and
-`--payload-json` before a future release refuses the deprecated paths.
+Regular files in the working directory are preferred. Previously supported
+streams (including process substitution, FIFOs and `/dev/stdin`), descriptor
+paths, outside-directory files and symlinks still work, with a warning on stderr.
+Copy the content into a regular project file or use `--blocks-json` and
+`--payload-json` before a future release refuses the deprecated inputs.
 
 ## Basic Usage
 
