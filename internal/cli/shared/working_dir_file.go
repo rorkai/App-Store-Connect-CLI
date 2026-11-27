@@ -26,8 +26,22 @@ func (d *Deps) OpenMessageFile(flagName, hint, path string, followSymlinks bool)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", flagName, err)
 	}
+	openPath := absolute
+	// Windows resolves drive-relative paths and dot segments before opening.
+	// Unix walks raw components from the physical cwd, not the shell's PWD.
+	source := absolute
+	if runtime.GOOS != "windows" {
+		source = path
+		if !filepath.IsAbs(source) {
+			physicalDir, err := filepath.EvalSymlinks(workingDir)
+			if err != nil {
+				return nil, fmt.Errorf("read %s: %w", flagName, err)
+			}
+			source = physicalDir + string(filepath.Separator) + source
+			openPath = filepath.Clean(source)
+		}
+	}
 	if followSymlinks {
-		source := d.OSPath(path)
 		info, statErr := os.Stat(source)
 		stream := statErr == nil && !info.Mode().IsRegular() && !info.IsDir()
 		if stream || messageFileDescriptorPath(absolute) {
@@ -42,21 +56,23 @@ func (d *Deps) OpenMessageFile(flagName, hint, path string, followSymlinks bool)
 			return file, nil
 		}
 	}
-	openPath := absolute
-	if followSymlinks {
-		// Windows resolves drive-relative paths and dot segments before opening.
-		// Unix walks the original components, so link/../file can name another file.
-		source := absolute
-		if runtime.GOOS != "windows" {
-			source = d.OSPath(path)
-		}
+	if followSymlinks || source != openPath {
 		resolved, err := filepath.EvalSymlinks(source)
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", flagName, err)
 		}
-		openPath, err = d.Abs(resolved)
-		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", flagName, err)
+		if followSymlinks {
+			openPath = resolved
+		} else {
+			// Keep the no-follow open below, but never let cleaning a parent
+			// component silently select different message content.
+			cleaned, err := filepath.EvalSymlinks(openPath)
+			if err != nil {
+				return nil, fmt.Errorf("read %s: %w", flagName, err)
+			}
+			if resolved != cleaned {
+				return nil, fmt.Errorf("read %s: %w", flagName, rootfs.ErrSymlink)
+			}
 		}
 	}
 	file, err := rootfs.OpenFileIn(workingDir, openPath)

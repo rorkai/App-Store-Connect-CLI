@@ -6,14 +6,71 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
+
+func TestWebReviewBodyFilePreservesPhysicalTraversal(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows normalizes parent components before filesystem traversal")
+	}
+	physicalParent, logicalParent := t.TempDir(), t.TempDir()
+	project := filepath.Join(physicalParent, "project")
+	if err := os.MkdirAll(filepath.Join(project, "templates", "child"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for path, body := range map[string]string{
+		filepath.Join(physicalParent, "reply.txt"):       "Physical parent reply.",
+		filepath.Join(logicalParent, "reply.txt"):        "Wrong logical parent reply.",
+		filepath.Join(project, "reply.txt"):              "Project reply.",
+		filepath.Join(project, "templates", "reply.txt"): "Different symlink-parent reply.",
+	} {
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	alias := filepath.Join(logicalParent, "project")
+	for link, target := range map[string]string{alias: project, filepath.Join(project, "link"): filepath.Join(project, "templates", "child")} {
+		if err := os.Symlink(target, link); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+	}
+	t.Chdir(alias)
+	t.Setenv("PWD", alias)
+	for _, test := range []struct {
+		path string
+		body string
+		err  error
+	}{
+		{path: "../reply.txt", body: "Physical parent reply."},
+		{path: "templates/../reply.txt", body: "Project reply."},
+		{path: filepath.Join(physicalParent, "reply.txt"), body: "Physical parent reply."},
+		{path: "link/../reply.txt", err: rootfs.ErrSymlink},
+		{path: "missing/../reply.txt", err: os.ErrNotExist},
+		{path: "reply.txt/../reply.txt", err: syscall.ENOTDIR},
+	} {
+		t.Run(test.path, func(t *testing.T) {
+			d, _, _ := newWebTestDeps()
+			fs := d.NewFlagSet("body", flag.ContinueOnError)
+			fs.String("body-file", "", "")
+			if err := fs.Set("body-file", test.path); err != nil {
+				t.Fatal(err)
+			}
+			body, err := readWebReviewDraftBody(d, fs, "", test.path)
+			if !errors.Is(err, test.err) || body != test.body {
+				t.Fatalf("body=%q error=%v; want body=%q error=%v", body, err, test.body, test.err)
+			}
+		})
+	}
+}
 
 // webReviewBodyFileCommands are the three commands that read --body-file.
 var webReviewBodyFileCommands = []struct {
