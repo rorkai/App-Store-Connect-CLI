@@ -689,6 +689,16 @@ func openAnchoredFile(root Root, relative string, err error) (*os.File, error) {
 	return file, nil
 }
 
+// CheckCreateNewFile checks a destination through the same rooted traversal as
+// CreateNewFileAtomic without creating it. Missing parents are accepted.
+func CheckCreateNewFile(path string) error {
+	root, relative, err := trustedAnchorFor(path)
+	if err != nil {
+		return err
+	}
+	return errors.Join(root.CheckCreateNewFile(relative), root.Close())
+}
+
 // CreateNewFileAtomic publishes a new regular file through the same rooted
 // traversal as OpenFile. It fails if the destination exists.
 func CreateNewFileAtomic(path string, data []byte, perm os.FileMode) error {
