@@ -2,13 +2,86 @@ package screenshots
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
+	"time"
 )
+
+func TestRunWaitForStepHonorsDeadline(t *testing.T) {
+	hierarchyErr := errors.New("hierarchy read failed")
+	for _, test := range []struct {
+		name           string
+		readDuration   time.Duration
+		matched        bool
+		readErr        error
+		clockAdvance   time.Duration
+		cancelParent   bool
+		parentDeadline bool
+		wantDuration   time.Duration
+		wantErr        error
+		wantTimeout    bool
+	}{
+		{name: "hierarchy read", readDuration: 80 * time.Millisecond, matched: true, wantDuration: 50 * time.Millisecond, wantTimeout: true},
+		{name: "step deadline before timer callback", clockAdvance: 80 * time.Millisecond, matched: true, wantTimeout: true},
+		{name: "unmatched read after deadline", clockAdvance: 80 * time.Millisecond, wantTimeout: true},
+		{name: "caller deadline before timer callback", clockAdvance: 80 * time.Millisecond, matched: true, parentDeadline: true, wantErr: context.DeadlineExceeded},
+		{name: "poll interval", readDuration: 20 * time.Millisecond, wantDuration: 50 * time.Millisecond, wantTimeout: true},
+		{name: "caller cancellation", readDuration: 80 * time.Millisecond, cancelParent: true, wantDuration: 20 * time.Millisecond, wantErr: context.Canceled},
+		{name: "caller deadline", readDuration: 80 * time.Millisecond, parentDeadline: true, wantDuration: 20 * time.Millisecond, wantErr: context.DeadlineExceeded},
+		{name: "match before deadline", readDuration: 10 * time.Millisecond, matched: true, wantDuration: 10 * time.Millisecond},
+		{name: "hierarchy error", readDuration: 10 * time.Millisecond, readErr: hierarchyErr, wantDuration: 10 * time.Millisecond, wantErr: hierarchyErr},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				if test.parentDeadline {
+					var cancelDeadline context.CancelFunc
+					ctx, cancelDeadline = context.WithTimeout(ctx, 20*time.Millisecond)
+					defer cancelDeadline()
+				}
+				if test.cancelParent {
+					go func() {
+						<-time.After(20 * time.Millisecond)
+						cancel()
+					}()
+				}
+				calls := 0
+				var clockAdvance time.Duration
+				now := func() time.Time { return time.Now().Add(clockAdvance) }
+				readHierarchy := func(ctx context.Context, _ string, _ PlanStep) (bool, error) {
+					calls++
+					select {
+					case <-ctx.Done():
+						return false, hierarchyErr
+					case <-time.After(test.readDuration):
+						clockAdvance = test.clockAdvance
+						return test.matched, test.readErr
+					}
+				}
+				timeout, poll := 50, 400
+				start := time.Now()
+				err := runWaitForStep(ctx, PlanStep{TimeoutMS: &timeout, PollIntervalMS: &poll}, "simulator", readHierarchy, now)
+				if test.wantTimeout {
+					if err == nil || err.Error() != "wait_for timed out after 50ms" {
+						t.Fatalf("error = %v, want the step timeout", err)
+					}
+				} else if !errors.Is(err, test.wantErr) {
+					t.Fatalf("error = %v, want %v", err, test.wantErr)
+				}
+				if elapsed := time.Since(start); elapsed != test.wantDuration || calls != 1 {
+					t.Fatalf("duration = %v, hierarchy reads = %d; want %v and one read", elapsed, calls, test.wantDuration)
+				}
+			})
+		})
+	}
+}
 
 func skipWindowsUnixExecutableFixtures(t *testing.T) {
 	t.Helper()
