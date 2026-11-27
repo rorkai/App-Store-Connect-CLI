@@ -2,6 +2,20 @@ package asc
 
 import "strconv"
 
+// NotarizationPackageResult describes a newly created local ZIP archive.
+type NotarizationPackageResult struct {
+	AppPath     string `json:"appPath"`
+	ArchivePath string `json:"archivePath"`
+	SizeBytes   int64  `json:"sizeBytes"`
+	SHA256      string `json:"sha256"`
+}
+
+func notarizationPackageResultRows(result *NotarizationPackageResult) ([]string, [][]string) {
+	return []string{"App Path", "Archive Path", "Size (Bytes)", "SHA256"}, [][]string{{
+		result.AppPath, result.ArchivePath, strconv.FormatInt(result.SizeBytes, 10), result.SHA256,
+	}}
+}
+
 // NotarizationStapleResult is the computed output for a successful local
 // ticket stapling and validation operation.
 type NotarizationStapleResult struct {

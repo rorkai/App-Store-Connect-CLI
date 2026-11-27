@@ -22,6 +22,7 @@ func registerAllOutputRenderers() {
 	registerRows(creativePlacementBulkDeleteResultRows)
 	registerRows(notarizationStapleResultRows)
 	registerRows(notarizationValidateResultRows)
+	registerRows(notarizationPackageResultRows)
 	registerDirect(func(v *DeveloperSystemStatusReport, render func([]string, [][]string)) error {
 		h, r := developerSystemStatusSummaryRows(v)
 		render(h, r)
