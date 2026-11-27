@@ -103,7 +103,7 @@ asc app-events create \
 * `--start` - Event start time (RFC3339 format)
 * `--end` - Event end time (RFC3339 format)
 * `--publish-start` - Publish start time (when event appears on App Store)
-* `--territories` - Comma-separated territory codes (e.g., `USA,CAN,GBR`)
+* `--territories` - Comma-separated territory codes (e.g., `USA,CAN,GBR`), or `all` for every territory the app is available in. Required with a schedule
 * `--deep-link` - URL that Open on the event card leads to; App Store Connect asks for one before review
 * `--purchase-requirement` - Currently supported: `NO_COST_ASSOCIATED`
 * `--primary-locale` - Primary locale (e.g., `en-US`)
@@ -162,7 +162,7 @@ asc app-events update \
 * `--start` - Event start time
 * `--end` - Event end time
 * `--publish-start` - Publish start time
-* `--territories` - Territory codes
+* `--territories` - Territory codes (required with a schedule)
 * `--deep-link` - URL that Open on the event card leads to; App Store Connect asks for one before review
 * `--purchase-requirement` - Purchase requirement
 * `--primary-locale` - Primary locale

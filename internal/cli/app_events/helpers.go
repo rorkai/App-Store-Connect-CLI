@@ -132,30 +132,57 @@ func buildAppEventTerritorySchedule(territories []string, publishStart, start, e
 	return schedule
 }
 
-func normalizeAppEventTerritorySchedule(start, end, publishStart, territories string) (asc.AppEventTerritorySchedule, bool, error) {
+// appEventSchedule is the schedule given by the event schedule flags.
+// allTerritories means --territories all, which create resolves from the
+// app's availability before it sends the schedule.
+type appEventSchedule struct {
+	schedule       asc.AppEventTerritorySchedule
+	provided       bool
+	allTerritories bool
+}
+
+func normalizeAppEventTerritorySchedule(start, end, publishStart, territories string, allowAllTerritories bool) (appEventSchedule, error) {
 	scheduleProvided := strings.TrimSpace(start) != "" ||
 		strings.TrimSpace(end) != "" ||
 		strings.TrimSpace(publishStart) != "" ||
 		strings.TrimSpace(territories) != ""
 	if !scheduleProvided {
-		return asc.AppEventTerritorySchedule{}, false, nil
+		return appEventSchedule{}, nil
 	}
 
 	startValue, err := normalizeRFC3339(start, "--start", true)
 	if err != nil {
-		return asc.AppEventTerritorySchedule{}, false, err
+		return appEventSchedule{}, err
 	}
 	endValue, err := normalizeRFC3339(end, "--end", true)
 	if err != nil {
-		return asc.AppEventTerritorySchedule{}, false, err
+		return appEventSchedule{}, err
 	}
 	publishValue, err := normalizeRFC3339(publishStart, "--publish-start", false)
 	if err != nil {
-		return asc.AppEventTerritorySchedule{}, false, err
+		return appEventSchedule{}, err
 	}
-	territoryValues := shared.SplitCSVUpper(territories)
 
-	return buildAppEventTerritorySchedule(territoryValues, publishValue, startValue, endValue), true, nil
+	territoryValues := shared.SplitCSVUpper(territories)
+	allTerritories := slices.Contains(territoryValues, "ALL")
+	switch {
+	case len(territoryValues) == 0 && allowAllTerritories:
+		return appEventSchedule{}, fmt.Errorf("--territories is required with a schedule: pass territory codes such as USA,GBR, or all for every territory the app is available in")
+	case len(territoryValues) == 0:
+		return appEventSchedule{}, fmt.Errorf("--territories is required with a schedule: pass territory codes such as USA,GBR")
+	case allTerritories && !allowAllTerritories:
+		return appEventSchedule{}, fmt.Errorf("--territories all is supported only by app-events create; pass territory codes such as USA,GBR")
+	case allTerritories && len(territoryValues) > 1:
+		return appEventSchedule{}, fmt.Errorf("--territories all cannot be combined with territory codes")
+	case allTerritories:
+		territoryValues = nil
+	}
+
+	return appEventSchedule{
+		schedule:       buildAppEventTerritorySchedule(territoryValues, publishValue, startValue, endValue),
+		provided:       true,
+		allTerritories: allTerritories,
+	}, nil
 }
 
 func appEventHasTerritorySchedule(event *asc.AppEventResponse, expected asc.AppEventTerritorySchedule) bool {

@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -258,6 +260,7 @@ func TestAppEventsCreateReportsScheduleFailureOutcome(t *testing.T) {
 				"--event-type", "CHALLENGE",
 				"--start", "2026-06-01T00:00:00Z",
 				"--end", "2026-06-30T23:59:59Z",
+				"--territories", "USA",
 			)
 			if err == nil {
 				t.Fatal("expected create to fail")
@@ -273,6 +276,102 @@ func TestAppEventsCreateReportsScheduleFailureOutcome(t *testing.T) {
 			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
+	}
+}
+
+func TestAppEventsCreateTerritoriesAllUsesAppAvailability(t *testing.T) {
+	const availabilityPath = "/v1/apps/app-123/appAvailabilityV2"
+	const territoriesPath = "/v2/appAvailabilities/availability-1/territoryAvailabilities"
+	territory := func(id string, available bool) string {
+		return fmt.Sprintf(`{"type":"territoryAvailabilities","id":"ta-%s","attributes":{"available":%t},"relationships":{"territory":{"data":{"type":"territories","id":"%s"}}}}`, id, available, id)
+	}
+
+	tests := []struct {
+		name            string
+		territories     string
+		wantRequests    []string
+		wantTerritories []string
+		wantErr         string
+	}{
+		{
+			name:            "available territories become the schedule",
+			territories:     `{"data":[` + territory("USA", true) + `,` + territory("FRA", false) + `,` + territory("CAN", true) + `],"links":{"next":""}}`,
+			wantRequests:    []string{"GET " + availabilityPath, "GET " + territoriesPath, "POST /v1/appEvents", "PATCH /v1/appEvents/event-1"},
+			wantTerritories: []string{"CAN", "USA"},
+		},
+		{
+			name:         "app with no available territories creates nothing",
+			territories:  `{"data":[` + territory("FRA", false) + `],"links":{"next":""}}`,
+			wantRequests: []string{"GET " + availabilityPath, "GET " + territoriesPath},
+			wantErr:      `app-events create: --territories all: app "app-123" is not available in any territory`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var requests []string
+			var gotTerritories []string
+			client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests = append(requests, req.Method+" "+req.URL.Path)
+				switch req.Method + " " + req.URL.Path {
+				case "GET " + availabilityPath:
+					return jsonResponse(http.StatusOK, `{"data":{"type":"appAvailabilities","id":"availability-1"}}`)
+				case "GET " + territoriesPath:
+					return jsonResponse(http.StatusOK, test.territories)
+				case "POST /v1/appEvents":
+					return jsonResponse(http.StatusCreated, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch"}}}`)
+				case "PATCH /v1/appEvents/event-1":
+					var body struct {
+						Data struct {
+							Attributes struct {
+								TerritorySchedules []asc.AppEventTerritorySchedule `json:"territorySchedules"`
+							} `json:"attributes"`
+						} `json:"data"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+						t.Fatalf("failed to decode schedule update: %v", err)
+					}
+					if len(body.Data.Attributes.TerritorySchedules) != 1 {
+						t.Fatalf("territorySchedules = %#v, want one schedule", body.Data.Attributes.TerritorySchedules)
+					}
+					gotTerritories = body.Data.Attributes.TerritorySchedules[0].Territories
+					return jsonResponse(http.StatusOK, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch"}}}`)
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+					return nil, nil
+				}
+			}))
+
+			stdout, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil },
+				"app-events", "create",
+				"--app", "app-123",
+				"--name", "Launch",
+				"--start", "2026-06-01T00:00:00Z",
+				"--end", "2026-06-30T23:59:59Z",
+				"--territories", "all",
+			)
+			if !slices.Equal(requests, test.wantRequests) {
+				t.Fatalf("requests = %q, want %q", requests, test.wantRequests)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			if test.wantErr != "" {
+				if err == nil || err.Error() != test.wantErr {
+					t.Fatalf("error = %v, want %q", err, test.wantErr)
+				}
+				if stdout != "" {
+					t.Fatalf("expected empty stdout, got %q", stdout)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("create failed: %v", err)
+			}
+			if !slices.Equal(gotTerritories, test.wantTerritories) {
+				t.Fatalf("schedule territories = %q, want %q", gotTerritories, test.wantTerritories)
 			}
 		})
 	}

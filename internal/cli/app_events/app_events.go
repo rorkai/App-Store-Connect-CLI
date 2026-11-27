@@ -177,7 +177,7 @@ func newAppEventsCreateCommand(d *shared.Deps) *ffcli.Command {
 	start := fs.String("start", "", "Event start time (RFC3339)")
 	end := fs.String("end", "", "Event end time (RFC3339)")
 	publishStart := fs.String("publish-start", "", "Publish start time (RFC3339)")
-	territories := shared.BindOnceCSVFlag(fs, "territories", "Territory codes (comma-separated)")
+	territories := shared.BindOnceCSVFlag(fs, "territories", "Territory codes (comma-separated), or all for every territory the app is available in")
 	deepLink := fs.String("deep-link", "", "URL that Open on the event card leads to; App Store Connect asks for one before review")
 	purchaseRequirement := fs.String("purchase-requirement", "", "Purchase requirement (currently supported: "+supportedAppEventPurchaseRequirementValues()+")")
 	primaryLocale := fs.String("primary-locale", "", "Primary locale (e.g., en-US)")
@@ -238,11 +238,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			schedule, scheduleProvided, err := normalizeAppEventTerritorySchedule(*start, *end, *publishStart, territories.String())
+			eventSchedule, err := normalizeAppEventTerritorySchedule(*start, *end, *publishStart, territories.String(), true)
 			if err != nil {
 				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return flag.ErrHelp
 			}
+			schedule, scheduleProvided := eventSchedule.schedule, eventSchedule.provided
 
 			attrs := asc.AppEventCreateAttributes{
 				ReferenceName:       nameValue,
@@ -257,6 +258,22 @@ Examples:
 			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-events create: %w", err)
+			}
+
+			if eventSchedule.allTerritories {
+				// Resolve the territories before creating anything, so a failed
+				// lookup leaves no event behind.
+				territoryCtx, cancelTerritories := d.Timeout(ctx)
+				defer cancelTerritories()
+
+				territoryIDs, err := shared.FetchAvailableTerritoryIDs(territoryCtx, client, resolvedAppID)
+				if err != nil {
+					return fmt.Errorf("app-events create: --territories all: %w", err)
+				}
+				if len(territoryIDs) == 0 {
+					return fmt.Errorf("app-events create: --territories all: app %q is not available in any territory", resolvedAppID)
+				}
+				schedule.Territories = territoryIDs
 			}
 
 			createCtx, cancelCreate := d.Timeout(ctx)
@@ -418,13 +435,13 @@ Examples:
 				}
 			}
 
-			schedule, scheduleProvided, err := normalizeAppEventTerritorySchedule(*start, *end, *publishStart, territories.String())
+			eventSchedule, err := normalizeAppEventTerritorySchedule(*start, *end, *publishStart, territories.String(), false)
 			if err != nil {
 				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return flag.ErrHelp
 			}
-			if scheduleProvided {
-				attrs.TerritorySchedules = []asc.AppEventTerritorySchedule{schedule}
+			if eventSchedule.provided {
+				attrs.TerritorySchedules = []asc.AppEventTerritorySchedule{eventSchedule.schedule}
 				hasUpdate = true
 			}
 

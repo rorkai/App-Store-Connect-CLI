@@ -640,6 +640,35 @@ func getAllTerritoryAvailabilities(ctx context.Context, client *asc.Client, avai
 	return resp, nil
 }
 
+// FetchAvailableTerritoryIDs returns the sorted IDs of the territories where
+// the app is set to be available.
+func FetchAvailableTerritoryIDs(ctx context.Context, client *asc.Client, appID string) ([]string, error) {
+	availability, err := client.GetAppAvailabilityV2(ctx, appID)
+	if err != nil {
+		return nil, fmt.Errorf("fetch app availability: %w", err)
+	}
+	availabilityID := strings.TrimSpace(availability.Data.ID)
+	if availabilityID == "" {
+		return nil, fmt.Errorf("app availability response did not include an ID")
+	}
+	resp, err := getAllTerritoryAvailabilities(ctx, client, availabilityID)
+	if err != nil {
+		return nil, fmt.Errorf("fetch territory availabilities: %w", err)
+	}
+	availabilities, err := mapTerritoryAvailabilities(resp)
+	if err != nil {
+		return nil, err
+	}
+	territoryIDs := make([]string, 0, len(availabilities))
+	for territoryID, availability := range availabilities {
+		if availability.Attributes.Available {
+			territoryIDs = append(territoryIDs, territoryID)
+		}
+	}
+	sort.Strings(territoryIDs)
+	return territoryIDs, nil
+}
+
 type territoryAvailabilityIDPayload struct {
 	Territory string `json:"t"`
 }

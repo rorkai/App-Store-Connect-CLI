@@ -38,6 +38,26 @@ func TestAppEventsValidationErrors(t *testing.T) {
 			wantErr: "Error: --end is required",
 		},
 		{
+			name:    "create schedule missing territories",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--start", "2026-01-01T00:00:00Z", "--end", "2026-01-02T00:00:00Z"},
+			wantErr: "Error: --territories is required with a schedule: pass territory codes such as USA,GBR, or all for every territory the app is available in\n",
+		},
+		{
+			name:    "create territories all mixed with codes",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--start", "2026-01-01T00:00:00Z", "--end", "2026-01-02T00:00:00Z", "--territories", "all,USA"},
+			wantErr: "Error: --territories all cannot be combined with territory codes\n",
+		},
+		{
+			name:    "update schedule missing territories",
+			args:    []string{"app-events", "update", "--event-id", "EVENT_ID", "--start", "2026-01-01T00:00:00Z", "--end", "2026-01-02T00:00:00Z"},
+			wantErr: "Error: --territories is required with a schedule: pass territory codes such as USA,GBR\n",
+		},
+		{
+			name:    "update territories all",
+			args:    []string{"app-events", "update", "--event-id", "EVENT_ID", "--start", "2026-01-01T00:00:00Z", "--end", "2026-01-02T00:00:00Z", "--territories", "all"},
+			wantErr: "Error: --territories all is supported only by app-events create; pass territory codes such as USA,GBR\n",
+		},
+		{
 			name:    "update missing event-id",
 			args:    []string{"app-events", "update", "--name", "Launch"},
 			wantErr: "Error: --event-id is required",
