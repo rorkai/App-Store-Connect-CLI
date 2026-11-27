@@ -207,6 +207,32 @@ func TestLocalizationsUpdateResourceIDRejectsDiscoverySelectorsBeforeAuth(t *tes
 	}
 }
 
+// A localization ID names the record on its own, so --id with --app, --version,
+// --app-info, --locale or --platform is refused. The error must name both valid
+// forms, so an agent that probes with --app and --id fixes the call in one step.
+func TestLocalizationsUpdateIDWithSelectorsNamesTheValidForms(t *testing.T) {
+	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+		return nil, errors.New("client should not be created")
+	}))
+
+	_, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{"localizations", "update", "--type", "app-info", "--id", "loc-1", "--app", "123456789", "--name", "Updated"}, "1.2.3")
+		if code != cmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+		}
+	})
+	for _, want := range []string{
+		"--id cannot be combined",
+		"asc localizations update --id LOCALIZATION_ID",
+		"asc localizations update --app APP_ID --type app-info --locale LOCALE",
+		"asc localizations update --version VERSION_ID --locale LOCALE",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+		}
+	}
+}
+
 func TestLocalizationsUpdate_RejectsUnsupportedLocaleWithSuggestion(t *testing.T) {
 	setupLocUpdateAuth(t)
 
