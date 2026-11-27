@@ -381,6 +381,7 @@ func TestAppEventsCreateSucceedsWhenVerificationShowsScheduleApplied(t *testing.
 	tests := []struct {
 		name            string
 		territoriesFlag string
+		publishStart    string
 		verified        string
 		wantStart       string
 		wantEnd         string
@@ -414,10 +415,24 @@ func TestAppEventsCreateSucceedsWhenVerificationShowsScheduleApplied(t *testing.
 			wantPublish:     "2026-05-18T02:00:00+02:00",
 			wantTerritories: []string{"USA", "CAN"},
 		},
+		{
+			name:            "publish during the event",
+			territoriesFlag: "USA",
+			publishStart:    "2026-06-15T00:00:00Z",
+			verified:        `{"territories":["USA"],"publishStart":"2026-06-15T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}`,
+			wantStart:       "2026-06-01T00:00:00Z",
+			wantEnd:         "2026-06-30T23:59:59Z",
+			wantPublish:     "2026-06-15T00:00:00Z",
+			wantTerritories: []string{"USA"},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			publishStart := test.publishStart
+			if publishStart == "" {
+				publishStart = "2026-05-18T00:00:00Z"
+			}
 			client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				switch req.Method {
 				case http.MethodPost:
@@ -444,7 +459,7 @@ func TestAppEventsCreateSucceedsWhenVerificationShowsScheduleApplied(t *testing.
 				"--event-type", "CHALLENGE",
 				"--start", "2026-06-01T00:00:00Z",
 				"--end", "2026-06-30T23:59:59Z",
-				"--publish-start", "2026-05-18T00:00:00Z",
+				"--publish-start", publishStart,
 				"--territories", test.territoriesFlag,
 			)
 			if err != nil {

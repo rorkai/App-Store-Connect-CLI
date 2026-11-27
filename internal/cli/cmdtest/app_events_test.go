@@ -73,6 +73,11 @@ func TestAppEventsValidationErrors(t *testing.T) {
 			wantErr: "Error: --publish-start must be at most 14 days before --start (earliest: 2026-11-15T17:00:00Z)\n",
 		},
 		{
+			name:    "create publish after event end",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--publish-start", "2026-12-02T00:00:00Z", "--start", "2026-12-01T00:00:00Z", "--end", "2026-12-01T23:00:00Z", "--territories", "USA"},
+			wantErr: "Error: --publish-start must not be after --end\n",
+		},
+		{
 			name:    "update event longer than 31 days",
 			args:    []string{"app-events", "update", "--event-id", "EVENT_ID", "--start", "2026-11-29T17:00:00Z", "--end", "2027-01-03T17:00:00Z", "--territories", "USA"},
 			wantErr: "Error: --end must be at most 31 days after --start (latest: 2026-12-30T17:00:00Z)\n",

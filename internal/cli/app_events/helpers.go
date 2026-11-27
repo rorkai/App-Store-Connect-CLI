@@ -168,6 +168,9 @@ func validateAppEventScheduleWindow(start, end, publishStart string) error {
 	if startTime.Sub(publishTime) > appEventMaxPublishLeadTime {
 		return fmt.Errorf("--publish-start must be at most 14 days before --start (earliest: %s)", startTime.Add(-appEventMaxPublishLeadTime).Format(time.RFC3339))
 	}
+	if publishTime.After(endTime) {
+		return fmt.Errorf("--publish-start must not be after --end")
+	}
 	return nil
 }
 
