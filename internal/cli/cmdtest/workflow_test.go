@@ -177,7 +177,9 @@ func TestWorkflowRun_DryRun(t *testing.T) {
 				}
 			}`)
 
-			stdout, stderr, err := runRootWithDeps(t, nil, test.args(path)...)
+			progressPath := filepath.Join(dir, "progress.jsonl")
+			args := append(test.args(path), "--progress-file", progressPath)
+			stdout, stderr, err := runRootWithDeps(t, nil, args...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -189,6 +191,12 @@ func TestWorkflowRun_DryRun(t *testing.T) {
 			var result map[string]any
 			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 				t.Fatalf("expected JSON stdout, got %q: %v", stdout, err)
+			}
+			_, events := readWorkflowProgress(t, progressPath)
+			for _, event := range events {
+				if !event.DryRun || strings.HasPrefix(event.Event, "attempt_") {
+					t.Fatalf("dry run progress = %+v", event)
+				}
 			}
 			if result["status"] != "ok" {
 				t.Fatalf("expected status=ok, got %v", result["status"])
@@ -474,13 +482,15 @@ func TestWorkflowList(t *testing.T) {
 
 func TestWorkflowRun_Success(t *testing.T) {
 	dir := t.TempDir()
+	progressPath := filepath.Join(dir, "progress.jsonl")
+	t.Setenv("PROGRESS_PATH", progressPath)
 	path := writeWorkflowJSON(t, dir, `{
 		"workflows": {
-			"test": {"steps": ["echo workflow_success"]}
+			"test": {"steps": ["test -s \"$PROGRESS_PATH\" && echo workflow_success"]}
 		}
 	}`)
 
-	stdout, stderr, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "test")
+	stdout, stderr, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "test", "--progress-file", progressPath)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -497,6 +507,22 @@ func TestWorkflowRun_Success(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "workflow_success") {
 		t.Fatalf("expected command output on stderr, got %q", stderr)
+	}
+	progress, events := readWorkflowProgress(t, progressPath)
+	if strings.Contains(progress, "workflow_success") || strings.Contains(progress, "PROGRESS_PATH") {
+		t.Fatalf("progress exposed command or child output: %s", progress)
+	}
+	wantEvents := []string{"run_started", "attempt_started", "attempt_finished", "step_finished", "run_finished"}
+	if len(events) != len(wantEvents) {
+		t.Fatalf("progress events = %s, want %v", progress, wantEvents)
+	}
+	for i, event := range events {
+		if event.Event != wantEvents[i] || event.RunID != result["run_id"] {
+			t.Fatalf("event = %v, want %s with result run ID", event, wantEvents[i])
+		}
+		if i > 0 && i < 4 && event.StepID != "test[1]" {
+			t.Fatalf("step ID = %v, want native test[1]", event.StepID)
+		}
 	}
 }
 
@@ -763,7 +789,8 @@ func TestWorkflowRun_ResumeFlagAfterName(t *testing.T) {
 		}
 	}`)
 
-	stdout1, _, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "release")
+	firstProgress := filepath.Join(dir, "first.jsonl")
+	stdout1, _, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "release", "--progress-file", firstProgress)
 	if err == nil {
 		t.Fatal("expected first run error")
 	}
@@ -784,7 +811,8 @@ func TestWorkflowRun_ResumeFlagAfterName(t *testing.T) {
 		t.Fatalf("write resume flag: %v", err)
 	}
 
-	stdout2, _, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "release", "--resume", runID)
+	secondProgress := filepath.Join(dir, "second.jsonl")
+	stdout2, _, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "release", "--resume", runID, "--progress-file", secondProgress)
 	if err != nil {
 		t.Fatalf("resume run error: %v", err)
 	}
@@ -809,6 +837,17 @@ func TestWorkflowRun_ResumeFlagAfterName(t *testing.T) {
 	}
 	if firstStep["status"] != "resumed" {
 		t.Fatalf("expected first step status resumed, got %v", firstStep["status"])
+	}
+	_, firstEvents := readWorkflowProgress(t, firstProgress)
+	_, resumedEvents := readWorkflowProgress(t, secondProgress)
+	if len(resumedEvents) < 2 {
+		t.Fatalf("resume progress = %+v", resumedEvents)
+	}
+	if last := firstEvents[len(firstEvents)-1]; last.Event != "run_finished" || last.Status != "error" {
+		t.Fatalf("failed run progress = %+v", last)
+	}
+	if event := resumedEvents[1]; event.Event != "step_finished" || event.StepID != "release[1]" || event.Status != "resumed" || event.RunID != runID {
+		t.Fatalf("resume progress = %+v", event)
 	}
 }
 

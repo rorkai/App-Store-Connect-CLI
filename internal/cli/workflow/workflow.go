@@ -157,6 +157,7 @@ func workflowRunCommand(d *shared.Deps) *ffcli.Command {
 	dryRun := fs.Bool("dry-run", false, "Preview steps without executing")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	resume := fs.String("resume", "", "Resume a prior workflow run by run ID")
+	progressFile := fs.String("progress-file", "", "Stream lifecycle events as JSONL to a new file")
 	var envFiles shared.MultiStringFlag
 	fs.Var(&envFiles, "env-file", "Load KEY=VALUE environment variables from a file (repeatable)")
 
@@ -175,6 +176,9 @@ Do not pass extra KEY:VALUE params with --resume.
 If a step declares "outputs", the command must emit JSON on stdout; for asc commands,
 usually pass --output json.
 stdout stays machine-parseable JSON even on failure; step and hook output streams to stderr.
+Use --progress-file with a new file for live JSONL run, step, and attempt events.
+Events use native run and step IDs and omit commands, outputs, and environment values.
+Later progress write failures warn without changing the workflow outcome.
 Retry is opt-in on run steps. retry.max_attempts counts the initial attempt and
 retry.delay is a fixed delay between failures. timeout applies to each attempt.
 Attempt counts and delays are written to stderr and attempt outcomes are included
@@ -259,6 +263,20 @@ Examples:
 				return d.UsageErrorf("--env-file: %s", err)
 			}
 
+			progressSet := false
+			fs.Visit(func(f *flag.Flag) { progressSet = progressSet || f.Name == "progress-file" })
+			if progressSet && strings.TrimSpace(*progressFile) == "" {
+				return d.UsageError("--progress-file must not be empty")
+			}
+			progress, err := d.OpenProgressFile(*progressFile)
+			if err != nil {
+				return d.UsageErrorf("--progress-file: %v", err)
+			}
+			defer progress.Close()
+			var observe func(wf.ProgressEvent)
+			if progress != nil {
+				observe = func(event wf.ProgressEvent) { progress.Emit(event) }
+			}
 			stateDir := filepath.Join(filepath.Dir(absPath), "runs")
 
 			result, err := wf.Run(ctx, def, wf.RunOptions{
@@ -269,6 +287,7 @@ Examples:
 				WorkflowFile: absPath,
 				StateDir:     stateDir,
 				ResumeRunID:  strings.TrimSpace(*resume),
+				Progress:     observe,
 				// Keep stdout machine-parseable JSON; stream step output to stderr.
 				Stdout: d.IO.ChildStderr(),
 				Stderr: d.IO.ChildStderr(),
@@ -420,7 +439,7 @@ func parseRunTailArgs(d *shared.Deps, args []string, fs *flag.FlagSet) ([]string
 					return nil, d.UsageErrorf("invalid value for --%s: %v", name, err)
 				}
 				continue
-			case "file", "resume", "env-file":
+			case "file", "resume", "env-file", "progress-file":
 				if !hasValue {
 					if i+1 >= len(args) {
 						return nil, d.UsageErrorf("--%s requires a value", name)
@@ -459,7 +478,7 @@ func isRunTailFlagToken(token string) bool {
 	nameValue := strings.TrimPrefix(token, "--")
 	name, _, _ := strings.Cut(nameValue, "=")
 	switch name {
-	case "dry-run", "pretty", "file", "resume", "env-file":
+	case "dry-run", "pretty", "file", "resume", "env-file", "progress-file":
 		return true
 	default:
 		return false
