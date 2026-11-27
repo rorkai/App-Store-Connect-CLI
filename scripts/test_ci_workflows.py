@@ -959,6 +959,16 @@ def assert_ci_workload_caches() -> None:
         assert "cache-hit" not in shards, f"{path}: cache restoration must never skip tests"
 
 
+def assert_selected_xcode_smoke_is_opt_in() -> None:
+    workflow = (ROOT / ".github/workflows/xcode-smoke.yml").read_text()
+    trigger = workflow.split("\non:", 1)[1].split("\npermissions:", 1)[0]
+    assert "workflow_dispatch:" in trigger
+    assert "pull_request:" not in trigger and "push:" not in trigger and "schedule:" not in trigger
+    assert "contents: read" in workflow and ": write" not in workflow
+    assert "sudo xcode-select" not in workflow
+    assert "scripts/xcode_smoke.py" in workflow and "--xcode-version" in workflow
+
+
 def main() -> None:
     assert_ci_workload_caches()
     assert_lint_analysis_cache()
@@ -1034,6 +1044,7 @@ updates:
       interval: \"weekly\"
 """, "Dependabot must monitor all four dependency ecosystems weekly and update CodeQL actions together"
 
+    assert_selected_xcode_smoke_is_opt_in()
     assert_security_target_contract()
     assert_nix_cache_contract()
 
