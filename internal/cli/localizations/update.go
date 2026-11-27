@@ -104,7 +104,8 @@ At least one field flag must be provided.`,
 			if localizationIDValue != "" && (strings.TrimSpace(*versionID) != "" || strings.TrimSpace(*appID) != "" || strings.TrimSpace(*appInfoID) != "" || strings.TrimSpace(*locale) != "" || flagProvided(fs, "platform")) {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --id cannot be combined with --version, --app, --app-info, --locale, or --platform")
 				fmt.Fprintln(d.IO.ErrOut, "A localization ID names the record on its own. Either drop the other selectors:")
-				fmt.Fprintln(d.IO.ErrOut, "  asc localizations update --id LOCALIZATION_ID --description TEXT")
+				fmt.Fprintln(d.IO.ErrOut, "  asc localizations update --type app-info --id APP_INFO_LOCALIZATION_ID --name TEXT")
+				fmt.Fprintln(d.IO.ErrOut, "  asc localizations update --id VERSION_LOCALIZATION_ID --description TEXT")
 				fmt.Fprintln(d.IO.ErrOut, "or drop --id and name the parent and locale:")
 				fmt.Fprintln(d.IO.ErrOut, "  asc localizations update --app APP_ID --type app-info --locale LOCALE --name TEXT")
 				fmt.Fprintln(d.IO.ErrOut, "  asc localizations update --version VERSION_ID --locale LOCALE --description TEXT")

@@ -223,7 +223,8 @@ func TestLocalizationsUpdateIDWithSelectorsNamesTheValidForms(t *testing.T) {
 	})
 	for _, want := range []string{
 		"--id cannot be combined",
-		"asc localizations update --id LOCALIZATION_ID",
+		"asc localizations update --type app-info --id APP_INFO_LOCALIZATION_ID --name TEXT",
+		"asc localizations update --id VERSION_LOCALIZATION_ID --description TEXT",
 		"asc localizations update --app APP_ID --type app-info --locale LOCALE",
 		"asc localizations update --version VERSION_ID --locale LOCALE",
 	} {
