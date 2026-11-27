@@ -745,14 +745,15 @@ func TestSetVersionLegacyMultiTargetUsesProjectWideWrite(t *testing.T) {
 	t.Cleanup(restore)
 
 	result, err := SetVersion(context.Background(), SetVersionOptions{
-		ProjectDir: projectDir,
-		Version:    "1.3.0",
+		ProjectDir:  projectDir,
+		Version:     "1.3.0",
+		BuildNumber: "42.1b3",
 	})
 	if err != nil {
 		t.Fatalf("expected project-wide edit to succeed, got %v", err)
 	}
-	if result.Version != "1.3.0" {
-		t.Fatalf("expected edited version in result, got %#v", result)
+	if result.Version != "1.3.0" || result.BuildNumber != "42.1b3" {
+		t.Fatalf("expected edited version and build in result, got %#v", result)
 	}
 
 	logData, err := os.ReadFile(logPath)
@@ -763,8 +764,56 @@ func TestSetVersionLegacyMultiTargetUsesProjectWideWrite(t *testing.T) {
 	if !strings.Contains(logText, "agvtool|new-marketing-version|1.3.0") {
 		t.Fatalf("expected project-wide marketing version update, got %q", logText)
 	}
+	if !strings.Contains(logText, "agvtool|new-version|-all|42.1b3") {
+		t.Fatalf("expected project-wide development build update, got %q", logText)
+	}
 	if strings.Contains(logText, "agvtool|what-version|-terse") {
 		t.Fatalf("expected edit path to avoid ambiguous build-number reads, got %q", logText)
+	}
+}
+
+func TestLegacyVersionRejectsMalformedValuesBeforeTools(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		flag string
+		run  func(string) error
+	}{
+		{"edit version", "--version", func(project string) error {
+			_, err := SetVersion(t.Context(), SetVersionOptions{ProjectDir: project, Version: "1/2"})
+			return err
+		}},
+		{"edit build with version", "--build-number", func(project string) error {
+			_, err := SetVersion(t.Context(), SetVersionOptions{ProjectDir: project, Version: "1.3.0", BuildNumber: "42 beta"})
+			return err
+		}},
+		{"validate edit", "--version", func(project string) error {
+			return ValidateSetVersion(t.Context(), SetVersionOptions{ProjectDir: project, Version: "1&2"})
+		}},
+		{"bump build", "--build-number", func(project string) error {
+			_, err := BumpVersion(t.Context(), BumpVersionOptions{ProjectDir: project, BumpType: BumpBuild, BuildNumber: `42\1`})
+			return err
+		}},
+		{"validate bump", "--build-number", func(project string) error {
+			return ValidateBumpVersion(t.Context(), BumpVersionOptions{ProjectDir: project, BumpType: BumpBuild, BuildNumber: "42+1"})
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			project := writeLegacyVersionProject(t)
+			t.Cleanup(overrideTestEnvironment(t))
+			runtimeGOOS = "darwin"
+			toolCalls := 0
+			trustedXcodeToolPathFn = func(context.Context, string, []string) (string, error) {
+				toolCalls++
+				return "", errors.New("unexpected tool lookup")
+			}
+			err := tt.run(project)
+			if err == nil || !strings.Contains(err.Error(), tt.flag+" must contain only") {
+				t.Fatalf("error = %v, want a malformed %s diagnostic", err, tt.flag)
+			}
+			if toolCalls != 0 {
+				t.Fatalf("tool lookups = %d, want none", toolCalls)
+			}
+		})
 	}
 }
 
