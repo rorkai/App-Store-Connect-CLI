@@ -84,6 +84,8 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 						t.Error(err)
 					}
 					payload = string(body)
+				case "GET /v1/builds/b1/preReleaseVersion":
+					payload = `{"data":{"type":"preReleaseVersions","id":"pr-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`
 				case "GET /v1/builds/b1":
 					buildReads++
 					if tc.wrongApp || tc.wrongOwnerType {

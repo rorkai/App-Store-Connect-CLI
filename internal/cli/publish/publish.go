@@ -411,6 +411,11 @@ Examples:
 				if err := validatePublishBuildIdentity(buildResp, buildIDValue); err != nil {
 					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildIDValue, "build_identity", "build_identity_mismatch", fmt.Errorf("publish testflight: %w", err))
 				}
+				// The app version is only reported, so a failed read leaves it
+				// out rather than stopping the distribution.
+				if preRelease, err := readPublishBuildPreRelease(requestCtx, client, buildIDValue); err == nil {
+					resolvedVersionValue = strings.TrimSpace(preRelease.Version)
+				}
 				resolvedBuildNumberValue = strings.TrimSpace(buildResp.Data.Attributes.Version)
 			} else {
 				buildResp, err = findPublishBuildByNumber(requestCtx, client, resolvedPublishAppID, buildNumberValue, normalizedPlatform)
@@ -420,7 +425,8 @@ Examples:
 				if err := shared.CheckBuildAppOwnership(requestCtx, client, resolvedPublishAppID, buildResp.Data.ID); err != nil {
 					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildResp.Data.ID, "build_ownership", "build_ownership_failed", fmt.Errorf("publish testflight: %w", err))
 				}
-				if err := verifyPublishBuildPlatform(requestCtx, client, buildResp.Data.ID, platformValue); err != nil {
+				resolvedVersionValue, err = verifyPublishBuildPlatform(requestCtx, client, buildResp.Data.ID, platformValue)
+				if err != nil {
 					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildResp.Data.ID, "build_identity", "build_platform_unverified", fmt.Errorf("publish testflight: %w", err))
 				}
 				buildAppVerified = true

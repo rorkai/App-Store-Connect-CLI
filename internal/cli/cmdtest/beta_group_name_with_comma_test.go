@@ -60,6 +60,10 @@ func TestBetaGroupFlagResolvesWholeNameBeforeSplittingOnCommas(t *testing.T) {
 					`{"type":"betaGroups","id":"group-comma","attributes":{"name":"Staff, Family & Friends","isInternalGroup":true}}]}`))
 			reg.Register(asctest.GET("/v1/builds/build-1"),
 				asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID","expired":false}}}`))
+			if test.args[0] == "publish" {
+				reg.Register(asctest.GET("/v1/builds/build-1/preReleaseVersion"),
+					asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"pr-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`))
+			}
 			reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups"),
 				asctest.JSON(http.StatusNoContent, ""))
 

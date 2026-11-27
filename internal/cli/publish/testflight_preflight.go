@@ -115,18 +115,30 @@ func validatePublishBuildIdentity(build *asc.BuildResponse, expectedID string) e
 	return nil
 }
 
-func verifyPublishBuildPlatform(ctx context.Context, client *asc.Client, buildID string, platform asc.Platform) error {
+// readPublishBuildPreRelease reads the pre-release version a build belongs to:
+// its platform and the app version (CFBundleShortVersionString) it was built as.
+func readPublishBuildPreRelease(ctx context.Context, client *asc.Client, buildID string) (asc.PrereleaseVersionAttributes, error) {
 	preRelease, err := client.GetBuildPreReleaseVersion(ctx, buildID)
 	if err != nil {
-		return fmt.Errorf("read pre-release version for build %q: %w", buildID, err)
+		return asc.PrereleaseVersionAttributes{}, fmt.Errorf("read pre-release version for build %q: %w", buildID, err)
 	}
 	if preRelease == nil || preRelease.Data.Type != asc.ResourceTypePreReleaseVersions || strings.TrimSpace(preRelease.Data.ID) == "" {
-		return fmt.Errorf("build %q has no verified pre-release version", buildID)
+		return asc.PrereleaseVersionAttributes{}, fmt.Errorf("build %q has no verified pre-release version", buildID)
 	}
-	if preRelease.Data.Attributes.Platform != platform {
-		return fmt.Errorf("build %q pre-release platform %q does not match requested platform %q", buildID, preRelease.Data.Attributes.Platform, platform)
+	return preRelease.Data.Attributes, nil
+}
+
+// verifyPublishBuildPlatform refuses a build of another platform and returns
+// the app version it was built as.
+func verifyPublishBuildPlatform(ctx context.Context, client *asc.Client, buildID string, platform asc.Platform) (string, error) {
+	preRelease, err := readPublishBuildPreRelease(ctx, client, buildID)
+	if err != nil {
+		return "", err
 	}
-	return nil
+	if preRelease.Platform != platform {
+		return "", fmt.Errorf("build %q pre-release platform %q does not match requested platform %q", buildID, preRelease.Platform, platform)
+	}
+	return strings.TrimSpace(preRelease.Version), nil
 }
 
 func writePublishFailure(d *shared.Deps, output string, pretty bool, result *asc.TestFlightPublishResult, failure error) error {

@@ -13,6 +13,7 @@ import (
 
 type publishTestFlightSubmitOutput struct {
 	BuildID                string   `json:"buildId"`
+	BuildVersion           string   `json:"buildVersion"`
 	GroupIDs               []string `json:"groupIds"`
 	BetaReviewSubmitted    *bool    `json:"betaReviewSubmitted,omitempty"`
 	BetaReviewSubmissionID string   `json:"betaReviewSubmissionId,omitempty"`
@@ -29,6 +30,8 @@ func TestPublishTestflightSubmitCreatesBetaReviewSubmissionForExternalGroups(t *
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-external","attributes":{"name":"External QA","isInternalGroup":false}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.GET("/v1/builds/build-1/preReleaseVersion"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"pr-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`))
 	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-external"}]}`),
 		asctest.JSON(http.StatusNoContent, ""))
 	reg.Register(asctest.GET("/v1/builds/build-1/betaAppReviewSubmission"),
@@ -48,8 +51,8 @@ func TestPublishTestflightSubmitCreatesBetaReviewSubmissionForExternalGroups(t *
 		t.Fatalf("run error: %v", err)
 	}
 
-	if requestCount := len(reg.Requests()); requestCount != 11 {
-		t.Fatalf("expected group lookup, build lookup, group add, submission lookup, and submission create; got %d requests", requestCount)
+	if requestCount := len(reg.Requests()); requestCount != 12 {
+		t.Fatalf("expected group lookup, build and pre-release lookups, group add, submission lookup, and submission create; got %d requests", requestCount)
 	}
 	result := decodePublishTestFlightSubmitOutput(t, stdout)
 	if result.BuildID != "build-1" {
@@ -80,6 +83,8 @@ func TestPublishTestflightSubmitWaitsForProcessingBeforeAddingGroups(t *testing.
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-external","attributes":{"name":"External QA","isInternalGroup":false}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"PROCESSING"}}}`))
+	reg.Register(asctest.GET("/v1/builds/build-1/preReleaseVersion"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"pr-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
 	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-external"}]}`),
@@ -106,6 +111,7 @@ func TestPublishTestflightSubmitWaitsForProcessingBeforeAddingGroups(t *testing.
 		"GET /v1/apps/123/betaGroups",
 		"GET /v1/builds/build-1/app",
 		"GET /v1/builds/build-1",
+		"GET /v1/builds/build-1/preReleaseVersion",
 		"GET /v1/builds/build-1",
 		"GET /v1/builds/build-1/betaAppReviewSubmission",
 		"GET /v1/betaAppLocalizations",
@@ -142,6 +148,8 @@ func TestPublishTestflightSubmitSkipsBetaReviewSubmissionForInternalGroups(t *te
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Friends and Family","isInternalGroup":true}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.GET("/v1/builds/build-1/preReleaseVersion"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"pr-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`))
 	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-internal"}]}`),
 		asctest.JSON(http.StatusNoContent, ""))
 
@@ -157,8 +165,8 @@ func TestPublishTestflightSubmitSkipsBetaReviewSubmissionForInternalGroups(t *te
 		t.Fatalf("run error: %v", err)
 	}
 
-	if requestCount := len(reg.Requests()); requestCount != 5 {
-		t.Fatalf("expected group, build, owner and membership reads followed by one group add; got %d requests", requestCount)
+	if requestCount := len(reg.Requests()); requestCount != 6 {
+		t.Fatalf("expected group, build, pre-release, owner and membership reads followed by one group add; got %d requests", requestCount)
 	}
 	result := decodePublishTestFlightSubmitOutput(t, stdout)
 	if result.BetaReviewSubmitted == nil || *result.BetaReviewSubmitted {
@@ -183,6 +191,8 @@ func TestPublishTestflightSubmitTreatsExistingSubmissionAsAlreadyDone(t *testing
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-external","attributes":{"name":"External QA","isInternalGroup":false}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.GET("/v1/builds/build-1/preReleaseVersion"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"pr-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`))
 	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-external"}]}`),
 		asctest.JSON(http.StatusNoContent, ""))
 	reg.Register(asctest.GET("/v1/builds/build-1/betaAppReviewSubmission"),
@@ -200,8 +210,8 @@ func TestPublishTestflightSubmitTreatsExistingSubmissionAsAlreadyDone(t *testing
 		t.Fatalf("run error: %v", err)
 	}
 
-	if requestCount := len(reg.Requests()); requestCount != 7 {
-		t.Fatalf("expected group lookup, build lookup, group add, and submission lookup; got %d requests", requestCount)
+	if requestCount := len(reg.Requests()); requestCount != 8 {
+		t.Fatalf("expected group lookup, build and pre-release lookups, group add, and submission lookup; got %d requests", requestCount)
 	}
 	result := decodePublishTestFlightSubmitOutput(t, stdout)
 	if result.BetaReviewSubmitted == nil || !*result.BetaReviewSubmitted {
@@ -226,6 +236,8 @@ func TestPublishTestflightSubmitPreservesPartialSuccessWhenSubmissionFails(t *te
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-external","attributes":{"name":"External QA","isInternalGroup":false}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.GET("/v1/builds/build-1/preReleaseVersion"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"pr-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`))
 	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-external"}]}`),
 		asctest.JSON(http.StatusNoContent, ""))
 	reg.Register(asctest.GET("/v1/builds/build-1/betaAppReviewSubmission"),
