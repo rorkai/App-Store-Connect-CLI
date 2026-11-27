@@ -159,6 +159,10 @@ func TestSearchRanksExpectedCommandFirst(t *testing.T) {
 		{"TestFlight and phased App Store release dashboard", "asc status"},
 		{"release pipeline", "asc status"},
 		{"create app", "asc web apps create"},
+		{"create an in-app purchase", "asc iap create"},
+		{"create in app purchases", "asc iap create"},
+		{"create a subscription", "asc subscriptions create"},
+		{"create a subscription group", "asc subscriptions groups create"},
 		{"build status", "asc xcode-cloud status"},
 		{"download build", "asc builds dsyms"},
 		{"upload build", "asc builds upload"},
@@ -213,6 +217,13 @@ func TestSearchDoesNotRankBroaderCommandFirst(t *testing.T) {
 		{"duplicate Xcode Cloud build run status", "asc xcode-cloud workflows duplicate"},
 		{"app review", "asc publish appstore"},
 		{"TestFlight beta App Review Information", "asc review details-get"},
+		{"create a promoted in-app purchase", "asc iap create"},
+		{"create an in-app purchase offer code", "asc iap create"},
+		{"create a subscription offer code", "asc subscriptions create"},
+		{"create an in-app purchase version", "asc iap create"},
+		{"create a subscription version", "asc subscriptions create"},
+		{"create a subscription group version", "asc subscriptions groups create"},
+		{"create a subscription group localization", "asc subscriptions groups create"},
 	}
 
 	for _, test := range tests {
