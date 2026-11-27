@@ -227,7 +227,7 @@ func rootFlagsForReinvocation(includeReport bool) (args []string, ok bool) {
 // Progress must be stderr-only and must not appear when d's stderr is
 // non-interactive.
 func (d *Deps) ProgressEnabled() bool {
-	return progressEnabledFor(d.IO.StderrTTY)
+	return !d.IO.quietDiagnostics && progressEnabledFor(d.IO.StderrTTY)
 }
 
 func progressEnabledFor(stderrTTY bool) bool {

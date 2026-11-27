@@ -3,7 +3,9 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -27,6 +29,7 @@ func TestRunOptInJSONError(t *testing.T) {
 		{"unknown flag", []string{"--error-format", "json", "apps", "list", "--not-a-flag"}, ExitUsage, "invalid_flag"},
 		{"unknown root flag before format", []string{"--not-a-flag", "--error-format=json", "apps", "list"}, ExitUsage, "invalid_flag"},
 		{"stray leaf operand", []string{"--error-format=json", "apps", "view", "123"}, ExitUsage, "usage_error"},
+		{"group flag before subcommand", []string{"--error-format", "json", "reviews", "--stars", "1", "list", "--app", "123"}, ExitUsage, "invalid_input"},
 		{"literal flag query with invalid limit", []string{"--error-format=json", "search", "--output", "json", "--limit", "0", "--", "--app"}, ExitUsage, "usage_error"},
 		{"missing input", []string{"--error-format=json", "metadata", "push", "--output", "json"}, ExitUsage, "required_input_missing"},
 		{"legacy usage writer", []string{"--error-format=json", "profiles", "download", "--all", "--id", "X"}, ExitUsage, "usage_error"},
@@ -59,6 +62,36 @@ func TestRunOptInJSONError(t *testing.T) {
 				t.Fatalf("unexpected error envelope: %s", stderr.String())
 			}
 		})
+	}
+}
+
+func TestRunJSONErrorFormatPreservesTerminalStdout(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	t.Setenv("DO_NOT_TRACK", "1")
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("NO_COLOR", "")
+	if err := os.Unsetenv("NO_COLOR"); err != nil {
+		t.Fatal(err)
+	}
+	var outputs []string
+	for _, format := range []string{"text", "json"} {
+		d := shared.DefaultDeps()
+		var stdout, stderr bytes.Buffer
+		d.IO.Out, d.IO.ErrOut = &stdout, &stderr
+		d.IO.StdoutTTY, d.IO.StderrTTY = true, true
+		if code := RunWithDeps([]string{"--error-format", format, "telemetry", "status", "--output", "table"}, "test-version", d); code != ExitSuccess {
+			t.Fatalf("%s exit = %d, stderr = %q", format, code, stderr.String())
+		}
+		if stderr.Len() != 0 {
+			t.Fatalf("%s stderr = %q, want empty", format, stderr.String())
+		}
+		outputs = append(outputs, stdout.String())
+	}
+	if !strings.Contains(outputs[0], "\x1b[1mTELEMETRY\x1b[22m") {
+		t.Fatalf("text mode omitted terminal section styling: %q", outputs[0])
+	}
+	if outputs[1] != outputs[0] {
+		t.Fatalf("JSON error mode changed terminal stdout: got %q, want %q", outputs[1], outputs[0])
 	}
 }
 
