@@ -1,6 +1,6 @@
 # `asc users invite` requires `--confirm`
 
-Changed after 7.6.0. `asc users invite` sends an invitation that gives the
+Changed in 7.7.0. `asc users invite` sends an invitation that gives the
 person a role on your App Store Connect team once they accept it. It now
 requires `--confirm`, like the other commands that grant access. Without it the
 command sends nothing:
