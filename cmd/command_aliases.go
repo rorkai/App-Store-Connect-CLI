@@ -289,15 +289,17 @@ func compoundChild(group *ffcli.Command, first, second string) *ffcli.Command {
 // give the group flags and no subcommand: the single-resource read for a
 // resource an app has one of, the list for a collection.
 var groupFlagsLeaf = map[string]string{
-	"asc apps info":                "view",
-	"asc pricing availability":     "view",
-	"asc app-setup availability":   "view",
-	"asc apps info relationships":  "view",
-	"asc versions":                 "list",
-	"asc builds":                   "list",
-	"asc testflight groups":        "list",
-	"asc testflight groups builds": "list",
-	"asc review submissions":       "list",
+	"asc apps info":                         "view",
+	"asc pricing availability":              "view",
+	"asc app-setup availability":            "view",
+	"asc apps info relationships":           "view",
+	"asc versions":                          "list",
+	"asc builds":                            "list",
+	"asc builds beta-app-review-submission": "view",
+	"asc builds pre-release-version":        "view",
+	"asc testflight groups":                 "list",
+	"asc testflight groups builds":          "list",
+	"asc review submissions":                "list",
 }
 
 // groupViewForFlags returns the leaf groupFlagsLeaf names for group when args,

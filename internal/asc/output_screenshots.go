@@ -210,3 +210,14 @@ func matrixFailureDisplay(result *MatrixCellResult) string {
 	}
 	return "-"
 }
+
+// ScreenshotPlanValidationResult reports successful offline capture-plan checks.
+type ScreenshotPlanValidationResult struct {
+	PlanPath   string `json:"planPath"`
+	Valid      bool   `json:"valid"`
+	TotalSteps int    `json:"totalSteps"`
+}
+
+func screenshotPlanValidationRows(result *ScreenshotPlanValidationResult) ([]string, [][]string) {
+	return []string{"Plan", "Valid", "Steps"}, [][]string{{compactWhitespace(result.PlanPath), strconv.FormatBool(result.Valid), strconv.Itoa(result.TotalSteps)}}
+}

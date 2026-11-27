@@ -54,6 +54,10 @@ func TestFrameDeviceValuesIncludeTabletWatchAndTVFrames(t *testing.T) {
 		"watch-series-11",
 		"watch-ultra-3",
 		"apple-tv",
+		"iphone-duo-outer",
+		"iphone-duo-outer-landscape",
+		"iphone-duo-inner",
+		"iphone-duo-inner-landscape",
 	}
 	if got := FrameDeviceValues(); !slices.Equal(got, want) {
 		t.Fatalf("FrameDeviceValues() = %v, want %v", got, want)
@@ -133,6 +137,10 @@ func TestFrameDeviceSpecsForExpandedFamilies(t *testing.T) {
 		{FrameDeviceWatchSeries11, "Apple Watch S11 - 46mm - Aluminum Jet Black + Sport Band Black", "watch", "APP_WATCH_SERIES_10", 416, 496},
 		{FrameDeviceWatchUltra3, "AW Ultra 3 - Black + Ocean Band Black", "watch", "APP_WATCH_ULTRA", 422, 514},
 		{FrameDeviceAppleTV, "Apple TV - 4K", "tv", "APP_APPLE_TV", 3840, 2160},
+		{"iphone-duo-outer", "iPhone Duo - Night Sky - Outer Closed Portrait", "iphone", "APP_IPHONE_DUO", 1398, 2034},
+		{"iphone-duo-outer-landscape", "iPhone Duo - Night Sky - Outer Closed Landscape", "iphone", "APP_IPHONE_DUO", 2034, 1398},
+		{"iphone-duo-inner", "iPhone Duo - Night Sky - Inner Open Portrait", "iphone", "APP_IPHONE_DUO", 2007, 2853},
+		{"iphone-duo-inner-landscape", "iPhone Duo - Night Sky - Inner Open Landscape", "iphone", "APP_IPHONE_DUO", 2853, 2007},
 	}
 	for _, test := range tests {
 		spec := frameDeviceKoubouSpecs[test.device]

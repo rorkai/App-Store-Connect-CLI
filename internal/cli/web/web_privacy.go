@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -966,13 +967,26 @@ func recheckPrivacyRemoteUsages(ctx context.Context, d *shared.Deps, client priv
 	)
 }
 
+func privacyTrackingDeleteAdvice(result privacyApplyResult, remote map[string]privacyRemoteState, cause error) string {
+	apiErr, ok := errors.AsType[*webcore.APIError](cause)
+	if !ok || apiErr.Status != http.StatusConflict || !slices.Contains(apiErr.AllCodes(), "STATE_ERROR.BINARY_INDICATES_APP_TRACKS_USERS") {
+		return ""
+	}
+	for _, action := range result.Unknown {
+		if action.Action == "delete" && action.DataProtection == dataProtectionTracking && slices.Contains(remote[action.Key].UsageIDs, action.UsageID) {
+			return fmt.Sprintf("Apple reports that the binary tracks users; privacy usage %q (%s) remains after the attempted delete; review the binary's tracking behavior and App Privacy answers in App Store Connect before replanning, because retrying alone does not address this constraint", action.UsageID, action.Key)
+		}
+	}
+	return ""
+}
+
 // privacyApplyFailureMessage describes an interrupted apply without claiming
 // more than the receipt proves: an apply that committed nothing is not a
 // partial apply, and one the re-read shows fully converged is not partial
 // either. The cause is rendered inline because the returned error is already
 // reported and would otherwise never reach the operator; every web error
 // string here is redacted and carries no raw Apple response body.
-func privacyApplyFailureMessage(appID string, payload privacyApplyOutput, cause, recheckErr error) string {
+func privacyApplyFailureMessage(appID string, payload privacyApplyOutput, cause, recheckErr error, retryAdvice string) string {
 	summary := fmt.Sprintf(
 		"%d committed, %d unknown, %d not applied",
 		len(payload.Actions),
@@ -980,7 +994,10 @@ func privacyApplyFailureMessage(appID string, payload privacyApplyOutput, cause,
 		len(payload.NotAppliedActions),
 	)
 	lead := fmt.Sprintf("web privacy apply partially applied changes for app %s", appID)
-	trailer := "the receipt above lists each action, and rerunning the same command converges from current remote state"
+	trailer := retryAdvice
+	if trailer == "" {
+		trailer = "the receipt above lists each action, and rerunning the same command converges from current remote state"
+	}
 	switch {
 	case payload.Applied:
 		lead = fmt.Sprintf("web privacy apply failed for app %s after every planned change committed", appID)
@@ -990,6 +1007,9 @@ func privacyApplyFailureMessage(appID string, payload privacyApplyOutput, cause,
 	}
 	if !payload.Applied && len(payload.SkippedDeletes) > 0 {
 		trailer = "the receipt above lists each action; skipped deletes have no usage id, so a rerun cannot remove them"
+		if retryAdvice != "" {
+			trailer += "; " + retryAdvice
+		}
 	}
 	message := fmt.Sprintf("%s: %s; %s", lead, summary, trailer)
 	if cause != nil {
@@ -2001,9 +2021,10 @@ rather than missing ones. The exception is a delete a later create depends on:
 DATA_NOT_COLLECTED and collected tuples cannot coexist, so that delete must run
 first and an interruption after it can leave a tuple missing until a rerun.
 A mid-sequence failure re-reads remote state, prints a receipt that splits every
-step into applied, unknown, and not applied, and exits non-zero. Rerunning the
-same file converges and reports changed=false once nothing executable is left,
-except leftover usages Apple returned without a usage id: those stay in
+step into applied, unknown, and not applied, and exits non-zero. After transient
+failures, rerunning the same file converges and reports changed=false once
+nothing executable is left. Binary tracking constraints need review before
+retrying. Leftover usages Apple returned without a usage id stay in
 skippedDeletes and need manual cleanup.
 
 Examples:
@@ -2086,6 +2107,7 @@ Examples:
 				APICalls:       plan.APICalls,
 			}
 			var recheckErr error
+			var retryAdvice string
 			if applyErr != nil {
 				recheck := privacyApplyRecheck{Performed: true}
 				remoteUsages, readErr := recheckPrivacyRemoteUsages(ctx, d, client, resolvedAppID)
@@ -2094,6 +2116,7 @@ Examples:
 				}
 				if readErr == nil {
 					remoteState := remoteStateFromDataUsages(remoteUsages)
+					retryAdvice = privacyTrackingDeleteAdvice(result, remoteState, applyErr)
 					result = resolvePrivacyApplyResult(result, remoteState)
 					residual := planFromDesiredAndRemote(resolvedAppID, resolvedFilePath, desiredTuples, remoteState)
 					remaining := len(residual.Updates) + len(residual.Adds) + len(residual.Deletes)
@@ -2137,7 +2160,7 @@ Examples:
 					return renderErr
 				}
 				cause := withWebAuthHint(applyErr, "web privacy apply")
-				message := privacyApplyFailureMessage(resolvedAppID, payload, cause, recheckErr)
+				message := privacyApplyFailureMessage(resolvedAppID, payload, cause, recheckErr, retryAdvice)
 				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", shared.SanitizeTerminal(message))
 				return shared.NewStderrReportedError(
 					shared.NewErrorWithCause(fmt.Errorf("%s", message), cause),

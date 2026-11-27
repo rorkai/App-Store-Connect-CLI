@@ -164,6 +164,7 @@ func cloneXcodeSigningPlanInferences(values []localxcode.SigningPlanInference) [
 			ProfileUUID:       value.ProfileUUID,
 			CertificateSHA256: value.CertificateSHA256,
 			Match:             value.Match,
+			Verification:      value.Verification,
 		}
 	}
 	return cloned

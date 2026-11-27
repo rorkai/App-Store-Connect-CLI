@@ -112,6 +112,8 @@ type signingObservedProfile struct {
 	DeviceCount    int      `json:"deviceCount"`
 	DeviceSetHash  string   `json:"deviceSetHash"`
 	Suitable       bool     `json:"suitable"`
+
+	Verification asc.SigningProfileVerification `json:"verification,omitzero"`
 }
 
 type signingAction struct {
@@ -643,11 +645,23 @@ func printSigningReconcileReceipt(d *shared.Deps, receipt signingReconcileReceip
 func renderSigningPlan(w io.Writer, plan signingReconcilePlanArtifact, markdown bool) error {
 	headers := []string{"Ready", "Plan Hash", "Targets", "Devices", "Mutations", "Blockers", "Plan Path"}
 	rows := [][]string{{fmt.Sprint(plan.Ready), plan.PlanHash, fmt.Sprint(len(plan.Targets)), fmt.Sprint(len(plan.Devices)), fmt.Sprintf("%d/%d", plan.MutationCount, plan.MaxMutations), fmt.Sprint(len(plan.Blockers)), plan.Paths.PlanPath}}
+	render := asc.RenderTableTo
 	if markdown {
-		asc.RenderMarkdownTo(w, headers, rows)
-		return nil
+		render = asc.RenderMarkdownTo
 	}
-	asc.RenderTableTo(w, headers, rows)
+	render(w, headers, rows)
+	var profiles [][]string
+	for _, bundle := range plan.ObservedBundles {
+		for _, profile := range bundle.Profiles {
+			if profile.Verification != (asc.SigningProfileVerification{}) {
+				profiles = append(profiles, []string{profile.ID, profile.Verification.CMSSignature, profile.Verification.AppleTrust})
+			}
+		}
+	}
+	if len(profiles) > 0 {
+		fmt.Fprintln(w)
+		render(w, []string{"Profile", "CMS Signature", "Apple Trust"}, profiles)
+	}
 	return nil
 }
 

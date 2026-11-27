@@ -176,6 +176,10 @@ func stageLibraryVideo(ctx context.Context, d *shared.Deps, command, flagName, s
 		return nil, d.UsageErrorf("%s: %s: %v", command, flagName, err)
 	}
 	defer file.Close()
+	return stageLibraryVideoFile(ctx, d, command, source, file)
+}
+
+func stageLibraryVideoFile(ctx context.Context, d *shared.Deps, command, source string, file *os.File) (result *stagedLibraryVideo, err error) {
 	info, err := file.Stat()
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", command, err)

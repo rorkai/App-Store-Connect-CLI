@@ -168,9 +168,11 @@ func LoadPlanUnvalidated(path string) (*Plan, error) {
 		return nil, fmt.Errorf("%w: %w", ErrPlanRead, err)
 	}
 
+	return decodePlan(jsonc.ToJSON(data))
+}
+
+func decodePlan(data []byte) (*Plan, error) {
 	var plan Plan
-	// Allow JSONC-style comments (// and /* */) in plan files.
-	data = jsonc.ToJSON(data)
 	if err := json.Unmarshal(data, &plan); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrPlanParseJSON, err)
 	}

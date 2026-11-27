@@ -321,7 +321,7 @@ func TestResolveBundleInfoForIPAUsesProvidedValues(t *testing.T) {
 	ipaPath := writeTestIPA(t, map[string][]byte{
 		"Payload/Demo.app/Info.plist": buildInfoPlist(t, "1.0", "1"),
 	})
-	info, err := ResolveBundleInfoForIPA(ipaPath, "1.2.3", "42")
+	info, _, err := ResolveBundleInfoForIPA(ipaPath, "1.2.3", "42")
 	if err != nil {
 		t.Fatalf("ResolveBundleInfoForIPA() error: %v", err)
 	}
@@ -336,7 +336,7 @@ func TestResolveBundleInfoForIPAFillsMissingBuildNumber(t *testing.T) {
 		"Payload/Demo.app/Info.plist": plistData,
 	})
 
-	info, err := ResolveBundleInfoForIPA(ipaPath, "1.2.3", "")
+	info, _, err := ResolveBundleInfoForIPA(ipaPath, "1.2.3", "")
 	if err != nil {
 		t.Fatalf("ResolveBundleInfoForIPA() error: %v", err)
 	}
@@ -351,7 +351,7 @@ func TestResolveBundleInfoForIPAReportsMissingKeys(t *testing.T) {
 		"Payload/Demo.app/Info.plist": plistData,
 	})
 
-	_, err := ResolveBundleInfoForIPA(ipaPath, "", "")
+	_, _, err := ResolveBundleInfoForIPA(ipaPath, "", "")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

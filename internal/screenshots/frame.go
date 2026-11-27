@@ -23,7 +23,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const pinnedKoubouVersion = "0.20.0"
+const (
+	pinnedKoubouVersion     = "0.21.0"
+	compatibleKoubouVersion = "0.20.0"
+)
 
 const (
 	canvasTitleFontSize    = 60
@@ -50,12 +53,12 @@ var (
 	// koubouSetupMu serializes the uncached version check and frame setup, so
 	// concurrent renders (screenshots frame --parallel-workers) run each once
 	// instead of racing several `kou setup-frames` downloads.
-	koubouSetupMu             sync.Mutex
-	koubouVersionCacheMu      sync.Mutex
-	cachedKoubouBinaryPath    string
-	cachedKoubouResolvedPATH  string
-	cachedKoubouVersionIsGood bool
-	cachedKoubouFramesReady   bool
+	koubouSetupMu            sync.Mutex
+	koubouVersionCacheMu     sync.Mutex
+	cachedKoubouBinaryPath   string
+	cachedKoubouResolvedPATH string
+	cachedKoubouVersion      string
+	cachedKoubouFramesReady  bool
 )
 
 // CanvasOptions controls title/subtitle/color overlays and backgrounds. They
@@ -426,10 +429,11 @@ type koubouGenerateResult struct {
 }
 
 type frameExecutionMetadata struct {
-	FrameRef     string
-	DisplayType  string
-	UploadWidth  int
-	UploadHeight int
+	FrameRef             string
+	DisplayType          string
+	UploadWidth          int
+	UploadHeight         int
+	MinimumKoubouVersion string
 }
 
 type koubouDefaultConfig struct {
@@ -974,6 +978,9 @@ func parseKoubouConfigMetadata(configPath string) *frameExecutionMetadata {
 	metadata := &frameExecutionMetadata{
 		FrameRef: strings.TrimSpace(parsed.Project.Device),
 	}
+	if strings.HasPrefix(metadata.FrameRef, "iPhone Duo - ") {
+		metadata.MinimumKoubouVersion = pinnedKoubouVersion
+	}
 	if width, height, ok := resolveKoubouOutputSize(parsed.Project.OutputSize); ok {
 		metadata.UploadWidth = width
 		metadata.UploadHeight = height
@@ -981,6 +988,9 @@ func parseKoubouConfigMetadata(configPath string) *frameExecutionMetadata {
 	if outputSizeName, ok := parsed.Project.OutputSize.(string); ok {
 		if displayType, mapped := koubouDisplayTypeForSizeName(outputSizeName); mapped {
 			metadata.DisplayType = displayType
+			if displayType == "APP_IPHONE_DUO" {
+				metadata.MinimumKoubouVersion = pinnedKoubouVersion
+			}
 		}
 	}
 	if metadata.DisplayType == "" {
@@ -1005,6 +1015,8 @@ func koubouDisplayTypeForSizeName(sizeName string) (string, bool) {
 		return "APP_IPHONE_58", true
 	case "iphone5_5":
 		return "APP_IPHONE_55", true
+	case "iphoneduo_outer", "iphoneduo_outer_landscape", "iphoneduo_inner", "iphoneduo_inner_landscape":
+		return "APP_IPHONE_DUO", true
 	case "ipadpro13", "ipadpro12_9":
 		return "APP_IPAD_PRO_3GEN_129", true
 	case "ipadpro11":
@@ -1029,6 +1041,12 @@ func resolveKoubouOutputSize(value any) (int, int, bool) {
 		"ipadpro13":     {Width: 2064, Height: 2752},
 		"ipadpro12_9":   {Width: 2048, Height: 2732},
 		"ipadpro11":     {Width: 1668, Height: 2388},
+
+		"iphoneduo_outer":           {Width: 1398, Height: 2034},
+		"iphoneduo_outer_landscape": {Width: 2034, Height: 1398},
+		"iphoneduo_inner":           {Width: 2007, Height: 2853},
+		"iphoneduo_inner_landscape": {Width: 2853, Height: 2007},
+
 		// Mac App Store desktop (16:10)
 		"appdesktop_1280": {Width: 1280, Height: 800},
 		"appdesktop_1440": {Width: 1440, Height: 900},
@@ -1117,7 +1135,11 @@ func toInt(value any) (int, bool) {
 }
 
 func runKoubouGenerate(ctx context.Context, configPath string) ([]koubouGenerateResult, error) {
-	kouBinaryPath, err := ensurePinnedKoubouVersion(ctx)
+	minimumVersion := compatibleKoubouVersion
+	if metadata := parseKoubouConfigMetadata(configPath); metadata != nil && metadata.MinimumKoubouVersion != "" {
+		minimumVersion = metadata.MinimumKoubouVersion
+	}
+	kouBinaryPath, err := ensurePinnedKoubouVersion(ctx, minimumVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -1156,7 +1178,7 @@ func runKoubouGenerate(ctx context.Context, configPath string) ([]koubouGenerate
 	return results, nil
 }
 
-func ensurePinnedKoubouVersion(ctx context.Context) (string, error) {
+func ensurePinnedKoubouVersion(ctx context.Context, minimumVersion string) (string, error) {
 	resolvedPATH := os.Getenv("PATH")
 	kouBinaryPath, err := exec.LookPath("kou")
 	if err != nil {
@@ -1169,7 +1191,7 @@ func ensurePinnedKoubouVersion(ctx context.Context) (string, error) {
 	versionCached := func() bool {
 		koubouVersionCacheMu.Lock()
 		defer koubouVersionCacheMu.Unlock()
-		return cachedKoubouVersionIsGood &&
+		return cachedKoubouVersion != "" && semver.Compare("v"+cachedKoubouVersion, "v"+minimumVersion) >= 0 &&
 			cachedKoubouResolvedPATH == resolvedPATH &&
 			cachedKoubouBinaryPath == kouBinaryPath
 	}
@@ -1199,7 +1221,7 @@ func ensurePinnedKoubouVersion(ctx context.Context) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("kou --version output does not include a semantic version: %q", strings.TrimSpace(string(output)))
 	}
-	if detectedVersion != pinnedKoubouVersion {
+	if (detectedVersion != pinnedKoubouVersion && detectedVersion != compatibleKoubouVersion) || semver.Compare("v"+detectedVersion, "v"+minimumVersion) < 0 {
 		if semver.Compare("v"+detectedVersion, "v"+pinnedKoubouVersion) < 0 {
 			return "", fmt.Errorf(
 				"unsupported Koubou version %s; this ASC release is pinned to %s. Upgrade with: %s (Homebrew: %s)",
@@ -1218,10 +1240,10 @@ func ensurePinnedKoubouVersion(ctx context.Context) (string, error) {
 	}
 
 	koubouVersionCacheMu.Lock()
-	cacheTargetChanged := cachedKoubouResolvedPATH != resolvedPATH || cachedKoubouBinaryPath != kouBinaryPath
+	cacheTargetChanged := cachedKoubouResolvedPATH != resolvedPATH || cachedKoubouBinaryPath != kouBinaryPath || cachedKoubouVersion != detectedVersion
 	cachedKoubouBinaryPath = kouBinaryPath
 	cachedKoubouResolvedPATH = resolvedPATH
-	cachedKoubouVersionIsGood = true
+	cachedKoubouVersion = detectedVersion
 	if cacheTargetChanged {
 		cachedKoubouFramesReady = false
 	}
@@ -1253,8 +1275,7 @@ func ensurePinnedKoubouFrames(ctx context.Context, kouBinaryPath string) error {
 	if err != nil {
 		trimmedOutput := strings.TrimSpace(string(output))
 		setupHint := fmt.Sprintf(
-			"Koubou %s requires downloaded device frames; run `%s` with network access once before framing",
-			pinnedKoubouVersion,
+			"Koubou requires downloaded device frames; run `%s` with network access once before framing",
 			pinnedKoubouSetupFramesCommand(),
 		)
 		if trimmedOutput == "" {
@@ -1439,6 +1460,6 @@ func resetKoubouVersionCacheForTest() {
 
 	cachedKoubouBinaryPath = ""
 	cachedKoubouResolvedPATH = ""
-	cachedKoubouVersionIsGood = false
+	cachedKoubouVersion = ""
 	cachedKoubouFramesReady = false
 }

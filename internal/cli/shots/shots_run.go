@@ -2,6 +2,7 @@ package shots
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"strings"
@@ -77,10 +78,12 @@ after the run; clear it with xcrun simctl location <UDID> clear when wanted.`,
 
 			result, err := screenshots.RunPlan(ctx, plan)
 			if err != nil {
-				return fmt.Errorf("screenshots run: %w", err)
+				err = fmt.Errorf("screenshots run: %w", err)
 			}
-
-			return d.PrintOutput(result, *output.Output, *output.Pretty)
+			if result != nil {
+				return errors.Join(err, d.PrintOutput(result, *output.Output, *output.Pretty))
+			}
+			return err
 		},
 	}
 }

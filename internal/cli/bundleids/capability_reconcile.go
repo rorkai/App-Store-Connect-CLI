@@ -17,8 +17,9 @@ import (
 )
 
 type desiredEntitlement struct {
-	spec  entitlementCapability
-	value any
+	identifierLinks []asc.CapabilityIdentifierLink
+	spec            entitlementCapability
+	value           any
 }
 
 func newBundleIDsCapabilitiesReconcileCommand(d *shared.Deps) *ffcli.Command {
@@ -30,8 +31,18 @@ func newBundleIDsCapabilitiesReconcileCommand(d *shared.Deps) *ffcli.Command {
 		LongHelp: `Reconcile bundle ID capabilities from an entitlements file.
 
 plan shows add, update, keep, and unmanaged actions. apply requires --confirm.
+Identifier linkage is reported separately as unverified because the public API
+cannot read group, merchant or container assignments. Apply changes capability
+states only; it does not assign identifiers. Use the explicit Developer Portal
+web read commands in the receipt to inspect links with the correct team and
+Portal resource identity. Do not infer absence from incomplete relationship data.
+
 Existing sub-feature settings, such as broadcast push, are preserved. Removal
 requires --allow-remove and only applies to capability types this mapping knows.
+
+Known memory-limit requests remain unmanaged and unverified; this CLI cannot
+activate them or establish account approval. Apply refuses these requests before
+any capability write. The debugging entitlement must be removed before distribution.
 
 Examples:
   asc bundle-ids capabilities reconcile plan --bundle "BUNDLE_ID" --entitlements ./App/App.entitlements
@@ -153,9 +164,6 @@ func readDesiredEntitlements(d *shared.Deps, path string, ignoreUnknown bool) ([
 		if !requested {
 			continue
 		}
-		if item.UnsupportedCapability != "" {
-			return nil, d.UsageErrorf("entitlement %q requires unsupported capability %s; no supported asc API or web command can enable it", key, item.UnsupportedCapability)
-		}
 		if key == "com.apple.developer.default-data-protection" {
 			value, ok := raw[key].(string)
 			if !ok {
@@ -168,18 +176,21 @@ func readDesiredEntitlements(d *shared.Deps, path string, ignoreUnknown bool) ([
 				return nil, d.UsageErrorf("unsupported data protection entitlement value %q", value)
 			}
 		}
+		links := unverifiedEntitlementIdentifiers(key, raw[key])
 		if item.Capability != "" {
 			if index, ok := seen[item.Capability]; ok {
+				selected[index].identifierLinks = append(selected[index].identifierLinks, links...)
 				// Several entitlement keys can request one ASC capability. Retain
 				// the key that also determines its settings, if one is present.
 				if item.Settings != nil {
-					selected[index] = desiredEntitlement{spec: item, value: raw[key]}
+					selected[index].spec = item
+					selected[index].value = raw[key]
 				}
 				continue
 			}
 			seen[item.Capability] = len(selected)
 		}
-		selected = append(selected, desiredEntitlement{spec: item, value: raw[key]})
+		selected = append(selected, desiredEntitlement{spec: item, value: raw[key], identifierLinks: links})
 	}
 	return selected, nil
 }
@@ -222,6 +233,15 @@ func buildCapabilityReconcilePlan(bundleID string, desired []desiredEntitlement,
 	requested := map[string]struct{}{}
 	actions := make([]asc.CapabilityReconcileAction, 0)
 	for _, item := range desired {
+		if item.spec.UnsupportedCapability != "" {
+			guidance := "This CLI does not manage this entitlement; provider availability and approval remain unverified. Inspect the selected Developer Portal team before proceeding."
+			if item.spec.Key == "com.apple.developer.kernel.increased-debugging-memory-limit" {
+				guidance += " Apple limits the debugging entitlement to development, ad hoc and internal TestFlight; remove it before distribution."
+			}
+			requested[item.spec.UnsupportedCapability] = struct{}{}
+			actions = append(actions, asc.CapabilityReconcileAction{Action: "unmanaged", Capability: item.spec.UnsupportedCapability, Entitlement: item.spec.Key, Status: "unverified", Error: guidance})
+			continue
+		}
 		if item.spec.WebCommand != "" {
 			action := asc.CapabilityReconcileAction{Action: "needsWebSession", Entitlement: item.spec.Key}
 			if quotedBundleID, ok := shared.ShellQuote(bundleID); ok {
@@ -270,7 +290,11 @@ func buildCapabilityReconcilePlan(bundleID string, desired []desiredEntitlement,
 		}
 		return actions[i].Capability+actions[i].Entitlement < actions[j].Capability+actions[j].Entitlement
 	})
-	return &asc.CapabilityReconcilePlan{BundleID: bundleID, Actions: actions}
+	plan := &asc.CapabilityReconcilePlan{BundleID: bundleID, Actions: actions}
+	for _, item := range desired {
+		plan.IdentifierLinks = append(plan.IdentifierLinks, item.identifierLinks...)
+	}
+	return plan
 }
 
 func resolveCapabilityBundleID(ctx context.Context, client *asc.Client, value string) (string, error) {
@@ -312,6 +336,9 @@ func listBundleCapabilities(ctx context.Context, client *asc.Client, bundleID st
 func applyCapabilityReconcilePlan(ctx context.Context, client *asc.Client, bundleID string, plan *asc.CapabilityReconcilePlan) error {
 	for index := range plan.Actions {
 		action := &plan.Actions[index]
+		if action.Action == "unmanaged" && action.Entitlement != "" && action.Status == "unverified" {
+			return fmt.Errorf("entitlement %s remains unmanaged: %s", action.Entitlement, action.Error)
+		}
 		if action.Action == "needsWebSession" {
 			action.Status = "failed"
 			action.Error = "requires a web session; run " + action.Command

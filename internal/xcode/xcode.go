@@ -22,6 +22,7 @@ import (
 
 	"howett.net/plist"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/infoplist"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
@@ -82,18 +83,21 @@ type ArchiveOptions struct {
 	ArchivePath      string
 	Clean            bool
 	NoCodeSigning    bool
+	SourceProvenance bool
 	Overwrite        bool
 	XcodebuildArgs   []string
 	LogWriter        io.Writer
 }
 
 type ArchiveResult struct {
-	ArchivePath   string `json:"archive_path"`
-	BundleID      string `json:"bundle_id,omitempty"`
-	Version       string `json:"version,omitempty"`
-	BuildNumber   string `json:"build_number,omitempty"`
-	Scheme        string `json:"scheme,omitempty"`
-	Configuration string `json:"configuration,omitempty"`
+	ArchivePath     string                    `json:"archive_path"`
+	BundleID        string                    `json:"bundle_id,omitempty"`
+	Version         string                    `json:"version,omitempty"`
+	BuildNumber     string                    `json:"build_number,omitempty"`
+	Scheme          string                    `json:"scheme,omitempty"`
+	Configuration   string                    `json:"configuration,omitempty"`
+	DisplayName     string                    `json:"displayName,omitempty"`
+	ProjectCheckout *asc.XcodeProjectCheckout `json:"projectCheckout,omitempty"`
 }
 
 type ExportOptions struct {
@@ -119,6 +123,7 @@ type ExportResult struct {
 	BundleID    string `json:"bundle_id,omitempty"`
 	Version     string `json:"version,omitempty"`
 	BuildNumber string `json:"build_number,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
 
 	ExportDir   string   `json:"exportDir,omitempty"`
 	ExportFiles []string `json:"exportFiles,omitempty"`
@@ -163,6 +168,7 @@ type bundleInfo struct {
 	Version     string
 	BuildNumber string
 	Platform    string
+	DisplayName string
 }
 
 type exportDestinationUsageError struct {
@@ -406,6 +412,13 @@ func Archive(ctx context.Context, opts ArchiveOptions) (*ArchiveResult, error) {
 	if err := validateArchiveInputPaths(opts); err != nil {
 		return nil, err
 	}
+	var checkout *asc.XcodeProjectCheckout
+	if opts.SourceProvenance {
+		checkout, err = readArchiveProjectCheckout(ctx, opts.ProjectPath)
+		if err != nil {
+			return nil, err
+		}
+	}
 	destination := opts.ArchivePath
 	replace, err := prepareArchiveDestination(destination, opts.Overwrite)
 	if err != nil {
@@ -441,12 +454,14 @@ func Archive(ctx context.Context, opts ArchiveOptions) (*ArchiveResult, error) {
 	}
 
 	return &ArchiveResult{
-		ArchivePath:   destination,
-		BundleID:      info.BundleID,
-		Version:       info.Version,
-		BuildNumber:   info.BuildNumber,
-		Scheme:        strings.TrimSpace(opts.Scheme),
-		Configuration: strings.TrimSpace(opts.Configuration),
+		ArchivePath:     destination,
+		BundleID:        info.BundleID,
+		Version:         info.Version,
+		BuildNumber:     info.BuildNumber,
+		Scheme:          strings.TrimSpace(opts.Scheme),
+		Configuration:   strings.TrimSpace(opts.Configuration),
+		DisplayName:     info.DisplayName,
+		ProjectCheckout: checkout,
 	}, nil
 }
 
@@ -585,6 +600,7 @@ func Export(ctx context.Context, opts ExportOptions) (*ExportResult, error) {
 		BundleID:    info.BundleID,
 		Version:     info.Version,
 		BuildNumber: info.BuildNumber,
+		DisplayName: info.DisplayName,
 		ExportDir:   opts.ExportDir,
 		ExportFiles: exportFiles,
 	}, nil
@@ -713,6 +729,9 @@ func InferArchivePlatform(archivePath string) (string, error) {
 func validateArchiveOptions(opts ArchiveOptions) error {
 	if err := validateWorkspaceProjectPair(opts.WorkspacePath, opts.ProjectPath); err != nil {
 		return err
+	}
+	if opts.SourceProvenance && opts.ProjectPath == "" {
+		return fmt.Errorf("--source-provenance requires --project; a workspace does not identify the producing checkout")
 	}
 	if opts.Scheme == "" {
 		return fmt.Errorf("--scheme is required")
@@ -2442,8 +2461,9 @@ func readArchiveBundleInfo(archivePath string) (bundleInfo, error) {
 		Version:     coercePlistValueToString(appProps["CFBundleShortVersionString"]),
 		BuildNumber: coercePlistValueToString(appProps["CFBundleVersion"]),
 	}
-	if platform, err := inferArchivePlatformFromAppBundle(archivePath, appProps); err == nil {
-		info.Platform = platform
+	if appInfo, err := readArchivedAppInfoPlistFromRoot(archiveRoot, appProps); err == nil {
+		info.Platform = inferAppStorePlatformFromPlist(appInfo)
+		info.DisplayName = bundleDisplayName(appInfo)
 	}
 	return info, nil
 }
@@ -2506,28 +2526,15 @@ func readBundleInfoFromZip(file *zip.File) (bundleInfo, error) {
 		Version:     coercePlistValueToString(payload["CFBundleShortVersionString"]),
 		BuildNumber: coercePlistValueToString(payload["CFBundleVersion"]),
 		Platform:    inferAppStorePlatformFromPlist(payload),
+		DisplayName: bundleDisplayName(payload),
 	}, nil
 }
 
-func inferArchivePlatformFromAppBundle(archivePath string, appProps map[string]any) (string, error) {
-	payload, err := readArchivedAppInfoPlist(archivePath, appProps)
-	if err != nil {
-		return "", err
+func bundleDisplayName(payload map[string]any) string {
+	if name := coercePlistValueToString(payload["CFBundleDisplayName"]); name != "" {
+		return name
 	}
-	platform := inferAppStorePlatformFromPlist(payload)
-	if platform == "" {
-		return "", fmt.Errorf("archived app Info.plist did not contain a supported platform marker")
-	}
-	return platform, nil
-}
-
-func readArchivedAppInfoPlist(archivePath string, appProps map[string]any) (map[string]any, error) {
-	archiveRoot, err := os.OpenRoot(archivePath)
-	if err != nil {
-		return nil, fmt.Errorf("open archive: %w", err)
-	}
-	defer func() { _ = archiveRoot.Close() }()
-	return readArchivedAppInfoPlistFromRoot(archiveRoot, appProps)
+	return coercePlistValueToString(payload["CFBundleName"])
 }
 
 func readArchivedAppInfoPlistFromRoot(archiveRoot *os.Root, appProps map[string]any) (map[string]any, error) {

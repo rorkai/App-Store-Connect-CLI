@@ -21,6 +21,10 @@ func decodedScreenshotPixelDigest(path string) (screenshotPixelDigest, error) {
 		return screenshotPixelDigest{}, err
 	}
 
+	return screenshotPixelDigestFromImage(img), nil
+}
+
+func screenshotPixelDigestFromImage(img image.Image) screenshotPixelDigest {
 	bounds := img.Bounds()
 	hasher := sha256.New()
 	var dimensions [16]byte
@@ -36,7 +40,7 @@ func decodedScreenshotPixelDigest(path string) (screenshotPixelDigest, error) {
 
 	var digest screenshotPixelDigest
 	copy(digest[:], hasher.Sum(nil))
-	return digest, nil
+	return digest
 }
 
 func decodedScreenshotPixelsEqual(leftPath, rightPath string) (bool, error) {
@@ -49,10 +53,14 @@ func decodedScreenshotPixelsEqual(leftPath, rightPath string) (bool, error) {
 		return false, err
 	}
 
+	return screenshotPixelsEqual(left, right), nil
+}
+
+func screenshotPixelsEqual(left, right image.Image) bool {
 	leftBounds := left.Bounds()
 	rightBounds := right.Bounds()
 	if leftBounds.Dx() != rightBounds.Dx() || leftBounds.Dy() != rightBounds.Dy() {
-		return false, nil
+		return false
 	}
 
 	leftRow := make([]byte, leftBounds.Dx()*8)
@@ -61,10 +69,10 @@ func decodedScreenshotPixelsEqual(leftPath, rightPath string) (bool, error) {
 		normalizeScreenshotPixelRow(leftRow, left, leftBounds.Min.Y+offsetY)
 		normalizeScreenshotPixelRow(rightRow, right, rightBounds.Min.Y+offsetY)
 		if !bytes.Equal(leftRow, rightRow) {
-			return false, nil
+			return false
 		}
 	}
-	return true, nil
+	return true
 }
 
 func decodeScreenshotPixels(path string) (image.Image, error) {

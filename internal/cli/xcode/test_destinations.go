@@ -134,7 +134,11 @@ func normalizeDestinationPlatform(raw string) (string, error) {
 }
 
 type simctlListDocument struct {
-	Devices map[string][]simctlDevice `json:"devices"`
+	Devices  map[string][]simctlDevice `json:"devices"`
+	Runtimes []struct {
+		Identifier string `json:"identifier"`
+		Version    string `json:"version"`
+	} `json:"runtimes"`
 }
 
 type simctlDevice struct {
@@ -152,6 +156,10 @@ func parseSimctlList(body []byte, platform string, availableOnly bool) ([]asc.Xc
 	if document.Devices == nil {
 		return nil, fmt.Errorf("parse simctl list: devices is missing")
 	}
+	runtimeVersions := make(map[string]string, len(document.Runtimes))
+	for _, runtime := range document.Runtimes {
+		runtimeVersions[runtime.Identifier] = strings.TrimSpace(runtime.Version)
+	}
 	out := make([]asc.XcodeTestDestination, 0)
 	for runtimeName, devices := range document.Devices {
 		runtimePlatform, runtimeVersion, ok := simulatorRuntime(runtimeName)
@@ -160,6 +168,9 @@ func parseSimctlList(body []byte, platform string, availableOnly bool) ([]asc.Xc
 		}
 		if platform != "" && !strings.EqualFold(runtimePlatform, platform) {
 			continue
+		}
+		if version := runtimeVersions[runtimeName]; version != "" {
+			runtimeVersion = version
 		}
 		for _, device := range devices {
 			available := device.IsAvailable == nil || *device.IsAvailable

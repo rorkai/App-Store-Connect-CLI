@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -2516,7 +2517,7 @@ func TestPrivacyApplyFailureMessageDistinguishesNoConfirmedChange(t *testing.T) 
 	partial := privacyApplyFailureMessage("123456789", privacyApplyOutput{
 		Actions:           []privacyApplyAction{{Action: "update"}},
 		NotAppliedActions: []privacyApplyAction{{Action: "create"}},
-	}, fmt.Errorf("web privacy apply failed: web api error (status 500), codes=[ENTITY_ERROR]"), nil)
+	}, fmt.Errorf("web privacy apply failed: web api error (status 500), codes=[ENTITY_ERROR]"), nil, "")
 	if !strings.Contains(partial, "partially applied changes for app 123456789") {
 		t.Fatalf("unexpected partial message: %q", partial)
 	}
@@ -2530,7 +2531,7 @@ func TestPrivacyApplyFailureMessageDistinguishesNoConfirmedChange(t *testing.T) 
 
 	nothing := privacyApplyFailureMessage("123456789", privacyApplyOutput{
 		NotAppliedActions: []privacyApplyAction{{Action: "create"}, {Action: "delete"}},
-	}, nil, fmt.Errorf("web privacy apply recheck failed: web api error (status 503)"))
+	}, nil, fmt.Errorf("web privacy apply recheck failed: web api error (status 503)"), "")
 	if !strings.Contains(nothing, "recheck failed: web privacy apply recheck failed: web api error (status 503)") {
 		t.Fatalf("a failed recheck must be reported: %q", nothing)
 	}
@@ -2699,6 +2700,111 @@ func TestWebPrivacyApplyReportsConvergenceWhenTheFailedStepActuallyCommitted(t *
 	}
 }
 
+func TestWebPrivacyApplyTrackingDeleteRefusal(t *testing.T) {
+	const trackingCode = "STATE_ERROR.BINARY_INDICATES_APP_TRACKS_USERS"
+	for _, tc := range []struct {
+		name            string
+		status          int
+		code            string
+		protection      string
+		committed       bool
+		recheckFails    bool
+		pendingTracking bool
+		wantGuidance    bool
+	}{
+		{name: "tracking refusal", status: 409, code: trackingCode, protection: dataProtectionTracking, wantGuidance: true},
+		{name: "tracking delete committed", status: 409, code: trackingCode, protection: dataProtectionTracking, committed: true},
+		{name: "nontracking delete committed", status: 409, code: trackingCode, protection: dataProtectionNotLinked, committed: true},
+		{name: "tracking delete never attempted", status: 409, code: trackingCode, protection: dataProtectionNotLinked, pendingTracking: true},
+		{name: "ordinary conflict", status: 409, code: "ENTITY_ERROR", protection: dataProtectionTracking},
+		{name: "forbidden", status: 403, code: "FORBIDDEN", protection: dataProtectionTracking},
+		{name: "recheck failed", status: 409, code: trackingCode, protection: dataProtectionTracking, recheckFails: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := handlertest.New(t)
+			reads, deletes := 0, 0
+			usage := func(id, category, protection string) string {
+				return fmt.Sprintf(`{"id":%q,"type":"appDataUsages","relationships":{
+					"category":{"data":{"id":%q,"type":"appDataUsageCategories"}},
+					"purpose":{"data":{"id":"ANALYTICS","type":"appDataUsagePurposes"}},
+					"dataProtection":{"data":{"id":%q,"type":"appDataUsageDataProtections"}}}}`, id, category, protection)
+			}
+			stubPrivacyWebSession(t, func(req *http.Request) (*http.Response, error) {
+				if resp, ok := privacyCatalogRoundTrip(req); ok {
+					return resp, nil
+				}
+				switch {
+				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/"+privacyTestAppID+"/dataUsages":
+					reads++
+					if reads > 1 && tc.recheckFails {
+						resp := privacyJSONResponse(req, `{"errors":[{"code":"UNAVAILABLE"}]}`)
+						resp.StatusCode = http.StatusServiceUnavailable
+						return resp, nil
+					}
+					usages := []string{usage("usage-keep", "EMAIL_ADDRESS", dataProtectionLinked)}
+					if reads == 1 || !tc.committed {
+						usages = append(usages, usage("usage-target", "ADVERTISING_DATA", tc.protection))
+					}
+					if tc.pendingTracking {
+						usages = append(usages, usage("usage-pending", "ADVERTISING_DATA", dataProtectionTracking))
+					}
+					return privacyJSONResponse(req, `{"data":[`+strings.Join(usages, ",")+`]}`), nil
+				case req.Method == http.MethodDelete && req.URL.Path == "/iris/v1/appDataUsages/usage-target":
+					deletes++
+					resp := privacyJSONResponse(req, fmt.Sprintf(`{"errors":[{"code":%q,"detail":"cookie=private"}]}`, tc.code))
+					resp.StatusCode = tc.status
+					return resp, nil
+				default:
+					return fixture.Response("unexpected request: %s %s", req.Method, req.URL.Path), nil
+				}
+			})
+			path := filepath.Join(t.TempDir(), "privacy.json")
+			if err := os.WriteFile(path, []byte(`{"schemaVersion":1,"dataUsages":[{"category":"EMAIL_ADDRESS","purposes":["ANALYTICS"],"dataProtections":["DATA_LINKED_TO_YOU"]}]}`), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebPrivacyApplyCommand(d)
+			if err := cmd.FlagSet.Parse([]string{"--app", privacyTestAppID, "--file", path, "--allow-deletes", "--confirm", "--output", "json"}); err != nil {
+				t.Fatal(err)
+			}
+			var execErr error
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { execErr = cmd.Exec(context.Background(), nil) })
+			assertNoPrivacySecrets(t, stdout, stderr)
+			var apiErr *webcore.APIError
+			if !errors.As(execErr, &apiErr) || apiErr.Status != tc.status || !reflect.DeepEqual(apiErr.AllCodes(), []string{tc.code}) {
+				t.Fatalf("original provider error not preserved: %v", execErr)
+			}
+			if reads != 2 || deletes != 1 {
+				t.Fatalf("got %d reads and %d deletes; want one attempted delete followed by one recheck", reads, deletes)
+			}
+			var receipt privacyApplyOutput
+			if err := json.Unmarshal([]byte(stdout), &receipt); err != nil {
+				t.Fatalf("invalid receipt: %v\n%s", err, stdout)
+			}
+			if receipt.Applied != tc.committed || receipt.Recheck == nil || receipt.Recheck.Succeeded == tc.recheckFails {
+				t.Fatalf("incorrect reconciliation: %+v", receipt)
+			}
+			if tc.recheckFails {
+				if len(receipt.UnknownActions) != 1 || receipt.UnknownActions[0].UsageID != "usage-target" {
+					t.Fatalf("failed readback must retain unknown outcome: %+v", receipt)
+				}
+			} else if tc.committed {
+				if len(receipt.Actions) != 1 || receipt.Actions[0].UsageID != "usage-target" || !strings.Contains(stderr, "a rerun is a no-op") {
+					t.Fatalf("committed delete must retain convergence receipt: %+v\n%s", receipt, stderr)
+				}
+			} else if len(receipt.NotAppliedActions) == 0 || receipt.NotAppliedActions[len(receipt.NotAppliedActions)-1].UsageID != "usage-target" {
+				t.Fatalf("readback must identify the refused deletion: %+v", receipt)
+			}
+			if got := strings.Contains(stderr, "retrying alone does not address this constraint"); got != tc.wantGuidance {
+				t.Fatalf("tracking guidance = %t, want %t; stderr = %s", got, tc.wantGuidance, stderr)
+			}
+			if tc.wantGuidance && (!strings.Contains(stderr, "usage-target") || !strings.Contains(stderr, "App Privacy") || strings.Contains(stderr, "converges")) {
+				t.Fatalf("refusal must identify the usage and recovery without promising convergence: %s", stderr)
+			}
+		})
+	}
+}
+
 func TestWebPrivacyApplyOmitsRemainingChangesWhenTheRecheckFails(t *testing.T) {
 	fixture := handlertest.New(t)
 	listCount := 0
@@ -2798,7 +2904,7 @@ func TestPrivacyApplyFailureMessageReportsConvergence(t *testing.T) {
 	message := privacyApplyFailureMessage("123456789", privacyApplyOutput{
 		Applied: true,
 		Actions: []privacyApplyAction{{Action: "delete"}},
-	}, fmt.Errorf("web privacy apply failed: web api error (status 502)"), nil)
+	}, fmt.Errorf("web privacy apply failed: web api error (status 502)"), nil, "")
 	if strings.Contains(message, "partially applied") {
 		t.Fatalf("a converged plan is not a partial apply: %q", message)
 	}
@@ -2822,7 +2928,7 @@ func TestPrivacyApplyFailureMessageDoesNotPromiseConvergenceWhenSkippedDeletesRe
 				Reason:         "missing_usage_id",
 			},
 		},
-	}, fmt.Errorf("web privacy apply failed: web api error (status 500)"), nil)
+	}, fmt.Errorf("web privacy apply failed: web api error (status 500)"), nil, "")
 	if strings.Contains(message, "converges") {
 		t.Fatalf("skipped deletes cannot be cleared by a rerun: %q", message)
 	}

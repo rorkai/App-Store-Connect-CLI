@@ -42,6 +42,8 @@ type XcodeSigningPlanInferenceOutput struct {
 	ProfileUUID       string `json:"profileUuid"`
 	CertificateSHA256 string `json:"certificateSha256"`
 	Match             string `json:"match"`
+
+	Verification SigningProfileVerification `json:"verification,omitzero"`
 }
 
 // XcodeSigningPlanExportOptions is the export-options payload in plan output.
@@ -122,7 +124,7 @@ func xcodeSigningPlanOutputRows(plan *XcodeSigningPlanOutput) ([]string, [][]str
 	if plan == nil {
 		plan = &XcodeSigningPlanOutput{}
 	}
-	return []string{"field", "value"}, [][]string{
+	rows := [][]string{
 		{"ready", fmt.Sprintf("%t", plan.Ready)},
 		{"plan", plan.PlanPath},
 		{"plan hash", plan.PlanHash},
@@ -130,6 +132,12 @@ func xcodeSigningPlanOutputRows(plan *XcodeSigningPlanOutput) ([]string, [][]str
 		{"blockers", strings.Join(plan.Blockers, "; ")},
 		{"warnings", strings.Join(plan.Warnings, "; ")},
 	}
+	for _, inference := range plan.Inferences {
+		if inference.Verification != (SigningProfileVerification{}) {
+			rows = append(rows, []string{"profile verification", fmt.Sprintf("%s: CMS signature %s; Apple trust %s", inference.ProfileUUID, inference.Verification.CMSSignature, inference.Verification.AppleTrust)})
+		}
+	}
+	return []string{"field", "value"}, rows
 }
 
 func xcodeSigningApplyOutputRows(result *XcodeSigningApplyOutput) ([]string, [][]string) {

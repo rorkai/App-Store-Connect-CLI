@@ -74,7 +74,8 @@ func TestPublishTestFlightLocalBuildJSONIncludesNestedStages(t *testing.T) {
 
 	stdout, stderr, runErr := runPublishCommand(t, newPublishTestFlightCommand, []string{
 		"--app", "friendly-app",
-		"--workspace", "Demo.xcworkspace",
+		"--project", "Demo.xcodeproj",
+		"--source-provenance",
 		"--scheme", "Demo",
 		"--version", "1.2.3",
 		"--group", "External",
@@ -93,6 +94,9 @@ func TestPublishTestFlightLocalBuildJSONIncludesNestedStages(t *testing.T) {
 
 	gotArchiveOpts := stages.archiveOpts
 	gotExportOpts := stages.exportOpts
+	if !gotArchiveOpts.SourceProvenance {
+		t.Fatal("source observation was not forwarded to the local archive")
+	}
 	if gotArchiveOpts.Configuration != "Release" {
 		t.Fatalf("expected Release configuration, got %q", gotArchiveOpts.Configuration)
 	}
@@ -147,6 +151,10 @@ func TestPublishTestFlightLocalBuildJSONIncludesNestedStages(t *testing.T) {
 	if archivePayload["archivePath"] != ".asc/artifacts/Demo-IOS-1.2.3-42.xcarchive" {
 		t.Fatalf("unexpected archivePath: %#v", archivePayload["archivePath"])
 	}
+	checkout, ok := archivePayload["projectCheckout"].(map[string]any)
+	if archivePayload["displayName"] != "Archive Display" || !ok || checkout["revision"] != "fixture-revision" || checkout["dirty"] != true || checkout["observedAt"] != "buildStart" {
+		t.Fatalf("archive identity = %#v", archivePayload)
+	}
 	exportPayload, ok := payload["export"].(map[string]any)
 	if !ok {
 		t.Fatalf("expected export payload, got %#v", payload["export"])
@@ -156,6 +164,9 @@ func TestPublishTestFlightLocalBuildJSONIncludesNestedStages(t *testing.T) {
 	}
 	if exportPayload["directUpload"] != false {
 		t.Fatalf("expected directUpload=false, got %#v", exportPayload["directUpload"])
+	}
+	if exportPayload["displayName"] != "Export Display" || exportPayload["projectCheckout"] != nil {
+		t.Fatalf("export must retain artifact facts only: %#v", exportPayload)
 	}
 	publishPayload, ok := payload["publish"].(map[string]any)
 	if !ok {
@@ -1377,14 +1388,19 @@ func stubPublishArchiveAndExport() *publishBuildStages {
 	runPublishArchiveFn = func(_ context.Context, opts localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
 		stages.archiveCalls++
 		stages.archiveOpts = opts
-		return &localxcode.ArchiveResult{
+		result := &localxcode.ArchiveResult{
 			ArchivePath:   ".asc/artifacts/Demo-IOS-1.2.3-42.xcarchive",
 			BundleID:      "com.example.demo",
 			Version:       "1.2.3",
 			BuildNumber:   "42",
 			Scheme:        "Demo",
 			Configuration: "Release",
-		}, nil
+			DisplayName:   "Archive Display",
+		}
+		if opts.SourceProvenance {
+			result.ProjectCheckout = &asc.XcodeProjectCheckout{Revision: "fixture-revision", Dirty: true, ObservedAt: "buildStart"}
+		}
+		return result, nil
 	}
 	runPublishExportFn = func(_ context.Context, opts localxcode.ExportOptions) (*localxcode.ExportResult, error) {
 		stages.exportCalls++
@@ -1395,6 +1411,7 @@ func stubPublishArchiveAndExport() *publishBuildStages {
 			BundleID:    "com.example.demo",
 			Version:     "1.2.3",
 			BuildNumber: "42",
+			DisplayName: "Export Display",
 		}, nil
 	}
 	return stages
@@ -1702,5 +1719,22 @@ func TestPublishBuildProcessingWaitIncludesProcessingDetails(t *testing.T) {
 	}
 	if build == nil || build.Data.Attributes.ProcessingState != asc.BuildProcessingStateFailed {
 		t.Fatalf("build = %#v, want the failed build for partial-failure reporting", build)
+	}
+}
+
+func TestPublishRejectsUnsupportedSourceProvenanceBeforeBuild(t *testing.T) {
+	for _, command := range []func(*shared.Deps) *ffcli.Command{newPublishTestFlightCommand, newPublishAppStoreCommand} {
+		for _, input := range [][]string{{"--workspace", "Demo.xcworkspace", "--scheme", "Demo"}, {"--ipa", "Prebuilt.ipa"}} {
+			stubPublishCommandSeams(t)
+			runPublishArchiveFn = func(context.Context, localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
+				t.Fatal("archive ran for unsupported source provenance")
+				return nil, nil
+			}
+			args := append([]string{"--app", "123", "--version", "1.2.3", "--source-provenance"}, input...)
+			stdout, stderr, err := runPublishCommand(t, command, args)
+			if !errors.Is(err, flag.ErrHelp) || stdout != "" || !strings.Contains(stderr, "--source-provenance requires --project") {
+				t.Fatalf("input %v: stdout=%q stderr=%q error=%v", input, stdout, stderr, err)
+			}
+		}
 	}
 }

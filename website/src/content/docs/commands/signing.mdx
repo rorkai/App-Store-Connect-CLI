@@ -77,6 +77,31 @@ Keep decrypted outputs and secrets out of source control:
 .asc/keychains/
 ```
 
+## HTTPS Git credentials for one invocation
+
+Git can save a token through its configured credential helpers after a successful `signing sync` Git operation, even when the token was supplied only for that run. Removing the temporary clone and redacting CLI output do not remove credentials saved by a helper.
+
+To disable inherited helpers for one invocation, use Git's runtime configuration. Supply authentication separately through a trusted `GIT_ASKPASS` program that returns the HTTPS username and token from your CI secret source:
+
+```bash
+GIT_CONFIG_COUNT=1 \
+GIT_CONFIG_KEY_0=credential.helper \
+GIT_CONFIG_VALUE_0= \
+GIT_ASKPASS=/absolute/path/to/trusted-ci-askpass \
+asc signing sync pull \
+  --repo https://github.com/team/signing.git \
+  --password-file ~/.config/asc/signing-sync-password \
+  --output-dir .asc/signing/pulled
+```
+
+This example assumes no existing `GIT_CONFIG_COUNT` entries. If your runner already provides `N` entries, keep them, append the empty `credential.helper` entry at index `N`, and increase the count to `N+1`. Replacing the count with `1` would discard the runner's other runtime settings.
+
+To select only an intended HTTPS helper, append another `credential.helper` entry **after** the empty entry, with that helper's name or absolute path as its value, and increase the count again. That helper can still receive Git's `store` operation; its own retention policy determines whether it saves credentials. Use a helper that does not retain them when that is required.
+
+These settings apply to child Git commands for this invocation and do not edit Git configuration files or delete previously saved credentials. They do not disable other authentication sources such as askpass, `.netrc`, or HTTP authorization headers, and do not change SSH keys, agents, or `core.sshCommand`. App Store Connect authentication, the signing-store encryption password, and non-Git storage credentials are separate.
+
+See Git's [credential helper rules](https://git-scm.com/docs/gitcredentials#_configuration_options) and [runtime configuration variables](https://git-scm.com/docs/git-config#ENVIRONMENT) for the full precedence rules.
+
 ## Set up the bundle ID and capabilities
 
 Find an existing explicit bundle ID:

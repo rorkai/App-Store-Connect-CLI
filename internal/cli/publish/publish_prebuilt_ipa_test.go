@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +22,120 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
+
+func TestPublishCommandsCheckIPABundleBeforeReservation(t *testing.T) {
+	for _, command := range []struct {
+		name string
+		new  func(*shared.Deps) *ffcli.Command
+		args []string
+	}{
+		{"testflight", newPublishTestFlightCommand, []string{"--upload-only"}},
+		{"appstore", newPublishAppStoreCommand, nil},
+	} {
+		for _, test := range []struct {
+			name, appBundleID, wantError string
+			missingPlist, missingBundle  bool
+			metadataChanged              bool
+			inferMetadata                bool
+			wantValidation               bool
+			appStatus                    int
+			wantRequests                 []string
+		}{
+			{name: "mismatch", appBundleID: "com.example.other", wantValidation: true, wantError: `IPA bundle ID "com.example.app" does not match selected app "123" bundle ID "com.example.other"`, wantRequests: []string{"GET /v1/apps/123"}},
+			{name: "match", appBundleID: "COM.EXAMPLE.APP", wantError: "stop at reservation", wantRequests: []string{"GET /v1/apps/123", "POST /v1/buildUploads"}},
+			{name: "missing app bundle", wantError: `selected app "123" has no bundle ID`, wantRequests: []string{"GET /v1/apps/123"}},
+			{name: "app read failure", appStatus: http.StatusForbidden, wantError: "app lookup refused", wantRequests: []string{"GET /v1/apps/123"}},
+			{name: "missing IPA bundle", missingBundle: true, wantValidation: true, wantError: "IPA top-level app Info.plist is missing CFBundleIdentifier"},
+			{name: "unreadable plist with overrides", missingPlist: true, wantError: "stop at reservation", wantRequests: []string{"POST /v1/buildUploads"}},
+			{name: "inferred metadata becomes unreadable", metadataChanged: true, inferMetadata: true, wantError: "inspect IPA metadata before upload"},
+			{name: "readable metadata becomes unreadable with overrides", metadataChanged: true, wantError: "inspect IPA metadata before upload"},
+		} {
+			t.Run(command.name+"/"+test.name, func(t *testing.T) {
+				t.Cleanup(overridePublishCommandTestHooks(t))
+				publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+				lookupDeadline := time.Now().Add(10 * time.Second)
+				var requests []string
+				swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+					requests = append(requests, req.Method+" "+req.URL.Path)
+					switch req.Method + " " + req.URL.Path {
+					case "GET /v1/apps/123":
+						if deadline, ok := req.Context().Deadline(); !ok || !deadline.Equal(lookupDeadline) {
+							t.Errorf("app lookup deadline=%v, want normal request deadline=%v", deadline, lookupDeadline)
+						}
+						if test.appStatus != 0 {
+							return publishCommandJSONResponse(test.appStatus, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"app lookup refused"}]}`)
+						}
+						return publishCommandJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":{"type":"apps","id":"123","attributes":{"bundleId":%q}}}`, test.appBundleID))
+					case "POST /v1/buildUploads":
+						var body asc.BuildUploadCreateRequest
+						if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+							t.Fatal(err)
+						}
+						wantVersion, wantBuild := "2.0", "99"
+						if test.inferMetadata {
+							wantVersion, wantBuild = "1.2.3", "42"
+						}
+						if body.Data.Attributes.CFBundleShortVersionString != wantVersion || body.Data.Attributes.CFBundleVersion != wantBuild || body.Data.Attributes.Platform != asc.PlatformIOS || body.Data.Relationships.App.Data.ID != "123" {
+							t.Fatalf("unexpected reservation: %+v", body.Data)
+						}
+						return publishCommandJSONResponse(http.StatusBadRequest, `{"errors":[{"status":"400","code":"INVALID","title":"stop at reservation"}]}`)
+					default:
+						t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+						return nil, nil
+					}
+				}))
+				ipaPath := writePublishIPA(t, "iPhoneOS")
+				if test.missingPlist {
+					ipaPath = writePublishIPAFile(t, "Payload/Demo.app/Demo", []byte("app executable fixture"))
+				} else if test.missingBundle {
+					ipaPath = writePublishIPAFile(t, "Payload/Demo.app/Info.plist", []byte(`<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleVersion</key><string>42</string></dict></plist>`))
+				}
+				resolvePublishAppIDWithLookupFn = func(context.Context, *asc.Client, string) (string, error) {
+					if test.metadataChanged {
+						info, err := os.Stat(ipaPath)
+						if err != nil {
+							t.Fatal(err)
+						}
+						if err := os.WriteFile(ipaPath, make([]byte, info.Size()), 0o600); err != nil {
+							t.Fatal(err)
+						}
+						if err := os.Chtimes(ipaPath, info.ModTime(), info.ModTime()); err != nil {
+							t.Fatal(err)
+						}
+					}
+					return "123", nil
+				}
+				d := newPublishTestDeps()
+				d.Timeout = func(ctx context.Context) (context.Context, context.CancelFunc) {
+					return context.WithDeadline(ctx, lookupDeadline)
+				}
+				cmd := command.new(d)
+				cmd.FlagSet.SetOutput(io.Discard)
+				args := append([]string{"--app", "123", "--ipa", ipaPath, "--output", "json"}, command.args...)
+				if !test.inferMetadata {
+					args = append(args, "--version", "2.0", "--build-number", "99")
+				}
+				if err := cmd.FlagSet.Parse(args); err != nil {
+					t.Fatal(err)
+				}
+				var runErr error
+				stdout, stderr := capturePublishDepsOutput(t, d, func() error {
+					runErr = cmd.Exec(context.Background(), nil)
+					return nil
+				})
+				if runErr == nil || !strings.Contains(runErr.Error(), test.wantError) || stdout != "" || stderr != "" || !reflect.DeepEqual(requests, test.wantRequests) {
+					t.Fatalf("err=%v, stdout=%q, stderr=%q, requests=%v; want error %q, requests=%v", runErr, stdout, stderr, requests, test.wantError, test.wantRequests)
+				}
+				if test.wantValidation {
+					diagnostic, ok := shared.DiagnosticFromError(runErr)
+					if !shared.IsValidationError(runErr) || !ok || diagnostic.Code != shared.DiagnosticInvalidInput || diagnostic.Parameter != "--ipa" {
+						t.Fatalf("expected --ipa invalid-input validation error, got %v (%+v)", runErr, diagnostic)
+					}
+				}
+			})
+		}
+	}
+}
 
 func TestPublishCommandsSelectPrebuiltIPAPlatform(t *testing.T) {
 	for _, command := range []struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -519,7 +520,7 @@ func TestDecodeStrictDevicectlResultRejectsLegacyDeprecationNotice(t *testing.T)
 }
 
 func TestParseDevicectlEnvelopeRejectsFutureJSONVersion(t *testing.T) {
-	payload := []byte(`{"info":{"arguments":[],"commandType":"devicectl.list.devices","environment":{},"jsonVersion":6,"outcome":"success","version":"future"},"result":{"devices":[]}}`)
+	payload := []byte(`{"info":{"arguments":[],"commandType":"devicectl.list.devices","environment":{},"jsonVersion":7,"outcome":"success","version":"future"},"result":{"devices":[]}}`)
 	if _, err := parseDevicectlEnvelope(payload, "devicectl.list.devices"); err == nil {
 		t.Fatal("parseDevicectlEnvelope() accepted unsupported future schema")
 	}
@@ -607,6 +608,7 @@ func stubInstallIPASource(t *testing.T, source *fakeInstallIPASource) {
 }
 
 type fakeInstallRunner struct {
+	deviceListPayload string
 	t                 *testing.T
 	calls             [][]string
 	environments      [][]string
@@ -645,6 +647,9 @@ func (runner *fakeInstallRunner) Run(_ context.Context, _ string, args, environm
 	switch {
 	case containsInstallArg(args, "list") && containsInstallArg(args, "devices"):
 		payload = fakeDeviceListPayload()
+		if runner.deviceListPayload != "" {
+			payload = runner.deviceListPayload
+		}
 	case containsInstallArg(args, "install"):
 		payload = fakeInstallPayload()
 	case containsInstallArg(args, "info"):
@@ -698,4 +703,30 @@ func containsInstallSequence(args, want []string) bool {
 		}
 	}
 	return false
+}
+
+func TestDiscoverInstallDeviceSchemaVersions(t *testing.T) {
+	for _, version := range []int{4, 5, 6} {
+		t.Run(fmt.Sprint(version), func(t *testing.T) {
+			payload := strings.Replace(fakeDeviceListPayload(), `"jsonVersion":5`, fmt.Sprintf(`"jsonVersion":%d`, version), 1)
+			if version == 4 {
+				payload = `{"info":{"arguments":[],"commandType":"devicectl.list.devices","environment":{},"jsonVersion":4,"outcome":"success","version":"4"},"result":{"devices":[{"identifier":"SELECTOR_CANARY","hardwareProperties":{"platform":"iOS","reality":"physical","udid":"UDID_CANARY"},"connectionProperties":{"pairingState":"paired","tunnelState":"connected"},"deviceProperties":{"visibilityClass":"default"}}]}}`
+			}
+			if version == 6 {
+				payload = strings.ReplaceAll(payload, `"platform":`, `"osPlatform":`)
+				payload = strings.ReplaceAll(payload, `"reality":`, `"fidelity":`)
+			}
+			runner := &fakeInstallRunner{t: t, deviceListPayload: payload}
+			device, err := discoverInstallDevice(context.Background(), runner, "/private/tmp/fake-devicectl", nil, t.TempDir(), 30*time.Second, "SELECTOR_CANARY", []string{"UDID_CANARY"})
+			if err != nil {
+				t.Fatalf("schema %d discovery failed: %v", version, err)
+			}
+			if device.Identifier != "SELECTOR_CANARY" || device.UDID != "UDID_CANARY" || device.Platform != "iOS" || device.Reality != "physical" || !isUsableInstallDevice(device) {
+				t.Fatalf("schema %d discovery normalized incorrectly: %+v", version, device)
+			}
+			if len(runner.calls) != 1 || !containsInstallArg(runner.calls[0], "list") || !containsInstallArg(runner.calls[0], "devices") {
+				t.Fatalf("discovery performed another operation: %v", runner.calls)
+			}
+		})
+	}
 }

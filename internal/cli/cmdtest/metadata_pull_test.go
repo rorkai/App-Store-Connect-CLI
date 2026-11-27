@@ -425,39 +425,42 @@ func TestMetadataPullVersionNotFoundSuggestsExactReadRetry(t *testing.T) {
 // the version itself instead of filtering by version string.
 func TestMetadataPullAcceptsVersionID(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
+	for _, versionFlag := range []string{"version", "version-id"} {
+		t.Run(versionFlag, func(t *testing.T) {
+			const versionID = "11111111-2222-4333-8444-555555555555"
+			outputDir := filepath.Join(t.TempDir(), "metadata")
 
-	const versionID = "11111111-2222-4333-8444-555555555555"
-	outputDir := filepath.Join(t.TempDir(), "metadata")
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/appStoreVersions/"+versionID, "include=app"),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"`+versionID+`","attributes":{"versionString":"1.2.3","platform":"IOS","appVersionState":"WAITING_FOR_REVIEW"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`))
+			reg.Register(asctest.GET("/v1/apps/123456789/appInfos"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"WAITING_FOR_REVIEW"}}]}`))
+			reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"appinfo-loc-1","attributes":{"locale":"en-US","name":"App EN"}}],"links":{"next":""}}`))
+			reg.Register(asctest.GET("/v1/appStoreVersions/"+versionID+"/appStoreVersionLocalizations", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"version-loc-1","attributes":{"locale":"en-US","description":"Desc EN"}}],"links":{"next":""}}`))
 
-	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/appStoreVersions/"+versionID, "include=app"),
-		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"`+versionID+`","attributes":{"versionString":"1.2.3","platform":"IOS","appVersionState":"WAITING_FOR_REVIEW"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`))
-	reg.Register(asctest.GET("/v1/apps/123456789/appInfos"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"WAITING_FOR_REVIEW"}}]}`))
-	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"appinfo-loc-1","attributes":{"locale":"en-US","name":"App EN"}}],"links":{"next":""}}`))
-	reg.Register(asctest.GET("/v1/appStoreVersions/"+versionID+"/appStoreVersionLocalizations", "limit=200"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"version-loc-1","attributes":{"locale":"en-US","description":"Desc EN"}}],"links":{"next":""}}`))
-
-	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "metadata", "pull", "--app", "123456789", "--version", versionID, "--dir", outputDir)
-	if runErr != nil {
-		t.Fatalf("run error: %v; stderr=%q", runErr, stderr)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	var payload struct {
-		Version   string `json:"version"`
-		VersionID string `json:"versionId"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
-	}
-	if payload.Version != "1.2.3" || payload.VersionID != versionID {
-		t.Fatalf("version = %q, versionId = %q; want 1.2.3 and %s", payload.Version, payload.VersionID, versionID)
-	}
-	if _, err := os.Stat(filepath.Join(outputDir, "version", "1.2.3", "en-US.json")); err != nil {
-		t.Fatalf("expected the version file under its version string: %v", err)
+			stdout, stderr, exitCode := runWithDeps(t, stubClient(t, reg), "metadata", "pull", "--app", "123456789", "--"+versionFlag, versionID, "--dir", outputDir)
+			if exitCode != 0 {
+				t.Fatalf("exit code: %d; stderr=%q", exitCode, stderr)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			var payload struct {
+				Version   string `json:"version"`
+				VersionID string `json:"versionId"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+				t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+			}
+			if payload.Version != "1.2.3" || payload.VersionID != versionID {
+				t.Fatalf("version = %q, versionId = %q; want 1.2.3 and %s", payload.Version, payload.VersionID, versionID)
+			}
+			if _, err := os.Stat(filepath.Join(outputDir, "version", "1.2.3", "en-US.json")); err != nil {
+				t.Fatalf("expected the version file under its version string: %v", err)
+			}
+		})
 	}
 }
 

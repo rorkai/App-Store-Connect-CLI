@@ -165,7 +165,7 @@ Examples:
 					return d.UsageError("--build-id cannot be used with --upload-only")
 				}
 			}
-			if err := validateLocalBuildFlagUsage(d, localBuildMode, setFlags); err != nil {
+			if err := validateLocalBuildFlagUsage(d, localBuild, setFlags); err != nil {
 				return err
 			}
 			if localBuildMode {
@@ -183,7 +183,7 @@ Examples:
 			uploadMode := ipaValue != "" || pkgValue != ""
 			switch {
 			case localBuildMode:
-				if err := validateLocalBuildSelectors(d, localBuild); err != nil {
+				if err := validateLocalBuildSelectors(d, localBuild, buildNumberValue); err != nil {
 					return err
 				}
 				if ipaValue != "" {
@@ -698,7 +698,7 @@ Examples:
 			buildNumberValue := strings.TrimSpace(*buildNumber)
 			metadataDirValue := strings.TrimSpace(*metadataDir)
 			localBuildMode := localBuild.localBuildMode()
-			if err := validateLocalBuildFlagUsage(d, localBuildMode, setFlags); err != nil {
+			if err := validateLocalBuildFlagUsage(d, localBuild, setFlags); err != nil {
 				return err
 			}
 			if localBuildMode {
@@ -717,7 +717,7 @@ Examples:
 			}
 			switch {
 			case localBuildMode:
-				if err := validateLocalBuildSelectors(d, localBuild); err != nil {
+				if err := validateLocalBuildSelectors(d, localBuild, buildNumberValue); err != nil {
 					return err
 				}
 				if ipaValue != "" {
@@ -1147,6 +1147,11 @@ func uploadPKGBuildAndWaitForID(ctx context.Context, d *shared.Deps, client *asc
 }
 
 func uploadBuildArtifactAndWaitForID(ctx context.Context, d *shared.Deps, client *asc.Client, appID, artifactPath string, fileInfo os.FileInfo, version, buildNumber string, platform asc.Platform, fileUTI asc.UTI, pollInterval time.Duration, uploadTimeout time.Duration, overrideUploadTimeout bool) (*publishUploadResult, error) {
+	allowUnreadableMetadata := false
+	if uninspected, ok := fileInfo.(publishIPAWithoutMetadata); ok {
+		fileInfo = uninspected.FileInfo
+		allowUnreadableMetadata = true
+	}
 	var (
 		artifactFile *os.File
 		openedInfo   os.FileInfo
@@ -1163,6 +1168,23 @@ func uploadBuildArtifactAndWaitForID(ctx context.Context, d *shared.Deps, client
 	defer artifactFile.Close()
 	if fileInfo != nil && !os.SameFile(fileInfo, openedInfo) {
 		return nil, fmt.Errorf("build artifact changed before upload")
+	}
+	if fileUTI == asc.UTIIPA {
+		info, inspectErr := shared.ExtractBundleInfoFromIPAFile(artifactFile)
+		if inspectErr != nil && !allowUnreadableMetadata {
+			return nil, fmt.Errorf("inspect IPA metadata before upload: %w", inspectErr)
+		}
+		if inspectErr == nil {
+			if info.BundleID == "" {
+				return nil, shared.WithDiagnostic(shared.NewValidationError(errors.New("IPA top-level app Info.plist is missing CFBundleIdentifier")), shared.DiagnosticInvalidInput, "--ipa")
+			}
+			lookupCtx, cancel := d.Timeout(ctx)
+			err := shared.ValidateIPAAppBundleID(lookupCtx, client, appID, info.BundleID)
+			cancel()
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	uploadResp, fileResp, err := shared.PrepareBuildUpload(ctx, client, appID, openedInfo, version, buildNumber, platform, fileUTI)
@@ -1256,14 +1278,19 @@ func validatePublishPKGMetadata(d *shared.Deps, version, buildNumber string) err
 	return nil
 }
 
+type publishIPAWithoutMetadata struct{ os.FileInfo }
+
 func resolvePublishIPA(d *shared.Deps, ipaPath, version, buildNumber, platform string, platformWasSet bool) (os.FileInfo, shared.IPABundleInfo, error) {
 	fileInfo, err := validatePublishIPAPathFn(d.OSPath(ipaPath))
 	if err != nil {
 		return nil, shared.IPABundleInfo{}, err
 	}
-	info, err := shared.ResolveBundleInfoForIPA(d.OSPath(ipaPath), version, buildNumber)
+	info, metadataAvailable, err := shared.ResolveBundleInfoForIPA(d.OSPath(ipaPath), version, buildNumber)
 	if err != nil {
 		return nil, shared.IPABundleInfo{}, err
+	}
+	if !metadataAvailable {
+		fileInfo = publishIPAWithoutMetadata{fileInfo}
 	}
 	if info.Platform == "" {
 		info.Platform = asc.Platform(platform)

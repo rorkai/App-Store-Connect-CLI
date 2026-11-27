@@ -262,6 +262,9 @@ func readPasswordFromInput(ctx context.Context) (string, error) {
 	if webPasswordProvided(password) {
 		return password, nil
 	}
+	if webPromptsDisabled(ctx) {
+		return "", nil
+	}
 	password, err := promptPasswordFn(ctx)
 	if err != nil {
 		return "", err
@@ -537,7 +540,15 @@ func staleSessionDiscardWarning(err error) error {
 	return fmt.Errorf("discarding the stale cached web session failed: %w", err)
 }
 
-type webSignInContextKey struct{}
+type (
+	webSignInContextKey   struct{}
+	webNoPromptContextKey struct{}
+)
+
+func webPromptsDisabled(ctx context.Context) bool {
+	disabled, _ := ctx.Value(webNoPromptContextKey{}).(bool)
+	return disabled
+}
 
 // consumedCodeNoticeContextKey marks a fresh sign-in that replaces one whose
 // verification code was already consumed.
@@ -875,7 +886,7 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, d *shared.Deps, progre
 		}
 		// Stop before asking Apple for the challenge, which can deliver a code
 		// to the account's devices or phone that nobody here can enter.
-		if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey && code == "" && command == "" && !twoFactorPromptAvailableFn() {
+		if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey && code == "" && command == "" && (webPromptsDisabled(ctx) || !twoFactorPromptAvailableFn()) {
 			return nil, twoFactorInputError(errNoTwoFactorCodeSource, shared.DiagnosticRequiredInputMissing)
 		}
 		session.SetTwoFactorPreference(twoFactorPreference)
@@ -964,6 +975,9 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, d *shared.Deps, progre
 					return "", twoFactorInputError(err, shared.DiagnosticDependencyFailed)
 				}
 				return code, nil
+			}
+			if webPromptsDisabled(ctx) {
+				return "", twoFactorInputError(errNoTwoFactorCodeSource, shared.DiagnosticRequiredInputMissing)
 			}
 			code, err := promptTwoFactorCodeFn()
 			if err != nil {
@@ -1529,6 +1543,9 @@ func resolveWebSessionWithPolicy(ctx context.Context, d *shared.Deps, appleID, p
 	}
 	if !webPasswordProvided(resolvedPassword.value) {
 		if isWebSignIn(ctx) {
+			if webPromptsDisabled(ctx) {
+				return nil, "", d.UsageError("password is required with --no-prompt: set " + webPasswordEnv)
+			}
 			return nil, "", passwordRequiredUsageErrorWith(d)
 		}
 		// No usable cached session and no way to sign in here: the command
@@ -1539,7 +1556,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, d *shared.Deps, appleID, p
 	// Without a cached cookie jar there is no trusted-device cookie, so Apple
 	// always answers the password step with a 2FA challenge. Refuse before
 	// signing in when nothing here can supply the code.
-	if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey && expiredCachedSession == nil && twoFactorCode == "" && command == "" && !twoFactorPromptAvailableFn() {
+	if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey && expiredCachedSession == nil && twoFactorCode == "" && command == "" && (webPromptsDisabled(ctx) || !twoFactorPromptAvailableFn()) {
 		return nil, "", twoFactorInputError(errNoTwoFactorCodeSource, shared.DiagnosticRequiredInputMissing)
 	}
 
@@ -1864,6 +1881,7 @@ Manage Apple web-session authentication used by "asc web" commands.
 // newWebAuthLoginCommand creates or refreshes a web session.
 func newWebAuthLoginCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("web auth login", flag.ExitOnError)
+	noPrompt := fs.Bool("no-prompt", false, "Disable interactive password and verification-code prompts")
 
 	appleID := fs.String("apple-id", "", "Apple Account email (defaults to "+webAppleIDEnv+", then the last or only cached session)")
 	twoFactorCodeCommand := fs.String("two-factor-code-command", "", "Shell command that prints the 2FA code to stdout if verification is required")
@@ -1896,7 +1914,7 @@ Two-factor input options:
   - --two-factor-code-command
   - %s environment variable (recommended for automation)
 
-Without a terminal, a fresh sign-in needs a 2FA code command or explicit
+With --no-prompt or without a terminal, a fresh sign-in needs a 2FA code command or explicit
 --two-factor-method security-key; otherwise it fails before the password is sent.
 
 Security-key sign-in (macOS):
@@ -1981,6 +1999,9 @@ Examples:
 				RefuseSwitchUnder: providerSwitchRefusalSetting(nil),
 			}
 			signInCtx := contextWithTwoFactorPreference(contextForWebSignIn(ctx), preference)
+			if *noPrompt {
+				signInCtx = context.WithValue(signInCtx, webNoPromptContextKey{}, true)
+			}
 			session, source, err := callResolveSessionForProviderSelectionWith(signInCtx, d, *appleID, "", "", *twoFactorCodeCommand, selection)
 			if err != nil {
 				return err

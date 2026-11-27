@@ -15,7 +15,7 @@ type JUnitTestCase struct {
 	Time      time.Duration // Test duration
 	Skipped   bool          // Whether the test was skipped
 	Failure   string        // Failure type (empty if passed)
-	Message   string        // Failure message
+	Message   string        // Failure message or skip reason
 	SystemOut string        // Standard output
 	SystemErr string        // Standard error
 }
@@ -110,7 +110,7 @@ type testCaseXML struct {
 	Name      string      `xml:"name,attr"`
 	Classname string      `xml:"classname,attr"`
 	Time      string      `xml:"time,attr"`
-	Skipped   *struct{}   `xml:"skipped,omitempty"`
+	Skipped   *skippedXML `xml:"skipped,omitempty"`
 	Failure   *failureXML `xml:"failure,omitempty"`
 	SystemOut string      `xml:"system-out,omitempty"`
 	SystemErr string      `xml:"system-err,omitempty"`
@@ -122,6 +122,10 @@ type failureXML struct {
 	Type    string `xml:"type,attr"`
 }
 
+type skippedXML struct {
+	Message string `xml:"message,attr,omitempty"`
+}
+
 func (tc JUnitTestCase) toXML() testCaseXML {
 	xml := testCaseXML{
 		Name:      tc.Name,
@@ -130,7 +134,7 @@ func (tc JUnitTestCase) toXML() testCaseXML {
 	}
 
 	if tc.Skipped {
-		xml.Skipped = &struct{}{}
+		xml.Skipped = &skippedXML{Message: tc.Message}
 	}
 
 	if tc.Failure != "" {

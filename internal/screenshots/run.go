@@ -231,7 +231,7 @@ func runStep(ctx context.Context, action StepAction, step PlanStep, bundleID str
 	case ActionWait:
 		return waitContext(ctx, time.Duration(intValue(step.DurationMS))*time.Millisecond)
 	case ActionWaitFor:
-		return runWaitForStep(ctx, step, udid)
+		return runWaitForStep(ctx, step, udid, axeMatchesTarget, time.Now)
 	case ActionScreenshot:
 		req := CaptureRequest{
 			Provider: ProviderAXe,
@@ -253,7 +253,7 @@ func runStep(ctx context.Context, action StepAction, step PlanStep, bundleID str
 	}
 }
 
-func runWaitForStep(ctx context.Context, step PlanStep, udid string) error {
+func runWaitForStep(ctx context.Context, step PlanStep, udid string, matchesTarget func(context.Context, string, PlanStep) (bool, error), now func() time.Time) error {
 	timeout := intValue(step.TimeoutMS)
 	if timeout <= 0 {
 		timeout = 15000
@@ -263,20 +263,33 @@ func runWaitForStep(ctx context.Context, step PlanStep, udid string) error {
 		poll = 400
 	}
 
-	deadline := time.Now().Add(time.Duration(timeout) * time.Millisecond)
+	deadline := now().Add(time.Duration(timeout) * time.Millisecond)
+	deadlineErr := fmt.Errorf("wait_for timed out after %dms", timeout)
+	if parentDeadline, ok := ctx.Deadline(); ok && !parentDeadline.After(deadline) {
+		deadline = parentDeadline
+		deadlineErr = context.DeadlineExceeded
+	}
+	stepCtx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
 	for {
-		matched, err := axeMatchesTarget(ctx, udid, step)
+		matched, err := matchesTarget(stepCtx, udid, step)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if stepCtx.Err() != nil || !now().Before(deadline) {
+			return deadlineErr
+		}
 		if err != nil {
 			return err
 		}
 		if matched {
 			return nil
 		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("wait_for timed out after %dms", timeout)
-		}
-		if err := waitContext(ctx, time.Duration(poll)*time.Millisecond); err != nil {
-			return err
+		if err := waitContext(stepCtx, time.Duration(poll)*time.Millisecond); err != nil {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			return deadlineErr
 		}
 	}
 }

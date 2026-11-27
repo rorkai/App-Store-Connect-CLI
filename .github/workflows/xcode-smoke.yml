@@ -1,0 +1,51 @@
+name: Selected Xcode smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      xcode_version:
+        description: Xcode installed on the xcode-27 runner image
+        type: choice
+        options: ['27.1', '27.2', '27.0']
+        default: '27.1'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: xcode-27
+    timeout-minutes: 15
+    env:
+      ASC_BYPASS_KEYCHAIN: '1'
+      DO_NOT_TRACK: '1'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Build current CLI
+        run: go build -p=2 -trimpath -o "$RUNNER_TEMP/asc-smoke" .
+      - name: Exercise selected Xcode
+        env:
+          XCODE_VERSION: ${{ inputs.xcode_version }}
+        run: |
+          python3 scripts/xcode_smoke.py --binary "$RUNNER_TEMP/asc-smoke" \
+            --developer-dir "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer" \
+            --xcode-version "$XCODE_VERSION" --work-dir "$RUNNER_TEMP/xcode-smoke"
+      - name: Retain smoke evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: xcode-smoke-${{ inputs.xcode_version }}
+          path: |
+            ${{ runner.temp }}/xcode-smoke/*.json
+            ${{ runner.temp }}/xcode-smoke/*.stderr
+            ${{ runner.temp }}/xcode-smoke/junit.xml
+          if-no-files-found: error
+          retention-days: 7

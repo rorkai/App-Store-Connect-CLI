@@ -400,10 +400,12 @@ type OutputFlags struct {
 }
 
 type validatedOutputValue struct {
-	name    string
-	value   *string
-	pretty  *bool
-	allowed []string
+	name          string
+	value         *string
+	pretty        *bool
+	allowed       []string
+	defaultKind   string
+	staticDefault *string
 }
 
 func (v *validatedOutputValue) String() string {
@@ -1728,7 +1730,10 @@ func bindPrettyJSONFlagWithValue(fs *flag.FlagSet, value *bool) *bool {
 
 // BindMetadataOutputFlags registers --output-format and --pretty flags on the provided flagset.
 func BindMetadataOutputFlags(fs *flag.FlagSet) MetadataOutputFlags {
-	output := BindOutputFlagsWithAllowed(fs, "output-format", "json", "Output format for metadata: json (default), table, markdown", "json", "table", "markdown")
+	defaultValue := "json"
+	output := BindOutputFlagsWithAllowed(fs, "output-format", defaultValue, "Output format for metadata: json (default), table, markdown", "json", "table", "markdown")
+	value := fs.Lookup("output-format").Value.(*validatedOutputValue)
+	value.defaultKind, value.staticDefault = "static", &defaultValue
 	return MetadataOutputFlags{
 		OutputFormat: output.Output,
 		Pretty:       output.Pretty,

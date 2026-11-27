@@ -267,3 +267,14 @@ func assertValidationCode(t *testing.T, err error, code PlanValidationCode) {
 func intPtr(value int) *int {
 	return &value
 }
+
+func TestLoadPlan_UnknownFieldsRemainCompatible(t *testing.T) {
+	path := writePlanFile(t, `{"app":{"bundle_id":"example.fixture"},"steps":[{"action":"wait","duration_ms":1,"duration_mss":2500}]}`)
+	plan, err := LoadPlan(path)
+	if err != nil {
+		t.Fatalf("plan load rejected an unknown field: %v", err)
+	}
+	if plan.Version != 1 || len(plan.Steps) != 1 || plan.Steps[0].DurationMS == nil || *plan.Steps[0].DurationMS != 1 {
+		t.Fatalf("plan values changed: %+v", plan)
+	}
+}

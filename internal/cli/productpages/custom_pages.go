@@ -38,6 +38,7 @@ Examples:
 			newCustomPagesDeleteCommand(d),
 			newCustomPageVersionsCommand(d),
 			newCustomPageLocalizationsCommand(d),
+			newCustomPageScreenshotsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
