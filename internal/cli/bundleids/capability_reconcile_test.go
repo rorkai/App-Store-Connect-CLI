@@ -125,10 +125,12 @@ func TestReadDesiredEntitlementsMapsCapabilities(t *testing.T) {
 		{
 			name: "false booleans do not enable capabilities",
 			entitlements: map[string]any{
-				"com.apple.developer.siri":        false,
-				"com.apple.developer.homekit":     false,
-				"com.apple.developer.healthkit":   true,
-				"com.apple.developer.game-center": false,
+				"com.apple.developer.siri":                                    false,
+				"com.apple.developer.homekit":                                 false,
+				"com.apple.developer.healthkit":                               true,
+				"com.apple.developer.game-center":                             false,
+				"com.apple.developer.kernel.increased-memory-limit":           false,
+				"com.apple.developer.kernel.increased-debugging-memory-limit": false,
 			},
 			want: []string{"HEALTHKIT"},
 		},
@@ -142,9 +144,9 @@ func TestReadDesiredEntitlementsMapsCapabilities(t *testing.T) {
 			wantErr:      []string{"unknown entitlement key"},
 		},
 		{
-			name:         "unsupported increased memory limit",
+			name:         "known unmanaged memory limit",
 			entitlements: map[string]any{"com.apple.developer.kernel.increased-memory-limit": true},
-			wantErr:      []string{"unsupported", "INCREASED_MEMORY_LIMIT"},
+			want:         []string{""},
 		},
 		{
 			name:         "unknown data protection value",

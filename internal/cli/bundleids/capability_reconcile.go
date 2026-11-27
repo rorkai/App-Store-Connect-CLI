@@ -33,6 +33,10 @@ plan shows add, update, keep, and unmanaged actions. apply requires --confirm.
 Existing sub-feature settings, such as broadcast push, are preserved. Removal
 requires --allow-remove and only applies to capability types this mapping knows.
 
+Known memory-limit requests remain unmanaged and unverified; this CLI cannot
+activate them or establish account approval. Apply refuses these requests before
+any capability write. The debugging entitlement must be removed before distribution.
+
 Examples:
   asc bundle-ids capabilities reconcile plan --bundle "BUNDLE_ID" --entitlements ./App/App.entitlements
   asc bundle-ids capabilities reconcile apply --bundle "BUNDLE_ID" --entitlements ./App/App.entitlements --confirm`,
@@ -153,9 +157,6 @@ func readDesiredEntitlements(d *shared.Deps, path string, ignoreUnknown bool) ([
 		if !requested {
 			continue
 		}
-		if item.UnsupportedCapability != "" {
-			return nil, d.UsageErrorf("entitlement %q requires unsupported capability %s; no supported asc API or web command can enable it", key, item.UnsupportedCapability)
-		}
 		if key == "com.apple.developer.default-data-protection" {
 			value, ok := raw[key].(string)
 			if !ok {
@@ -222,6 +223,15 @@ func buildCapabilityReconcilePlan(bundleID string, desired []desiredEntitlement,
 	requested := map[string]struct{}{}
 	actions := make([]asc.CapabilityReconcileAction, 0)
 	for _, item := range desired {
+		if item.spec.UnsupportedCapability != "" {
+			guidance := "This CLI does not manage this entitlement; provider availability and approval remain unverified. Inspect the selected Developer Portal team before proceeding."
+			if item.spec.Key == "com.apple.developer.kernel.increased-debugging-memory-limit" {
+				guidance += " Apple limits the debugging entitlement to development, ad hoc and internal TestFlight; remove it before distribution."
+			}
+			requested[item.spec.UnsupportedCapability] = struct{}{}
+			actions = append(actions, asc.CapabilityReconcileAction{Action: "unmanaged", Capability: item.spec.UnsupportedCapability, Entitlement: item.spec.Key, Status: "unverified", Error: guidance})
+			continue
+		}
 		if item.spec.WebCommand != "" {
 			action := asc.CapabilityReconcileAction{Action: "needsWebSession", Entitlement: item.spec.Key}
 			if quotedBundleID, ok := shared.ShellQuote(bundleID); ok {
@@ -312,6 +322,9 @@ func listBundleCapabilities(ctx context.Context, client *asc.Client, bundleID st
 func applyCapabilityReconcilePlan(ctx context.Context, client *asc.Client, bundleID string, plan *asc.CapabilityReconcilePlan) error {
 	for index := range plan.Actions {
 		action := &plan.Actions[index]
+		if action.Action == "unmanaged" && action.Entitlement != "" && action.Status == "unverified" {
+			return fmt.Errorf("entitlement %s remains unmanaged: %s", action.Entitlement, action.Error)
+		}
 		if action.Action == "needsWebSession" {
 			action.Status = "failed"
 			action.Error = "requires a web session; run " + action.Command
