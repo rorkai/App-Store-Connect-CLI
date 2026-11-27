@@ -359,6 +359,13 @@ func Test(ctx context.Context, opts TestOptions) (*TestResult, error) {
 		}
 	}
 
+	var products *testProductsSnapshot
+	if opts.Action == string(TestActionBuildForTesting) {
+		products = snapshotTestProducts(opts.XcodebuildArgs)
+		if products != nil {
+			defer products.close()
+		}
+	}
 	command := buildTestCommand(opts)
 	processErr := runXcodeTestCommand(ctx, opts.PackagePath, command, opts.LogWriter)
 	if opts.CodeCoverage && opts.Action != string(TestActionBuildForTesting) {
@@ -375,7 +382,18 @@ func Test(ctx context.Context, opts TestOptions) (*TestResult, error) {
 	}
 
 	if opts.Action == string(TestActionBuildForTesting) {
-		result.XctestrunPath = findXctestrunPath(opts.DerivedDataPath)
+		if products == nil {
+			result.XctestrunPath = findXctestrunPath(opts.DerivedDataPath)
+		} else {
+			result.XctestrunPath = products.xctestrunPath()
+			if result.XctestrunPath == "" {
+				logWriter := opts.LogWriter
+				if logWriter == nil {
+					logWriter = os.Stderr
+				}
+				fmt.Fprintln(logWriter, "Warning: could not identify one new or replaced .xctestrun file in the explicit SYMROOT; inspect the products directory and pass the generated file with --action test-without-building --xctestrun.")
+			}
+		}
 		exitStatus := 0
 		result.ExitStatus = &exitStatus
 		return finish(nil)
