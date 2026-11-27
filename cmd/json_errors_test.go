@@ -22,8 +22,12 @@ func TestRunOptInJSONError(t *testing.T) {
 		kind string
 	}{
 		{"unknown command", []string{"--error-format=json", "not-a-command"}, ExitUsage, "unknown_command"},
+		{"unknown group child", []string{"--error-format=json", "apps", "not-a-command"}, ExitUsage, "unknown_command"},
+		{"removed group child", []string{"--error-format=json", "review", "items-get"}, ExitUsage, "unknown_command"},
 		{"unknown flag", []string{"--error-format", "json", "apps", "list", "--not-a-flag"}, ExitUsage, "invalid_flag"},
 		{"unknown root flag before format", []string{"--not-a-flag", "--error-format=json", "apps", "list"}, ExitUsage, "invalid_flag"},
+		{"stray leaf operand", []string{"--error-format=json", "apps", "view", "123"}, ExitUsage, "usage_error"},
+		{"literal flag query with invalid limit", []string{"--error-format=json", "search", "--output", "json", "--limit", "0", "--", "--app"}, ExitUsage, "usage_error"},
 		{"missing input", []string{"--error-format=json", "metadata", "push", "--output", "json"}, ExitUsage, "required_input_missing"},
 		{"legacy usage writer", []string{"--error-format=json", "profiles", "download", "--all", "--id", "X"}, ExitUsage, "usage_error"},
 		{"auth", []string{"--error-format=json", "apps", "list"}, ExitAuth, "authentication_required"},
