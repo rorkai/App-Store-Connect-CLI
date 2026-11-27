@@ -112,9 +112,10 @@ When using blocks, keep --message as the top-level text fallback.
 Slack may ignore channel overrides for incoming webhooks based on app settings.
 For --thread-ts, use the parent message ts from Slack APIs/events (webhook POST returns only "ok").
 --pretext and --success are attachment options and require --payload-json/--payload-file.
-File inputs must resolve to regular files. Files outside the working directory
-and symlink inputs remain supported with a deprecation warning; copy them into
-the project directory or use inline JSON before a future release refuses them.
+Regular files in the working directory are preferred. Previously supported
+streams, descriptor paths, outside-directory files and symlinks remain accepted
+with a deprecation warning; copy the content into a regular project file or use
+inline JSON before a future release refuses the deprecated inputs.
 
 Examples:
   asc notify slack --webhook "https://hooks.slack.com/..." --message "Build uploaded"
@@ -292,7 +293,7 @@ func resolveWebhook(flagValue string) string {
 	return ""
 }
 
-// readSlackMessageFile preserves legacy symlink inputs during deprecation.
+// readSlackMessageFile preserves legacy file and stream inputs during deprecation.
 func readSlackMessageFile(d *shared.Deps, flagName, hint, path string) ([]byte, error) {
 	file, err := d.OpenMessageFile(flagName, hint, path, true)
 	if err != nil {

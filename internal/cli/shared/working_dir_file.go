@@ -5,14 +5,17 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
-// OpenMessageFile opens a regular file for message content. Outside-directory
+// OpenMessageFile opens message content. Outside-directory
 // files remain supported with a deprecation warning. followSymlinks preserves
 // legacy symlink support only for callers that already allowed it; those reads
-// also warn. Every resulting file is opened through rootfs, and read errors
+// also warn. Regular files are opened through rootfs; legacy streams and OS
+// descriptors retain their original opening semantics. Read errors
 // retain their causes for the caller's existing error classification.
 func (d *Deps) OpenMessageFile(flagName, hint, path string, followSymlinks bool) (*os.File, error) {
 	workingDir, err := d.Getwd()
@@ -22,6 +25,22 @@ func (d *Deps) OpenMessageFile(flagName, hint, path string, followSymlinks bool)
 	absolute, err := d.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", flagName, err)
+	}
+	if followSymlinks {
+		source := d.OSPath(path)
+		info, statErr := os.Stat(source)
+		stream := statErr == nil && !info.Mode().IsRegular() && !info.IsDir()
+		if stream || messageFileDescriptorPath(absolute) {
+			// Legacy Slack and batch inputs accepted OS streams and descriptors.
+			// These cannot satisfy rootfs regular-file identity checks; ordinary
+			// file inputs below retain the rooted traversal.
+			file, err := os.Open(source)
+			if err != nil {
+				return nil, fmt.Errorf("read %s: %w", flagName, err)
+			}
+			fmt.Fprintf(d.IO.ErrOut, "Warning: %s non-regular or descriptor input is deprecated and will be refused in a future release; %s\n", flagName, hint)
+			return file, nil
+		}
 	}
 	openPath := absolute
 	if followSymlinks {
@@ -88,4 +107,22 @@ func messageFileNeedsWarning(workingDir, lexicalPath, openPath string, followed 
 func pathWithinDirectory(directory, path string) bool {
 	relative, err := filepath.Rel(directory, path)
 	return err == nil && filepath.IsLocal(relative)
+}
+
+// Descriptor paths refer to an already-open operator-selected input. Resolving
+// their symlinks may lose the descriptor (or fail for a pipe on Linux).
+func messageFileDescriptorPath(path string) bool {
+	if runtime.GOOS == "windows" {
+		return false
+	}
+	if path == "/dev/stdin" || path == "/dev/stdout" || path == "/dev/stderr" {
+		return true
+	}
+	for _, prefix := range []string{"/dev/fd/", "/proc/self/fd/"} {
+		if suffix, ok := strings.CutPrefix(path, prefix); ok {
+			_, err := strconv.ParseUint(suffix, 10, 64)
+			return err == nil
+		}
+	}
+	return false
 }

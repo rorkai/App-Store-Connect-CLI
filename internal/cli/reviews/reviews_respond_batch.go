@@ -141,11 +141,12 @@ func newReviewsRespondBatchCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Create responses for multiple customer reviews.",
 		LongHelp: fmt.Sprintf(`Create responses for multiple customer reviews from a grouped JSON file.
 
-The input file must resolve to a regular file and contain a top-level replies
-array. Each reply has one response body and one or more reviewIds. Files outside
-the working directory and symlink inputs remain supported with a deprecation
-warning; copy them into the project directory before a future release refuses
-them.
+The input must be seekable and contain a top-level replies array. Each reply
+has one response body and one or more reviewIds. Files outside the working
+directory, symlinks and descriptor inputs such as redirected /dev/stdin remain
+supported with a deprecation warning; copy the content into a regular project
+file before a future release refuses the deprecated inputs. Non-seekable pipes
+remain unsupported.
 
 A single run accepts at most %d bytes of input and %d review ids across
 all replies, and each response must not exceed %d bytes. Split larger

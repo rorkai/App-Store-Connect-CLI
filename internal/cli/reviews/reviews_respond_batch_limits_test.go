@@ -64,7 +64,7 @@ func TestLoadReviewBatchTargetsAcceptsMaximalMultibyteBatch(t *testing.T) {
 
 	targets, err := loadReviewBatchTargetsForTest(t, path)
 	if err != nil {
-		t.Fatalf("loadReviewBatchTargetsForTest(t, ) error: %v", err)
+		t.Fatalf("loadReviewBatchTargets() error: %v", err)
 	}
 	if len(targets) != reviewBatchMaxTargets {
 		t.Fatalf("expected %d targets, got %d", reviewBatchMaxTargets, len(targets))
@@ -96,7 +96,7 @@ func TestLoadReviewBatchTargetsAcceptsMaximalEscapedMultibyteBatch(t *testing.T)
 
 	targets, err := loadReviewBatchTargetsForTest(t, path)
 	if err != nil {
-		t.Fatalf("loadReviewBatchTargetsForTest(t, ) error: %v", err)
+		t.Fatalf("loadReviewBatchTargets() error: %v", err)
 	}
 	if len(targets) != reviewBatchMaxTargets {
 		t.Fatalf("expected %d targets, got %d", reviewBatchMaxTargets, len(targets))
@@ -120,7 +120,7 @@ func TestLoadReviewBatchTargetsAcceptsResponseAtByteLimit(t *testing.T) {
 
 	targets, err := loadReviewBatchTargetsForTest(t, path)
 	if err != nil {
-		t.Fatalf("loadReviewBatchTargetsForTest(t, ) error: %v", err)
+		t.Fatalf("loadReviewBatchTargets() error: %v", err)
 	}
 	if len(targets) != 1 || len(targets[0].Response) != reviewBatchMaxResponseBytes {
 		t.Fatalf("unexpected targets at response byte limit: %d", len(targets))
@@ -167,7 +167,7 @@ func TestLoadReviewBatchTargetsAcceptsMaximumReviewIDs(t *testing.T) {
 
 	targets, err := loadReviewBatchTargetsForTest(t, path)
 	if err != nil {
-		t.Fatalf("loadReviewBatchTargetsForTest(t, ) error: %v", err)
+		t.Fatalf("loadReviewBatchTargets() error: %v", err)
 	}
 	if len(targets) != reviewBatchMaxTargets {
 		t.Fatalf("expected %d targets, got %d", reviewBatchMaxTargets, len(targets))
@@ -285,7 +285,7 @@ func TestLoadReviewBatchTargetsClonesTrimmedStrings(t *testing.T) {
 
 	targets, err := loadReviewBatchTargetsForTest(t, path)
 	if err != nil {
-		t.Fatalf("loadReviewBatchTargetsForTest(t, ) error: %v", err)
+		t.Fatalf("loadReviewBatchTargets() error: %v", err)
 	}
 	if len(targets) != 1 || targets[0].Response != "Thanks" || targets[0].ReviewID != "review-1" {
 		t.Fatalf("unexpected trimmed target: %+v", targets)
@@ -307,7 +307,7 @@ func TestLoadReviewBatchTargetsPreservesTrailingSpaceInPath(t *testing.T) {
 
 	targets, err := loadReviewBatchTargetsForTest(t, spacedPath)
 	if err != nil {
-		t.Fatalf("loadReviewBatchTargetsForTest(t, ) error: %v", err)
+		t.Fatalf("loadReviewBatchTargets() error: %v", err)
 	}
 	if len(targets) != 1 || targets[0].ReviewID != "spaced-review" || targets[0].Response != "spaced" {
 		t.Fatalf("expected exact trailing-space path, got %+v", targets)
@@ -323,7 +323,7 @@ func TestLoadReviewBatchTargetsAcceptsAllSpaceFilename(t *testing.T) {
 
 	targets, err := loadReviewBatchTargetsForTest(t, path)
 	if err != nil {
-		t.Fatalf("loadReviewBatchTargetsForTest(t, ) error: %v", err)
+		t.Fatalf("loadReviewBatchTargets() error: %v", err)
 	}
 	if len(targets) != 1 || targets[0].ReviewID != "review-1" {
 		t.Fatalf("unexpected targets: %+v", targets)
