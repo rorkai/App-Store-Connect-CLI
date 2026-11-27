@@ -61,6 +61,7 @@ func entitlementCapabilityCatalog() []entitlementCapability {
 		{Key: "com.apple.developer.homekit", Capability: "HOMEKIT", ValueKind: entitlementValueBoolean},
 		{Key: "com.apple.developer.private-cloud-compute", WebCommand: "asc web bundle-ids capabilities enable --capability PRIVATE_CLOUD_COMPUTE", ValueKind: entitlementValueBoolean},
 		{Key: "com.apple.developer.kernel.increased-memory-limit", UnsupportedCapability: "INCREASED_MEMORY_LIMIT", ValueKind: entitlementValueBoolean},
+		{Key: "com.apple.developer.kernel.increased-debugging-memory-limit", UnsupportedCapability: "INCREASED_MEMORY_LIMIT_DEBUGGING", ValueKind: entitlementValueBoolean},
 	}
 }
 
