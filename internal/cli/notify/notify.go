@@ -64,9 +64,9 @@ func slackFlags(fs *flag.FlagSet) (
 	message = fs.String("message", "", "Message to send to Slack")
 	threadTS = fs.String("thread-ts", "", "Parent message timestamp (thread_ts) for posting a threaded reply")
 	blocksJSON = fs.String("blocks-json", "", "Slack Block Kit JSON array")
-	blocksFile = fs.String("blocks-file", "", "Path to Slack Block Kit JSON array file")
+	blocksFile = fs.String("blocks-file", "", "Path to Slack Block Kit JSON array file (outside the working directory or symlinks are deprecated)")
 	payloadJSON = fs.String("payload-json", "", "JSON object of release fields to include as Slack attachment fields")
-	payloadFile = fs.String("payload-file", "", "Path to JSON object file for release payload fields")
+	payloadFile = fs.String("payload-file", "", "Path to JSON object file for release payload fields (outside the working directory or symlinks are deprecated)")
 	pretext = fs.String("pretext", "", "Optional text shown above attachment payload fields (requires --payload-json/--payload-file)")
 	success = fs.Bool("success", true, "Set attachment color to success (true) or failure (false); requires --payload-json/--payload-file")
 	return
@@ -112,6 +112,9 @@ When using blocks, keep --message as the top-level text fallback.
 Slack may ignore channel overrides for incoming webhooks based on app settings.
 For --thread-ts, use the parent message ts from Slack APIs/events (webhook POST returns only "ok").
 --pretext and --success are attachment options and require --payload-json/--payload-file.
+File inputs must resolve to regular files. Files outside the working directory
+and symlink inputs remain supported with a deprecation warning; copy them into
+the project directory or use inline JSON before a future release refuses them.
 
 Examples:
   asc notify slack --webhook "https://hooks.slack.com/..." --message "Build uploaded"
@@ -289,6 +292,16 @@ func resolveWebhook(flagValue string) string {
 	return ""
 }
 
+// readSlackMessageFile preserves legacy symlink inputs during deprecation.
+func readSlackMessageFile(d *shared.Deps, flagName, hint, path string) ([]byte, error) {
+	file, err := d.OpenMessageFile(flagName, hint, path, true)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return io.ReadAll(file)
+}
+
 func parseSlackBlocks(d *shared.Deps, blocksJSON string, blocksFile string) ([]json.RawMessage, error) {
 	blocksJSON = strings.TrimSpace(blocksJSON)
 	blocksFile = strings.TrimSpace(blocksFile)
@@ -302,9 +315,9 @@ func parseSlackBlocks(d *shared.Deps, blocksJSON string, blocksFile string) ([]j
 
 	source := "--blocks-json"
 	if blocksFile != "" {
-		data, err := os.ReadFile(d.OSPath(blocksFile))
+		data, err := readSlackMessageFile(d, "--blocks-file", "use --blocks-json, or copy the file into the project directory", blocksFile)
 		if err != nil {
-			return nil, fmt.Errorf("--blocks-file must be readable: %w", err)
+			return nil, err
 		}
 		blocksJSON = strings.TrimSpace(string(data))
 		source = "--blocks-file"
@@ -337,9 +350,9 @@ func parseSlackPayload(d *shared.Deps, payloadJSON string, payloadFile string) (
 
 	source := "--payload-json"
 	if payloadFile != "" {
-		data, err := os.ReadFile(d.OSPath(payloadFile))
+		data, err := readSlackMessageFile(d, "--payload-file", "use --payload-json, or copy the file into the project directory", payloadFile)
 		if err != nil {
-			return nil, fmt.Errorf("--payload-file must be readable: %w", err)
+			return nil, err
 		}
 		payloadJSON = strings.TrimSpace(string(data))
 		source = "--payload-file"

@@ -410,7 +410,9 @@ func TestWebReviewDraftUpdateWarnsWhenMutationResponseCannotBeDecoded(t *testing
 
 func TestWebReviewDraftBodyFilePreservesVerbatimBody(t *testing.T) {
 	body := "\n\tbody from file\n\n"
-	path := filepath.Join(t.TempDir(), "reply.txt")
+	dir := t.TempDir()
+	t.Chdir(dir)
+	path := filepath.Join(dir, "reply.txt")
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatalf("write body file: %v", err)
 	}
@@ -438,7 +440,9 @@ func TestWebReviewDraftBodyFilePreservesVerbatimBody(t *testing.T) {
 }
 
 func TestWebReviewDraftRejectsInvalidUTF8BeforeSession(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "invalid.txt")
+	dir := t.TempDir()
+	t.Chdir(dir)
+	path := filepath.Join(dir, "invalid.txt")
 	if err := os.WriteFile(path, []byte{'x', 0xff}, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -485,7 +489,9 @@ func TestWebReviewDraftValidatesBeforeSession(t *testing.T) {
 
 func TestWebReviewMessageLengthLimit(t *testing.T) {
 	tooLong := strings.Repeat("a", 4001)
-	bodyFile := filepath.Join(t.TempDir(), "reply.txt")
+	dir := t.TempDir()
+	t.Chdir(dir)
+	bodyFile := filepath.Join(dir, "reply.txt")
 	if err := os.WriteFile(bodyFile, []byte(tooLong), 0o600); err != nil {
 		t.Fatal(err)
 	}

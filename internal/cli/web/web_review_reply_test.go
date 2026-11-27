@@ -355,6 +355,9 @@ func TestWebReviewReplyTakesAppScopeAndBodyFile(t *testing.T) {
 		if commandErr != nil || len(*requested) != 4 {
 			t.Fatalf("error=%v requests=%d, want the scoped reply sent", commandErr, len(*requested))
 		}
+		if !strings.Contains(depsStderr.String(), "Warning: --body-file outside the working directory or through a symlink is deprecated") {
+			t.Fatalf("expected deprecation warning for a temporary body file, got %q", depsStderr.String())
+		}
 		var payload struct {
 			Data struct {
 				Attributes struct {

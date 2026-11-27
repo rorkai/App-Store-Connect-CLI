@@ -3,7 +3,11 @@
 package shared
 
 import (
+	"bytes"
+	"io"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -34,4 +38,27 @@ func TestDepsAbsResolvesAgainstInjectedDirectoryOnWindows(t *testing.T) {
 			t.Errorf("Abs(%q) with Getwd C:\\repo = %q, %v; want %q", path, got, err, want)
 		}
 	}
+
+	t.Run("message files use Windows path resolution", func(t *testing.T) {
+		dir := t.TempDir()
+		absolute := filepath.Join(dir, "reply.txt")
+		if err := os.WriteFile(absolute, []byte("Reply body."), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		var stderr bytes.Buffer
+		d := &Deps{Getwd: func() (string, error) { return dir, nil }, IO: &IO{ErrOut: &stderr}}
+		for _, path := range []string{filepath.VolumeName(dir) + "reply.txt", strings.TrimPrefix(absolute, filepath.VolumeName(absolute))} {
+			for _, followSymlinks := range []bool{false, true} {
+				file, err := d.OpenMessageFile("--body-file", "use --message", path, followSymlinks)
+				if err != nil {
+					t.Fatalf("open %q: %v", path, err)
+				}
+				body, readErr := io.ReadAll(file)
+				closeErr := file.Close()
+				if readErr != nil || closeErr != nil || string(body) != "Reply body." || stderr.Len() != 0 {
+					t.Fatalf("path %q: body=%q read=%v close=%v stderr=%q", path, body, readErr, closeErr, stderr.String())
+				}
+			}
+		}
+	})
 }

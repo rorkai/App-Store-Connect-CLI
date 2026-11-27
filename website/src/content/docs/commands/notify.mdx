@@ -35,11 +35,16 @@ ASC_SLACK_WEBHOOK=$WEBHOOK asc notify slack --message "Release v2.1 ready"
 * `--message` - Message to send to Slack (required)
 * `--thread-ts` - Parent message timestamp (thread\_ts) for posting a threaded reply
 * `--blocks-json` - Slack Block Kit JSON array
-* `--blocks-file` - Path to Slack Block Kit JSON array file
+* `--blocks-file` - Path to Slack Block Kit JSON array file; paths outside the working directory and symlinks are deprecated
 * `--payload-json` - JSON object of release fields to include as Slack attachment fields
-* `--payload-file` - Path to JSON object file for release payload fields
+* `--payload-file` - Path to JSON object file for release payload fields; paths outside the working directory and symlinks are deprecated
 * `--pretext` - Optional text shown above attachment payload fields (requires `--payload-json`/`--payload-file`)
 * `--success` - Set attachment color to success (`true`) or failure (`false`, default: `true`)
+
+File inputs must resolve to regular files. Previously supported paths outside
+the working directory and symlink inputs still work, with a warning on stderr.
+Copy those files into the project directory or use `--blocks-json` and
+`--payload-json` before a future release refuses the deprecated paths.
 
 ## Basic Usage
 

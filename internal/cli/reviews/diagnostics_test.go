@@ -16,7 +16,9 @@ import (
 
 func TestReviewValidationDiagnosticsPreserveErrorContracts(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
-	notFoundPath := filepath.Join(t.TempDir(), "missing.json")
+	notFoundDir := t.TempDir()
+	t.Chdir(notFoundDir)
+	notFoundPath := filepath.Join(notFoundDir, "missing.json")
 
 	tests := []struct {
 		name       string
@@ -260,6 +262,7 @@ func newReviewTestDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes
 		Client:    client,
 		IO:        &shared.IO{Out: &stdout, ErrOut: &stderr},
 		Timeout:   shared.ContextWithTimeout,
+		Getwd:     os.Getwd,
 		LookupEnv: os.LookupEnv,
 	}, &stdout, &stderr
 }

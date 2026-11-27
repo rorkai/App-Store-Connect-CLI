@@ -83,7 +83,9 @@ func TestReviewsUsageErrors(t *testing.T) {
 func writeReviewBatchFile(t *testing.T, body string) string {
 	t.Helper()
 
-	path := filepath.Join(t.TempDir(), "replies.json")
+	dir := t.TempDir()
+	t.Chdir(dir)
+	path := filepath.Join(dir, "replies.json")
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatalf("write batch file: %v", err)
 	}
@@ -636,4 +638,44 @@ func reviewResponsePostBodies(reg *asctest.Registry) []string {
 		}
 	}
 	return bodies
+}
+
+func TestReviewsRespondBatchAcceptsLegacyFilesWithDeprecation(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	root := t.TempDir()
+	project := filepath.Join(root, "project")
+	if err := os.Mkdir(project, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(project)
+	outside := filepath.Join(root, "replies.json")
+	if err := os.WriteFile(outside, []byte(`{"replies":[{"response":"Thanks","reviewIds":["review-1"]}]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, symlink := range []bool{false, true} {
+		t.Run(fmt.Sprintf("symlink=%t", symlink), func(t *testing.T) {
+			path := outside
+			if symlink {
+				path = filepath.Join(project, "replies.json")
+				if err := os.Symlink(outside, path); err != nil {
+					t.Skipf("symlinks unavailable: %v", err)
+				}
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/apps/app-1/customerReviews", "include=response", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"customerReviews","id":"review-1"}]}`))
+			reg.Register(asctest.POST("/v1/customerReviewResponses").JSONBody(`{"data":{"type":"customerReviewResponses","attributes":{"responseBody":"Thanks"},"relationships":{"review":{"data":{"type":"customerReviews","id":"review-1"}}}}}`), asctest.JSON(http.StatusCreated, `{"data":{"type":"customerReviewResponses","id":"response-1"}}`))
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "reviews", "respond-batch", "--app", "app-1", "--file", path, "--confirm", "--output", "json")
+			if code != cmd.ExitSuccess {
+				t.Fatalf("expected exit code %d, got %d (stderr %q)", cmd.ExitSuccess, code, stderr)
+			}
+			payload := decodeReviewBatchTestOutput(t, stdout)
+			if payload.Summary.Created != 1 || len(reviewResponsePostBodies(reg)) != 1 {
+				t.Fatalf("expected the legacy file response to be created, got %+v", payload)
+			}
+			if !strings.Contains(stderr, "Warning: --file outside the working directory or through a symlink is deprecated") || !strings.Contains(stderr, "copy the file into the project directory") {
+				t.Fatalf("expected deprecation guidance, got %q", stderr)
+			}
+		})
+	}
 }
