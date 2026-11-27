@@ -412,6 +412,29 @@ func TestCatalogSubscriptionPricingPreservesAdditionalTiers(t *testing.T) {
 	}
 }
 
+func TestCatalogSavedPlanLocalizationRequiresEditableVersionGuidance(t *testing.T) {
+	setupAuth(t)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/subscriptionGroups", "limit=200"), asctest.JSON(200, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Pro"}}]}`))
+	reg.Register(asctest.GET("/v1/apps/123/inAppPurchasesV2", "limit=200"), asctest.JSON(200, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2"}}`))
+	reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", "limit=200"), asctest.JSON(200, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"productId":"com.example.monthly","name":"Monthly","subscriptionPeriod":"ONE_MONTH"}}]}`))
+	reg.Register(asctest.GET("/v1/subscriptions/sub-1/versions", "limit=200"), asctest.JSON(200, `{"data":[{"type":"subscriptionVersions","id":"version-1","attributes":{"state":"APPROVED","version":1}}]}`))
+	reg.Register(asctest.GET("/v1/subscriptionVersions/version-1/localizations", "limit=200"), asctest.JSON(200, `{"data":[{"type":"subscriptionLocalizations","id":"locale-1","attributes":{"locale":"en-US","name":"Monthly"}}]}`))
+	manifestPath := catalogFile(t, `{"groups":[{"referenceName":"Pro"}],"subscriptions":[{"group":"Pro","productId":"com.example.monthly","name":"Monthly","subscriptionPeriod":"ONE_MONTH","localizations":[{"locale":"en-US","name":"Monthly Pro"}]}]}`)
+	planPath := filepath.Join(t.TempDir(), "approved.json")
+	out, stderr, err := runCommand(t, []string{"catalog", "plan", "--app", "123", "--file", manifestPath, "--out", planPath})
+	if !isUsageClassError(err) || out != "" || !strings.Contains(err.Error(), "asc subscriptions versions create --subscription-id SUBSCRIPTION_ID") || !strings.Contains(err.Error(), "rerun catalog plan --out") || !strings.Contains(stderr, err.Error()) {
+		t.Fatalf("plan stdout=%q stderr=%q err=%v", out, stderr, err)
+	}
+	if _, err := os.Stat(planPath); !os.IsNotExist(err) {
+		t.Fatalf("unresolved plan was saved: %v", err)
+	}
+	if got := len(reg.Requests()); got != 5 {
+		t.Fatalf("expected five preflight GETs and no writes, got %d requests", got)
+	}
+}
+
 func TestCatalogSavedPlanRefusesDriftWithSameOperation(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)

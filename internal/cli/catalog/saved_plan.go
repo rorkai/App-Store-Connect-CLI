@@ -97,7 +97,19 @@ func buildSavedCatalogPlan(appID, manifestHash string, remote catalogEvidence, o
 	}
 	for _, op := range ops {
 		if op.item.Deferred {
-			return nil, fmt.Errorf("saved plans require resolved targets; create the parent in a separate plan, then plan its pricing, offers, or localizations")
+			var versionCommand string
+			switch op.item.Kind {
+			case "groupLocalization":
+				versionCommand = "asc subscriptions groups versions create --group-id GROUP_ID"
+			case "subscriptionLocalization":
+				versionCommand = "asc subscriptions versions create --subscription-id SUBSCRIPTION_ID"
+			case "inAppPurchaseLocalization":
+				versionCommand = "asc iap versions create --iap-id IAP_ID"
+			}
+			if versionCommand != "" {
+				return nil, fmt.Errorf("saved plans require resolved targets; create the parent product or group first if needed, then create an editable version with %s; after creation, rerun catalog plan --out FILE with the original manifest", versionCommand)
+			}
+			return nil, fmt.Errorf("saved plans require resolved targets; create the parent product in a separate catalog plan without pricing, offers, or localizations, apply it, then generate a new plan")
 		}
 		result.Operations = append(result.Operations, savedCatalogOperation{Item: op.item, RequiresConfirm: op.destructive})
 	}

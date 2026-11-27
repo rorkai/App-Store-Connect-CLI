@@ -87,8 +87,22 @@ remote state, and intended operations before sending writes. Review a fresh plan
 if the input or remote state has changed. If a write outcome is unknown, use a
 new plan to read current state before trying the remaining work. Apple handles
 each write separately after preflight.
-Saved plans require all operation targets to be resolved. If a price, offer, or
-localization depends on a new resource, create the parent in a separate plan.
+
+Saved plans require all operation targets to be resolved. For a new product or
+group, first plan and apply a manifest without pricing, offers, or localizations.
+Localizations also require an editable version, even when the product or group
+already exists. Create the version with the applicable command, using its parent
+resource ID, then rerun plan --out FILE with the original manifest:
+  asc subscriptions versions create --subscription-id SUBSCRIPTION_ID
+  asc iap versions create --iap-id IAP_ID
+  asc subscriptions groups versions create --group-id GROUP_ID
+Apple must permit version creation; resolve any state error before retrying.
+
+The planSha256 receipt field hashes the plan's canonical compact JSON, excluding
+formatting whitespace and the trailing newline. The saved file is indented and
+ends in a newline, so shasum -a 256 FILE returns a different digest. Compare
+planSha256 from the plan/apply JSON receipts to identify the reviewed plan.
+The saved plan's manifestSha256 hashes the exact manifest file bytes.
 
 Examples:
   asc catalog plan --app APP_ID --file catalog.json --out catalog-plan.json
