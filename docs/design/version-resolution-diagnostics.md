@@ -31,8 +31,10 @@ not document its order, so one page could miss the newest or matching version.
   (`asc versions update --version-id ID --version VERSION`) or, when none is
   editable, `asc versions create`. An app with no versions gets the create
   command.
-- Create 409 (unless `--if-exists` resolved it): the version that already uses
-  the string, with the `--if-exists` and `versions view` commands, and the
+- Create 409 from `versions create` (unless `--if-exists` resolved it),
+  `release stage` or `publish appstore`: the version that already uses the
+  string, with the `versions view` command and how to reuse it (`--if-exists`
+  for `versions create`; the other two use it when run again), and the
   platform's versions that are not live yet, with the command that fits the
   newest one's state (rename an editable version, release one pending developer
   release, or inspect one in review). The text reports state; it does not claim
@@ -46,7 +48,8 @@ read-back make no extra request.
 ## Output contract
 
 Errors stay on stderr; stdout stays empty in every output mode, so JSON
-consumers see no change. Apple-supplied fields are sanitized and bounded
+consumers see no change. `release stage` already prints its step result on
+failure, and its `error` carries the same lines. Apple-supplied fields are sanitized and bounded
 per row, so a response cannot inject extra lines. `errors.Is` and
 `errors.As` still reach the original `asc.ErrNotFound` or `*asc.APIError`.
 
@@ -57,4 +60,5 @@ ordering, bounding, editable and non-editable hints, all-platform listings,
 state-specific create guidance, duplicate naming, sanitization, failed
 diagnostic reads, and no reads for other failures. Black-box `cmd` tests
 check exit codes, empty stdout, and stderr for `review submit` not-found and
-`versions create` 409.
+`versions create` 409. `release stage` and `publish appstore` each have a test
+that a refused create carries the lines.

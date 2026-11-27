@@ -2,11 +2,13 @@ package cmdtest
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
@@ -112,5 +114,53 @@ func TestReleaseStage_ResolvesTrimmedCheckpointFile(t *testing.T) {
 	}
 	if filepath.Base(plan.CheckpointFile) != "stage-checkpoint.json" {
 		t.Fatalf("expected the checkpoint file name to be trimmed, got %q", plan.CheckpointFile)
+	}
+}
+
+// TestReleaseStage_ExplainsRefusedVersionCreate: while another version of the
+// platform is unreleased, App Store Connect refuses to create one with a 409
+// that names neither. The stage names that version, as asc versions create
+// does, in its error and in its JSON result.
+func TestReleaseStage_ExplainsRefusedVersionCreate(t *testing.T) {
+	setupAuth(t)
+	t.Chdir(t.TempDir())
+
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/BUILD_123/relationships/app"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"APP_123"}}`))
+	reg.Register(asctest.GET("/v1/builds/BUILD_123"), asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"BUILD_123","attributes":{"version":"42","buildAudienceType":"APP_STORE_ELIGIBLE"}}}`))
+	reg.Register(asctest.GET("/v1/builds/BUILD_123/preReleaseVersion"), asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"PRE_RELEASE_123","attributes":{"version":"1.2.4","platform":"IOS"}}}`))
+	reg.Register(asctest.GET("/v1/apps/APP_123/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.4", "limit=10"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.POST("/v1/appStoreVersions"), asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","title":"The provided entity includes a relationship with an invalid value","detail":"You cannot create a new version of the App in the current state."}]}`))
+	reg.Register(asctest.GET("/v1/apps/APP_123/appStoreVersions", "filter[platform]=IOS", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"VERSION_123","attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"REJECTED","appStoreState":"REJECTED","createdDate":"2026-11-03T18:45:51-08:00"}}]}`))
+
+	stdout, _, err := runRootWithDeps(t, stubClient(t, reg), []string{
+		"release", "stage",
+		"--app", "APP_123",
+		"--version", "1.2.4",
+		"--build-id", "BUILD_123",
+		"--copy-metadata-from", "1.2.2",
+		"--confirm",
+	}...)
+	if !errors.Is(err, asc.ErrConflict) {
+		t.Fatalf("error = %v, want App Store Connect's 409", err)
+	}
+	want := strings.Join([]string{
+		"IOS versions that are not live yet (an unreleased version usually blocks creating another):",
+		"  1.2.3  IOS  REJECTED  VERSION_123",
+		`To ship "1.2.4" from editable version 1.2.3, rename it: asc versions update --version-id "VERSION_123" --version "1.2.4"`,
+	}, "\n")
+	if !strings.HasSuffix(err.Error(), "You cannot create a new version of the App in the current state.\n"+want) {
+		t.Fatalf("error =\n%s\nwant the refusal followed by\n%s", err.Error(), want)
+	}
+	var result struct {
+		Status     string `json:"status"`
+		FailedStep string `json:"failedStep"`
+		Error      string `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("stdout is not the stage result: %v\n%s", err, stdout)
+	}
+	if result.Status != "error" || result.FailedStep != "ensure_version" || !strings.HasSuffix(result.Error, want) {
+		t.Fatalf("stage result = %+v, want ensure_version failed with the explanation", result)
 	}
 }

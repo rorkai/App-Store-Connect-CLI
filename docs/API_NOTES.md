@@ -179,7 +179,7 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 ## App Store version creation conflicts (`POST /v1/appStoreVersions`)
 
 - Apple returns HTTP 409 `ENTITY_ERROR.RELATIONSHIP.INVALID` ("You cannot create a new version of the App in the current state.") both when an unreleased version already exists for the platform and (with `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE`) when the version string is already used.
-- On an unhandled 409, `asc versions create` makes a best-effort 5s paginated read of `GET /v1/apps/{id}/appStoreVersions?filter[platform]=...&limit=200` (which has no `sort` parameter, so pages are sorted client-side by `createdDate`) to name existing/unreleased versions in the diagnostic.
+- On an unhandled 409, `asc versions create`, `asc release stage` and `asc publish appstore` make a best-effort 5s paginated read of `GET /v1/apps/{id}/appStoreVersions?filter[platform]=...&limit=200` (which has no `sort` parameter, so pages are sorted client-side by `createdDate`) to name existing/unreleased versions in the diagnostic.
 
 ## Web-session app status history
 

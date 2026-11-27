@@ -59,6 +59,7 @@ func findOrCreatePublishAppStoreVersion(ctx context.Context, d *shared.Deps, cli
 		return existing, err
 	}
 
+	readBackFailed := false
 	created, _, err := shared.RunReconciledMutationWith(
 		ctx,
 		d,
@@ -69,8 +70,18 @@ func findOrCreatePublishAppStoreVersion(ctx context.Context, d *shared.Deps, cli
 			})
 		},
 		func(readbackCtx context.Context) (*asc.AppStoreVersionResponse, bool, error) {
-			return readVersion(readbackCtx)
+			existing, found, readErr := readVersion(readbackCtx)
+			readBackFailed = readBackFailed || readErr != nil
+			return existing, found, readErr
 		},
 	)
-	return created, err
+	if err != nil {
+		// Name the versions that block the create, unless the read-back
+		// already failed, in which case another read is unlikely to help.
+		if !readBackFailed {
+			err = shared.WithAppStoreVersionCreateConflictRerunDiagnostics(ctx, client, appID, version, platformValue, err)
+		}
+		return nil, err
+	}
+	return created, nil
 }
