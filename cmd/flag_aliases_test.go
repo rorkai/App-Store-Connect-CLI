@@ -116,6 +116,7 @@ var flagAliases = []flagAliasCase{
 	{"localizations list", "version-id", "version"},
 	{"localizations update", "localization-id", "id"},
 	{"localizations update", "version-id", "version"},
+	{"metadata pull", "version-id", "version"},
 	{"performance diagnostics list", "build", "build-id"},
 	{"performance download", "build", "build-id"},
 	{"performance metrics view", "build", "build-id"},

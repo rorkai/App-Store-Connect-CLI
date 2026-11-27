@@ -44,6 +44,7 @@ func newMetadataPullCommand(d *shared.Deps) *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info", "appInfos", "App Info ID (optional override for apps with multiple app-infos)")
 	version := fs.String("version", "", "App version string (for example 1.2.3) or App Store version ID; defaults to the app's active editable version, then a developer-removed version, else the live version")
+	shared.BindFlagAlias(fs, "version-id", "version")
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	dir := fs.String("dir", "", "Output root directory (required)")
 	force := fs.Bool("force", false, "Replace existing files in --dir whose values differ from App Store Connect (files that already match are refreshed without it)")
