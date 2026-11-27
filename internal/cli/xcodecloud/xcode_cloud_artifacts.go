@@ -172,13 +172,14 @@ Examples:
 				return fmt.Errorf("xcode-cloud artifacts download: artifact has no download URL")
 			}
 
-			download, err := client.DownloadCiArtifact(requestCtx, downloadURL)
-			if err != nil {
-				return fmt.Errorf("xcode-cloud artifacts download: %w", err)
-			}
-			defer download.Body.Close()
-
-			bytesWritten, err := writeArtifactFile(pathValue, download.Body, *overwrite)
+			bytesWritten, err := asc.RetryDownload(requestCtx, downloadURL, func() (int64, error) {
+				download, err := client.DownloadCiArtifact(requestCtx, downloadURL)
+				if err != nil {
+					return 0, err
+				}
+				defer download.Body.Close()
+				return writeArtifactFile(pathValue, download.Body, *overwrite)
+			}, asc.ResolveRetryOptions())
 			if err != nil {
 				return fmt.Errorf("xcode-cloud artifacts download: %w", err)
 			}

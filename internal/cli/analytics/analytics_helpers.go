@@ -646,17 +646,19 @@ func streamAnalyticsReport(ctx context.Context, d *shared.Deps, client *asc.Clie
 	requestCtx, cancel := d.DownloadTimeout(ctx)
 	defer cancel()
 
-	download, err := client.DownloadAnalyticsReport(requestCtx, downloadURL)
-	if err != nil {
-		return 0, fmt.Errorf("failed to download report: %w", err)
-	}
-	defer download.Body.Close()
+	return asc.RetryDownload(requestCtx, downloadURL, func() (int64, error) {
+		download, err := client.DownloadAnalyticsReport(requestCtx, downloadURL)
+		if err != nil {
+			return 0, fmt.Errorf("failed to download report: %w", err)
+		}
+		defer download.Body.Close()
 
-	size, err := write(download.Body)
-	if err != nil {
-		return 0, fmt.Errorf("failed to write report: %w", err)
-	}
-	return size, nil
+		size, err := write(download.Body)
+		if err != nil {
+			return 0, fmt.Errorf("failed to write report: %w", err)
+		}
+		return size, nil
+	}, asc.ResolveRetryOptions())
 }
 
 // analyticsNotFoundError classifies a report resource that does not exist for

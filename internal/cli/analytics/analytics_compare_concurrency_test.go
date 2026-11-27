@@ -33,12 +33,17 @@ func newCompareHTTPClient(tb testing.TB, handler http.HandlerFunc) *asc.Client {
 		tb.Fatal(err)
 	}
 	transport := server.Client().Transport
-	original := http.DefaultTransport
-	http.DefaultTransport = compareRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	return newCompareTransportClient(tb, compareRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		local := req.Clone(req.Context())
 		local.URL.Scheme, local.URL.Host = endpoint.Scheme, endpoint.Host
 		return transport.RoundTrip(local)
-	})
+	}))
+}
+
+func newCompareTransportClient(tb testing.TB, transport http.RoundTripper) *asc.Client {
+	tb.Helper()
+	original := http.DefaultTransport
+	http.DefaultTransport = transport
 	defer func() { http.DefaultTransport = original }()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
