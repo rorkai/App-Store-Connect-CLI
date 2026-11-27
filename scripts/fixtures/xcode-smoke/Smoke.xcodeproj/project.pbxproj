@@ -1,0 +1,21 @@
+// !$*UTF8*$!
+{
+ archiveVersion = 1;
+ classes = {};
+ objectVersion = 56;
+ objects = {
+  000000000000000000000001 = { "buildConfigurationList" = "000000000000000000000009"; "compatibilityVersion" = "Xcode 14.0"; "isa" = "PBXProject"; "mainGroup" = "000000000000000000000002"; "productRefGroup" = "000000000000000000000003"; "projectDirPath" = ""; "projectRoot" = ""; "targets" = ("000000000000000000000004"); };
+  000000000000000000000002 = { "children" = ("000000000000000000000006", "000000000000000000000003"); "isa" = "PBXGroup"; "sourceTree" = "<group>"; };
+  000000000000000000000003 = { "children" = ("000000000000000000000005"); "isa" = "PBXGroup"; "name" = "Products"; "sourceTree" = "<group>"; };
+  000000000000000000000004 = { "buildConfigurationList" = "00000000000000000000000A"; "buildPhases" = ("000000000000000000000008"); "buildRules" = (); "dependencies" = (); "isa" = "PBXNativeTarget"; "name" = "SmokeTests"; "productName" = "SmokeTests"; "productReference" = "000000000000000000000005"; "productType" = "com.apple.product-type.bundle.unit-test"; };
+  000000000000000000000005 = { "explicitFileType" = "wrapper.cfbundle"; "isa" = "PBXFileReference"; "path" = "SmokeTests.xctest"; "sourceTree" = "BUILT_PRODUCTS_DIR"; };
+  000000000000000000000006 = { "isa" = "PBXFileReference"; "lastKnownFileType" = "sourcecode.swift"; "path" = "SmokeTests.swift"; "sourceTree" = "<group>"; };
+  000000000000000000000007 = { "fileRef" = "000000000000000000000006"; "isa" = "PBXBuildFile"; };
+  000000000000000000000008 = { "buildActionMask" = "2147483647"; "files" = ("000000000000000000000007"); "isa" = "PBXSourcesBuildPhase"; "runOnlyForDeploymentPostprocessing" = "0"; };
+  000000000000000000000009 = { "buildConfigurations" = ("00000000000000000000000B"); "defaultConfigurationIsVisible" = "0"; "defaultConfigurationName" = "Debug"; "isa" = "XCConfigurationList"; };
+  00000000000000000000000A = { "buildConfigurations" = ("00000000000000000000000C"); "defaultConfigurationIsVisible" = "0"; "defaultConfigurationName" = "Debug"; "isa" = "XCConfigurationList"; };
+  00000000000000000000000B = { "buildSettings" = { "MACOSX_DEPLOYMENT_TARGET" = "13.0"; "SDKROOT" = "macosx"; }; "isa" = "XCBuildConfiguration"; "name" = "Debug"; };
+  00000000000000000000000C = { "buildSettings" = { "CODE_SIGNING_ALLOWED" = "NO"; "GENERATE_INFOPLIST_FILE" = "YES"; "PRODUCT_BUNDLE_IDENTIFIER" = "org.example.ASCXcodeSmoke"; "PRODUCT_NAME" = "$(TARGET_NAME)"; "SWIFT_VERSION" = "6.0"; "ONLY_ACTIVE_ARCH" = "YES"; }; "isa" = "XCBuildConfiguration"; "name" = "Debug"; };
+ };
+ rootObject = 000000000000000000000001;
+}
