@@ -39,6 +39,8 @@ func TestPublishCommandsSelectPrebuiltIPAPlatform(t *testing.T) {
 		}{
 			{name: "visionOS", marker: "XROS", wantPlatform: "VISION_OS", wantVersion: "1.2.3", wantBuild: "42"},
 			{name: "tvOS", marker: "AppleTVOS", wantPlatform: "TV_OS", wantVersion: "1.2.3", wantBuild: "42"},
+			{name: "detected macOS", marker: "MacOSX", wantError: "Error: --ipa contains a macOS app; use --pkg with --version and --build-number\n"},
+			{name: "macOS mismatch", marker: "MacOSX", platform: "IOS", wantError: "Error: --platform IOS does not match IPA platform MAC_OS\n"},
 			{name: "legacy default", wantPlatform: "IOS", wantVersion: "1.2.3", wantBuild: "42"},
 			{name: "legacy explicit", platform: "VISION_OS", wantPlatform: "VISION_OS", wantVersion: "1.2.3", wantBuild: "42"},
 			{name: "version overrides", marker: "XROS", wantPlatform: "VISION_OS", args: []string{"--version", "2.0", "--build-number", "99"}, wantVersion: "2.0", wantBuild: "99"},
