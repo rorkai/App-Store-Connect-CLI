@@ -2624,6 +2624,9 @@ func TestXcodeHelperProcess(t *testing.T) {
 		os.Exit(2)
 	}
 	commandName := filepath.Base(commandArgs[0])
+	if commandName == "xcodebuild" && len(commandArgs) > 1 && commandArgs[1] == "-hideShellScriptEnvironment" {
+		commandArgs = append([]string{commandArgs[0]}, commandArgs[2:]...)
+	}
 	if environmentLog := os.Getenv("ASC_XCODE_HELPER_ENV_LOG"); environmentLog != "" {
 		entry := fmt.Sprintf("%s ASC_ONLY=%s ASC_SHOULD_NOT_LEAK=%s\n", commandName, os.Getenv("ASC_ONLY"), os.Getenv("ASC_SHOULD_NOT_LEAK"))
 		file, err := os.OpenFile(environmentLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)

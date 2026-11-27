@@ -393,6 +393,7 @@ func TestXcodeTestTypedRunFlagsReachXcodebuild(t *testing.T) {
 				t.Fatalf("read recorded xcodebuild args: %v", readErr)
 			}
 			want := append([]string{
+				"-hideShellScriptEnvironment",
 				"-project", projectPath, "-scheme", "Demo", "-destination", "platform=macOS",
 				"-derivedDataPath", derivedDataPath, "-resultBundlePath", resultBundlePath,
 			}, test.wantArgs...)

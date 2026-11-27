@@ -224,8 +224,10 @@ func TestRunXcodebuildUsesTrustedResolvedPath(t *testing.T) {
 		return wantPath, nil
 	}
 	var gotPath string
-	commandContextFn = func(ctx context.Context, name string, _ ...string) *exec.Cmd {
+	var gotArgs []string
+	commandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		gotPath = name
+		gotArgs = args
 		return exec.CommandContext(ctx, "true")
 	}
 	t.Cleanup(func() {
@@ -233,11 +235,28 @@ func TestRunXcodebuildUsesTrustedResolvedPath(t *testing.T) {
 		commandContextFn = previousCommandContext
 	})
 
-	if err := runXcodebuild(context.Background(), []string{"-version"}, nil); err != nil {
-		t.Fatalf("runXcodebuild() error: %v", err)
-	}
-	if gotPath != wantPath {
-		t.Fatalf("runXcodebuild() path = %q, want %q", gotPath, wantPath)
+	for _, tt := range []struct {
+		name string
+		run  func(context.Context) error
+	}{
+		{"archive", func(ctx context.Context) error { return runXcodebuild(ctx, []string{"archive"}, nil) }},
+		{"export", func(ctx context.Context) error {
+			return runXcodebuildWithEnvironment(ctx, []string{"-exportArchive"}, nil, nil, false)
+		}},
+		{"build", func(ctx context.Context) error { return runXcodebuildForBuild(ctx, []string{"build"}, nil) }},
+		{"test", func(ctx context.Context) error { return runXcodebuildForTest(ctx, "", []string{"test"}, nil) }},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.run(t.Context()); err != nil {
+				t.Fatalf("run xcodebuild: %v", err)
+			}
+			if gotPath != wantPath {
+				t.Fatalf("xcodebuild path = %q, want %q", gotPath, wantPath)
+			}
+			if !containsArg(gotArgs, "-hideShellScriptEnvironment") {
+				t.Fatalf("xcodebuild args = %q, want automatic shell environment dumps disabled", gotArgs)
+			}
+		})
 	}
 }
 
