@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
@@ -437,6 +438,7 @@ func TestCatalogSavedPlanLocalizationRequiresEditableVersionGuidance(t *testing.
 }
 
 func TestCatalogSavedPlanRefusesDriftWithSameOperation(t *testing.T) {
+	t.Chdir(t.TempDir())
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
 	reg.Install()
@@ -446,7 +448,7 @@ func TestCatalogSavedPlanRefusesDriftWithSameOperation(t *testing.T) {
 			`{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"productId":"p","name":%q,"inAppPurchaseType":"CONSUMABLE"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2"}}`, name)))
 	}
 	manifestPath := catalogFile(t, `{"inAppPurchases":[{"productId":"p","name":"New","type":"CONSUMABLE"}]}`)
-	planPath := filepath.Join(t.TempDir(), "approved.json")
+	planPath := "json"
 	_, stderr, err := runCommand(t, []string{"catalog", "plan", "--app", "123", "--file", manifestPath, "--out", planPath, "--output", "json"})
 	if err != nil {
 		t.Fatalf("plan stderr=%q err=%v", stderr, err)
@@ -573,6 +575,51 @@ func TestCatalogSavedPlanRefusesMissingAvailabilityDecision(t *testing.T) {
 	}
 }
 
+func TestCatalogPlanRefusesExistingOutputBeforeHTTP(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		prepare func(string) error
+		want    string
+	}{
+		{"file", func(path string) error { return os.WriteFile(path, []byte("existing plan"), 0o600) }, "already exists"},
+		{"directory", func(path string) error { return os.Mkdir(path, 0o700) }, "already exists"},
+		{"dangling symlink", func(path string) error { return os.Symlink(path+"-missing", path) }, "symlink"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupAuth(t)
+			path := filepath.Join(t.TempDir(), "plan.json")
+			if err := tc.prepare(path); err != nil {
+				if tc.name == "dangling symlink" {
+					t.Skipf("cannot create symlink: %v", err)
+				}
+				t.Fatal(err)
+			}
+			before, err := os.Lstat(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			clientCalls := 0
+			out, stderr, code := runWithDeps(t, func() (*asc.Client, error) {
+				clientCalls++
+				return nil, fmt.Errorf("unexpected client construction")
+			}, "catalog", "plan", "--app", "123", "--file", catalogFile(t, `{"groups":[{"referenceName":"Pro"}]}`), "--out", path)
+			if code != rootcmd.ExitError || out != "" || !strings.Contains(stderr, "save catalog plan:") || !strings.Contains(stderr, tc.want) || clientCalls != 0 {
+				t.Fatalf("code=%d stdout=%q stderr=%q client calls=%d", code, out, stderr, clientCalls)
+			}
+			after, err := os.Lstat(path)
+			if err != nil || !os.SameFile(before, after) || before.Mode() != after.Mode() {
+				t.Fatalf("existing output changed: %v", err)
+			}
+			if tc.name == "file" {
+				data, err := os.ReadFile(path)
+				if err != nil || string(data) != "existing plan" {
+					t.Fatal("existing plan contents changed")
+				}
+			}
+		})
+	}
+}
+
 func TestCatalogPlanRefusesSymlinkedOutputParent(t *testing.T) {
 	other := t.TempDir()
 	link := filepath.Join(t.TempDir(), "linked")
@@ -582,12 +629,14 @@ func TestCatalogPlanRefusesSymlinkedOutputParent(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/123/subscriptionGroups", "limit=200"), asctest.JSON(200, `{"data":[]}`))
 
 	manifestPath := catalogFile(t, `{"groups":[{"referenceName":"Pro"}]}`)
 	out, stderr, err := runCommand(t, []string{"catalog", "plan", "--app", "123", "--file", manifestPath, "--out", filepath.Join(link, "plan.json")})
 	if err == nil || !strings.Contains(err.Error(), "symlink") || out != "" {
 		t.Fatalf("plan stdout=%q stderr=%q err=%v", out, stderr, err)
+	}
+	if len(reg.Requests()) != 0 {
+		t.Fatal("invalid output path reached App Store Connect")
 	}
 	if _, err := os.Stat(filepath.Join(other, "plan.json")); !os.IsNotExist(err) {
 		t.Fatalf("plan publication outside root returned %v", err)

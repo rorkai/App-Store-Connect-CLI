@@ -17,6 +17,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 type manifest struct {
@@ -180,6 +181,11 @@ No product or group is deleted.`,
 					return d.UsageError("catalog plan does not match the selected app or manifest; generate and review a new plan")
 				}
 				approved = canonical
+			}
+			if useSavedPlan && mode == "plan" {
+				if err := rootfs.CheckCreateNewFile(*planPath); err != nil {
+					return fmt.Errorf("save catalog plan: %w", err)
+				}
 			}
 			client, err := d.Client()
 			if err != nil {
