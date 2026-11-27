@@ -30,14 +30,14 @@ exit 1
 func BenchmarkEnsurePinnedKoubouVersionCached(b *testing.B) {
 	prepareKoubouVersionBenchmark(b)
 
-	if _, err := ensurePinnedKoubouVersion(context.Background()); err != nil {
+	if _, err := ensurePinnedKoubouVersion(context.Background(), compatibleKoubouVersion); err != nil {
 		b.Fatalf("ensurePinnedKoubouVersion() warmup error: %v", err)
 	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := ensurePinnedKoubouVersion(context.Background()); err != nil {
+		if _, err := ensurePinnedKoubouVersion(context.Background(), compatibleKoubouVersion); err != nil {
 			b.Fatalf("ensurePinnedKoubouVersion() error: %v", err)
 		}
 	}
@@ -50,7 +50,7 @@ func BenchmarkEnsurePinnedKoubouVersionUncached(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		resetKoubouVersionCacheForTest()
-		if _, err := ensurePinnedKoubouVersion(context.Background()); err != nil {
+		if _, err := ensurePinnedKoubouVersion(context.Background(), compatibleKoubouVersion); err != nil {
 			b.Fatalf("ensurePinnedKoubouVersion() error: %v", err)
 		}
 	}

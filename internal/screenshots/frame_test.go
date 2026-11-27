@@ -129,6 +129,10 @@ func TestResolveKoubouOutputSize(t *testing.T) {
 		{name: "ipad 13 named size", value: "iPadPro13", wantWidth: 2064, wantHeight: 2752, wantOK: true},
 		{name: "ipad 12.9 named size", value: "iPadPro12_9", wantWidth: 2048, wantHeight: 2732, wantOK: true},
 		{name: "ipad 11 named size", value: "iPadPro11", wantWidth: 1668, wantHeight: 2388, wantOK: true},
+		{name: "duo outer", value: "iPhoneDuo_Outer", wantWidth: 1398, wantHeight: 2034, wantOK: true},
+		{name: "duo outer landscape", value: "iPhoneDuo_Outer_Landscape", wantWidth: 2034, wantHeight: 1398, wantOK: true},
+		{name: "duo inner", value: "iPhoneDuo_Inner", wantWidth: 2007, wantHeight: 2853, wantOK: true},
+		{name: "duo inner landscape", value: "iPhoneDuo_Inner_Landscape", wantWidth: 2853, wantHeight: 2007, wantOK: true},
 		{name: "custom list", value: []any{1200, 2500}, wantWidth: 1200, wantHeight: 2500, wantOK: true},
 		{name: "unknown name", value: "iphone7_2", wantOK: false},
 		{name: "invalid list", value: []any{"bad", 2}, wantOK: false},
@@ -155,6 +159,11 @@ func TestKoubouDisplayTypeForIPadSizeNames(t *testing.T) {
 		"iPadPro13":   "APP_IPAD_PRO_3GEN_129",
 		"iPadPro12_9": "APP_IPAD_PRO_3GEN_129",
 		"iPadPro11":   "APP_IPAD_PRO_3GEN_11",
+
+		"iPhoneDuo_Outer":           "APP_IPHONE_DUO",
+		"iPhoneDuo_Outer_Landscape": "APP_IPHONE_DUO",
+		"iPhoneDuo_Inner":           "APP_IPHONE_DUO",
+		"iPhoneDuo_Inner_Landscape": "APP_IPHONE_DUO",
 	} {
 		got, ok := koubouDisplayTypeForSizeName(sizeName)
 		if !ok || got != want {
@@ -843,11 +852,23 @@ func listFrameTempWorkDirs(t *testing.T) []string {
 }
 
 func TestRunKoubouGenerate_ParsesJSONFromStdoutWhenStderrHasWarnings(t *testing.T) {
-	binDir := t.TempDir()
-	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
+	for _, test := range []struct {
+		version    string
+		outputSize string
+		wantError  bool
+	}{
+		{"0.20.0", "iPhone6_9", false},
+		{"0.20.0", "[1398, 2034]", false},
+		{"0.21.0", "iPhone6_9", false},
+		{"0.20.0", "iPhoneDuo_Outer", true},
+		{"0.21.0", "iPhoneDuo_Outer", false},
+	} {
+		t.Run(test.version+"_"+test.outputSize, func(t *testing.T) {
+			binDir := t.TempDir()
+			writeExecutable(t, filepath.Join(binDir, "kou"), fmt.Sprintf(`#!/bin/sh
 set -eu
 if [ "$1" = "--version" ]; then
-  echo "kou 0.20.0"
+  echo "kou %s"
   exit 0
 fi
 if [ "$1" = "setup-frames" ]; then
@@ -859,18 +880,38 @@ if [ "$1" != "generate" ]; then
 fi
 echo "warning: using fallback font" 1>&2
 echo '[{"name":"framed","path":"output/framed.png","success":true,"error":""}]'
-`)
-	t.Setenv("PATH", binDir)
+`, test.version))
+			t.Setenv("PATH", binDir)
 
-	results, err := runKoubouGenerate(context.Background(), "frame.yaml")
-	if err != nil {
-		t.Fatalf("runKoubouGenerate() error = %v", err)
-	}
-	if len(results) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(results))
-	}
-	if !results[0].Success || results[0].Path != "output/framed.png" {
-		t.Fatalf("unexpected parsed result: %+v", results[0])
+			configPath := filepath.Join(t.TempDir(), "frame.yaml")
+			if test.wantError {
+				if err := os.WriteFile(configPath, []byte("project:\n  output_size: iPhone6_9\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := runKoubouGenerate(t.Context(), configPath); err != nil {
+					t.Fatalf("render existing frame before Duo with cached version: %v", err)
+				}
+			}
+			if err := os.WriteFile(configPath, []byte("project:\n  output_size: "+test.outputSize+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			results, err := runKoubouGenerate(context.Background(), configPath)
+			if test.wantError {
+				if err == nil || !strings.Contains(err.Error(), "Upgrade with: pip install -U koubou==0.21.0") {
+					t.Fatalf("runKoubouGenerate() error = %v, want Duo renderer upgrade guidance", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("runKoubouGenerate() error = %v", err)
+			}
+			if len(results) != 1 {
+				t.Fatalf("expected 1 result, got %d", len(results))
+			}
+			if !results[0].Success || results[0].Path != "output/framed.png" {
+				t.Fatalf("unexpected parsed result: %+v", results[0])
+			}
+		})
 	}
 }
 
@@ -1098,7 +1139,7 @@ exit 1
 	if !strings.Contains(err.Error(), "unsupported Koubou version 0.12.0") {
 		t.Fatalf("expected unsupported version error, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "0.20.0") {
+	if !strings.Contains(err.Error(), "0.21.0") {
 		t.Fatalf("expected pinned version in error, got %v", err)
 	}
 }
@@ -1124,8 +1165,8 @@ exit 1
 	}
 	for _, want := range []string{
 		"unsupported Koubou version 0.18.1",
-		"pinned to 0.20.0",
-		"pip install -U koubou==0.20.0",
+		"pinned to 0.21.0",
+		"pip install -U koubou==0.21.0",
 		"brew upgrade bitomule/tap/koubou",
 	} {
 		if !strings.Contains(err.Error(), want) {
@@ -1141,7 +1182,7 @@ func TestRunKoubouGenerate_NotFoundIncludesPinnedInstallHint(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected not found error")
 	}
-	if !strings.Contains(err.Error(), "pip install koubou==0.20.0") {
+	if !strings.Contains(err.Error(), "pip install koubou==0.21.0") {
 		t.Fatalf("expected pinned install command in error, got %v", err)
 	}
 }
