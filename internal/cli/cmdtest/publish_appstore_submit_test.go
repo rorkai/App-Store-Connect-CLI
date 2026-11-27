@@ -27,6 +27,13 @@ func respondToPublishAppLookup(t *testing.T, req *http.Request) (*http.Response,
 
 	const app = "app-1"
 
+	if req.Method == http.MethodGet && req.URL.Path == "/v1/apps/"+app {
+		if _, ok := req.Context().Deadline(); !ok {
+			t.Fatal("expected selected-app validation to have a request deadline")
+		}
+		resp, err := jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"`+app+`","attributes":{"bundleId":"com.example.demo","name":"Demo"}}}`)
+		return resp, err, true
+	}
 	if req.Method != http.MethodGet || req.URL.Path != "/v1/apps" {
 		return nil, nil, false
 	}
@@ -198,6 +205,10 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 	}
 
 	recordedRequests := requests.Snapshot()
+	wantUploadPrefix := "GET /v1/apps\nGET /v1/apps/app-1\nPOST /v1/buildUploads"
+	if len(recordedRequests) < 3 || strings.Join(recordedRequests[:3], "\n") != wantUploadPrefix {
+		t.Fatalf("expected app resolution and bundle validation before upload reservation, requests: %v", recordedRequests)
+	}
 	joined := strings.Join(recordedRequests, "\n")
 	if strings.Contains(joined, "POST /v1/appStoreVersionSubmissions") {
 		t.Fatalf("did not expect legacy submission endpoint, requests: %v", recordedRequests)
