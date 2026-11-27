@@ -196,30 +196,35 @@ func appStoreVersionReadRetryLine(listing appStoreVersionDiagnosticListing, safe
 // Other failures, and a failed diagnostic read, return createErr unchanged.
 func WithAppStoreVersionCreateConflictDiagnostics(ctx context.Context, client *asc.Client, appID, version, platform string, createErr error) error {
 	return withAppStoreVersionCreateConflictDiagnostics(ctx, client, appID, version, platform, func(string) string {
-		return "Reuse it with --if-exists skip or --if-exists update"
+		return "Reuse it with --if-exists skip or --if-exists update, or inspect it"
 	}, createErr)
 }
 
 // WithAppStoreVersionCreateConflictRerunDiagnostics explains the same 409 for
-// commands that create a version only when none has the requested string,
-// such as asc release stage and asc publish appstore. Run again, they use a
-// version that exists by then, so a duplicate is reused by rerunning them
-// rather than with versions create's --if-exists flags. A duplicate that is
-// live or no longer in progress is not one to reuse, so for one of those it
-// asks for a new version number instead.
+// commands such as release stage that can safely rerun to reuse a version. A
+// duplicate that is live or no longer in progress is not one to reuse, so for
+// one of those it asks for a new version number instead.
 func WithAppStoreVersionCreateConflictRerunDiagnostics(ctx context.Context, client *asc.Client, appID, version, platform string, createErr error) error {
 	return withAppStoreVersionCreateConflictDiagnostics(ctx, client, appID, version, platform, func(state string) string {
 		if _, settled := appStoreVersionSettledStates[state]; settled {
-			return "Choose a new version number"
+			return "Choose a new version number, or inspect it"
 		}
-		return "Run the command again to use it"
+		return "Run the command again to use it, or inspect it"
 	}, createErr)
 }
 
-// withAppStoreVersionCreateConflictDiagnostics explains the 409 for both
-// variants. reuseDuplicate returns, for the state of the version that already
-// has the requested string, how to reuse that version or what to do instead.
-func withAppStoreVersionCreateConflictDiagnostics(ctx context.Context, client *asc.Client, appID, version, platform string, reuseDuplicate func(state string) string, createErr error) error {
+// WithAppStoreVersionCreateConflictInspectDiagnostics explains the same 409
+// without suggesting a rerun that would repeat publish appstore's upload.
+func WithAppStoreVersionCreateConflictInspectDiagnostics(ctx context.Context, client *asc.Client, appID, version, platform string, createErr error) error {
+	return withAppStoreVersionCreateConflictDiagnostics(ctx, client, appID, version, platform, func(string) string {
+		return "Inspect it"
+	}, createErr)
+}
+
+// withAppStoreVersionCreateConflictDiagnostics explains the 409 for every
+// variant. duplicateGuidance returns, for the state of the version that
+// already has the requested string, what to do with that version.
+func withAppStoreVersionCreateConflictDiagnostics(ctx context.Context, client *asc.Client, appID, version, platform string, duplicateGuidance func(state string) string, createErr error) error {
 	var apiErr *asc.APIError
 	if createErr == nil || !errors.As(createErr, &apiErr) || apiErr == nil || apiErr.StatusCode != http.StatusConflict {
 		return createErr
@@ -244,8 +249,8 @@ func withAppStoreVersionCreateConflictDiagnostics(ctx context.Context, client *a
 		if row.VersionString == safeVersion {
 			duplicateID = row.ID
 			lines = append(lines, fmt.Sprintf(
-				"Version %q already exists on %s as %s (%s). %s, or inspect it: asc versions view --version-id %q",
-				safeVersion, safePlatform, row.ID, diagnosticStateLabel(row.State), reuseDuplicate(row.State), row.ID,
+				"Version %q already exists on %s as %s (%s). %s: asc versions view --version-id %q",
+				safeVersion, safePlatform, row.ID, diagnosticStateLabel(row.State), duplicateGuidance(row.State), row.ID,
 			))
 			break
 		}
