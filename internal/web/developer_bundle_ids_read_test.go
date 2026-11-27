@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -100,6 +101,7 @@ func TestListDeveloperBundleIDsUsesCapturedCollectionProxyContract(t *testing.T)
 }
 
 func TestGetDeveloperBundleIDUsesCapturedDetailContract(t *testing.T) {
+	returnedID := "bundle-1"
 	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == developerPortalTeamsPath:
@@ -120,10 +122,10 @@ func TestGetDeveloperBundleIDUsesCapturedDetailContract(t *testing.T) {
 			if !bytes.Equal(bytes.TrimSpace(body), []byte(`{"teamId":"TEAM123456"}`)) {
 				t.Fatalf("detail body = %s, want team-only JSON body", body)
 			}
-			return developerPortalTestResponse(http.StatusOK, `{
-				"data":{"type":"bundleIds","id":"bundle-1","attributes":{"name":"Example App","identifier":"com.example.app","platform":"IOS","wildcard":false,"seedId":"TEAM123456"},"relationships":{"bundleIdCapabilities":{"data":[{"type":"bundleIdCapabilities","id":"cap-1"}]}}},
+			return developerPortalTestResponse(http.StatusOK, fmt.Sprintf(`{
+				"data":{"type":"bundleIds","id":%q,"attributes":{"name":"Example App","identifier":"com.example.app","platform":"IOS","wildcard":false,"seedId":"TEAM123456"},"relationships":{"bundleIdCapabilities":{"data":[{"type":"bundleIdCapabilities","id":"cap-1"}]}}},
 				"included":[{"type":"bundleIdCapabilities","id":"cap-1","attributes":{"capabilityType":"PUSH_NOTIFICATIONS","enabled":true},"relationships":{"capability":{"data":{"type":"capabilities","id":"PUSH_NOTIFICATIONS"}}}}]
-			}`, nil), nil
+			}`, returnedID), nil), nil
 		default:
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.String())
 			return nil, nil
@@ -139,6 +141,11 @@ func TestGetDeveloperBundleIDUsesCapturedDetailContract(t *testing.T) {
 	}
 	if len(result.Included) != 1 || result.Included[0].Attributes["capabilityType"] != "PUSH_NOTIFICATIONS" {
 		t.Fatalf("unexpected included resources: %+v", result.Included)
+	}
+	returnedID = "other-1"
+	result, err = client.GetDeveloperBundleID(context.Background(), "bundle-1")
+	if result != nil || err == nil || !strings.Contains(err.Error(), `returned Bundle ID "other-1", requested "bundle-1"`) {
+		t.Fatalf("wrong identity accepted: result=%+v err=%v", result, err)
 	}
 }
 
