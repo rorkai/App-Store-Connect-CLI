@@ -201,15 +201,17 @@ func WithAppStoreVersionCreateConflictDiagnostics(ctx context.Context, client *a
 }
 
 // WithAppStoreVersionCreateConflictRerunDiagnostics explains the same 409 for
-// commands such as release stage that can safely rerun to reuse a version. A
-// duplicate that is live or no longer in progress is not one to reuse, so for
-// one of those it asks for a new version number instead.
+// commands such as release stage that can rerun to reuse an editable version.
+// Settled duplicates need a new version number; other states require inspection.
 func WithAppStoreVersionCreateConflictRerunDiagnostics(ctx context.Context, client *asc.Client, appID, version, platform string, createErr error) error {
 	return withAppStoreVersionCreateConflictDiagnostics(ctx, client, appID, version, platform, func(state string) string {
 		if _, settled := appStoreVersionSettledStates[state]; settled {
 			return "Choose a new version number, or inspect it"
 		}
-		return "Run the command again to use it, or inspect it"
+		if _, editable := appStoreVersionEditableStates[state]; editable {
+			return "Run the command again to use it, or inspect it"
+		}
+		return "Inspect it"
 	}, createErr)
 }
 

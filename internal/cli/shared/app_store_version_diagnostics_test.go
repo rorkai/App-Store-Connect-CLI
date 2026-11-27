@@ -434,15 +434,20 @@ func TestAppStoreVersionCreateConflictDiagnosticsGuidanceByState(t *testing.T) {
 
 func TestAppStoreVersionCreateConflictDiagnosticsNameDuplicateVersion(t *testing.T) {
 	for _, tt := range []struct {
-		name    string
-		explain func(context.Context, *asc.Client, string, string, string, error) error
-		state   string
-		reuse   string
+		name     string
+		explain  func(context.Context, *asc.Client, string, string, string, error) error
+		state    string
+		guidance string
 	}{
-		{name: "versions create", explain: WithAppStoreVersionCreateConflictDiagnostics, state: "PREPARE_FOR_SUBMISSION", reuse: "Reuse it with --if-exists skip or --if-exists update"},
-		{name: "rerun", explain: WithAppStoreVersionCreateConflictRerunDiagnostics, state: "PREPARE_FOR_SUBMISSION", reuse: "Run the command again to use it"},
-		{name: "versions create live", explain: WithAppStoreVersionCreateConflictDiagnostics, state: "READY_FOR_DISTRIBUTION", reuse: "Reuse it with --if-exists skip or --if-exists update"},
-		{name: "rerun live", explain: WithAppStoreVersionCreateConflictRerunDiagnostics, state: "READY_FOR_DISTRIBUTION", reuse: "Choose a new version number"},
+		{name: "versions create", explain: WithAppStoreVersionCreateConflictDiagnostics, state: "PREPARE_FOR_SUBMISSION", guidance: "Reuse it with --if-exists skip or --if-exists update, or inspect it"},
+		{name: "rerun", explain: WithAppStoreVersionCreateConflictRerunDiagnostics, state: "PREPARE_FOR_SUBMISSION", guidance: "Run the command again to use it, or inspect it"},
+		{name: "versions create live", explain: WithAppStoreVersionCreateConflictDiagnostics, state: "READY_FOR_DISTRIBUTION", guidance: "Reuse it with --if-exists skip or --if-exists update, or inspect it"},
+		{name: "rerun live", explain: WithAppStoreVersionCreateConflictRerunDiagnostics, state: "READY_FOR_DISTRIBUTION", guidance: "Choose a new version number, or inspect it"},
+		{name: "rerun waiting for review", explain: WithAppStoreVersionCreateConflictRerunDiagnostics, state: "WAITING_FOR_REVIEW", guidance: "Inspect it"},
+		{name: "rerun in review", explain: WithAppStoreVersionCreateConflictRerunDiagnostics, state: "IN_REVIEW", guidance: "Inspect it"},
+		{name: "rerun pending release", explain: WithAppStoreVersionCreateConflictRerunDiagnostics, state: "PENDING_DEVELOPER_RELEASE", guidance: "Inspect it"},
+		{name: "rerun unknown state", explain: WithAppStoreVersionCreateConflictRerunDiagnostics, state: "FUTURE_STATE", guidance: "Inspect it"},
+		{name: "rerun missing state", explain: WithAppStoreVersionCreateConflictRerunDiagnostics, guidance: "Inspect it"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			client, _ := newDiagnosticTestClient(t, func(req diagnosticRequest) (*http.Response, error) {
@@ -451,9 +456,13 @@ func TestAppStoreVersionCreateConflictDiagnosticsNameDuplicateVersion(t *testing
 			original := asc.ParseErrorWithStatus([]byte(diagnosticVersionsDuplicate409), http.StatusConflict)
 
 			err := tt.explain(context.Background(), client, "app-1", "1.2.0", "IOS", original)
+			state := tt.state
+			if state == "" {
+				state = "<no state>"
+			}
 			want := strings.Join([]string{
 				original.Error(),
-				`Version "1.2.0" already exists on IOS as ver-120 (` + tt.state + `). ` + tt.reuse + `, or inspect it: asc versions view --version-id "ver-120"`,
+				`Version "1.2.0" already exists on IOS as ver-120 (` + state + `). ` + tt.guidance + `: asc versions view --version-id "ver-120"`,
 			}, "\n")
 			if err.Error() != want {
 				t.Fatalf("error =\n%s\nwant\n%s", err.Error(), want)
