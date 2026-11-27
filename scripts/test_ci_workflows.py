@@ -879,6 +879,16 @@ def assert_security_target_contract() -> None:
         assert "Install gosec for security checks" not in success.stdout
 
 
+def assert_test_order_smoke_is_off_the_pr_path() -> None:
+    workflow = (ROOT / ".github/workflows/test-order-smoke.yml").read_text()
+    trigger = workflow.split("\non:", 1)[1].split("\npermissions:", 1)[0]
+    assert "workflow_dispatch:" in trigger and "schedule:" in trigger
+    assert "pull_request:" not in trigger and "push:" not in trigger
+    assert "contents: read" in workflow and ": write" not in workflow
+    assert "scripts/go_test_order.py" in workflow and "--seed" in workflow
+    assert "test-order-smoke" not in PR_WORKFLOW.read_text()
+
+
 def assert_test_result_cache_disabled() -> None:
     makefile = MAKEFILE.read_text()
     for target in ("test", "test-short"):
@@ -963,6 +973,7 @@ def main() -> None:
     assert_ci_workload_caches()
     assert_lint_analysis_cache()
     assert_test_result_cache_disabled()
+    assert_test_order_smoke_is_off_the_pr_path()
     assert_go_tool_cache_identity()
     assert_lint_timeout_budget()
     assert_go_toolchain_source_accepts_normalized_scalars()
