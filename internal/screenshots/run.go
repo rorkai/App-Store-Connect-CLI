@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -26,10 +27,11 @@ type RunStepResult struct {
 
 // RunResult is the structured output for a plan run.
 type RunResult struct {
-	BundleID  string          `json:"bundle_id"`
-	UDID      string          `json:"udid"`
-	OutputDir string          `json:"output_dir"`
-	Steps     []RunStepResult `json:"steps"`
+	BundleID  string                        `json:"bundle_id"`
+	UDID      string                        `json:"udid"`
+	OutputDir string                        `json:"output_dir"`
+	Steps     []RunStepResult               `json:"steps"`
+	Location  *asc.ScreenshotLocationResult `json:"location,omitempty"`
 }
 
 // DefaultPlanOutputDir is where a plan without app.output_dir writes its
@@ -62,7 +64,7 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (_ *Run
 		udid = "booted"
 	}
 	for _, step := range plan.Steps {
-		if plan.Defaults.StatusBar != "" || StepAction(strings.TrimSpace(strings.ToLower(string(step.Action)))) != ActionWait {
+		if plan.Defaults.StatusBar != "" || plan.Defaults.Location != nil || StepAction(strings.TrimSpace(strings.ToLower(string(step.Action)))) != ActionWait {
 			resolved, err := resolveSimulatorUDID(ctx, udid)
 			if err != nil {
 				return nil, err
@@ -96,6 +98,19 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (_ *Run
 		Steps:     make([]RunStepResult, 0, len(plan.Steps)),
 	}
 	terminateRunningProcess := plan.App.terminateRunningProcess
+
+	if location := plan.Defaults.Location; location != nil {
+		coordinate := formatFloat(*location.Latitude) + "," + formatFloat(*location.Longitude)
+		locationCtx, cancel := context.WithTimeout(ctx, matrixSubprocessTimeout)
+		err := runExternal(locationCtx, "xcrun", "simctl", "location", udid, "set", coordinate)
+		cancel()
+		if err != nil {
+			return nil, fmt.Errorf("apply simulated location: %w", err)
+		}
+		result.Location = &asc.ScreenshotLocationResult{
+			Latitude: *location.Latitude, Longitude: *location.Longitude, Status: "applied",
+		}
+	}
 
 	if preset := plan.Defaults.StatusBar; preset != "" {
 		if err := runExternal(ctx, "axe", "settings", "status-bar", "preset", preset, "--udid", udid); err != nil {

@@ -96,6 +96,7 @@ func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, ba
 		}
 		attemptResult, attemptErr := executeMatrixCellAttempt(ctx, cell, base, matrixPlan, deps, outputRoots)
 		result.Steps = attemptResult.Steps
+		result.Location = attemptResult.Location
 		mergeMatrixAttemptResult(&result, cell, attemptResult)
 		if attemptErr == nil {
 			result.Status = MatrixCellSuccess
@@ -183,6 +184,7 @@ type matrixAttemptResult struct {
 	CleanupFailed   bool
 	Screenshots     []MatrixScreenshotResult
 	Steps           []RunStepResult
+	Location        *asc.ScreenshotLocationResult
 	FailureStage    string
 	FailureCode     string
 	Error           string
@@ -262,6 +264,7 @@ func executeMatrixCellAttempt(ctx context.Context, cell MatrixCell, base *Plan, 
 	attempt = matrixAttemptResult{}
 	if runResult != nil {
 		attempt.Steps = sanitizeMatrixSteps(runResult.Steps)
+		attempt.Location = runResult.Location
 	}
 	stabilityErr := matrixPrivateAttemptRootIsStable(attemptRoot)
 	if err != nil {

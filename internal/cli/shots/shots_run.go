@@ -38,7 +38,11 @@ scroll and swipe need AXe 2.0 or later.
 Set defaults.status_bar to screenshot, low-battery, no-service, or charging to
 override the simulator status bar during the run (needs AXe 2.0+ and Xcode 27+).
 When the run ends, every status bar override on that simulator is cleared,
-including any that were set before the run.`,
+including any that were set before the run.
+Set defaults.location to {"latitude": 37.7749, "longitude": -122.4194} to apply
+a simulated location before the steps. The location receipt reports command
+acknowledgement; use app readback to verify delivery. This setting persists
+after the run; clear it with xcrun simctl location <UDID> clear when wanted.`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

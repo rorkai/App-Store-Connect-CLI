@@ -46,10 +46,12 @@ func TestShotsMatrix_InvalidConcurrencyIsUsageError(t *testing.T) {
 
 func TestShotsMatrix_LocalFakeRunProducesResultAndReview(t *testing.T) {
 	binDir := t.TempDir()
+	callLog := filepath.Join(t.TempDir(), "calls")
 	templatePNG := filepath.Join(t.TempDir(), "template.png")
 	writeShotsMatrixPNG(t, templatePNG)
 	writeShotsMatrixExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
 set -eu
+printf '%s\n' "$*" >> "$LOCATION_CALL_LOG"
 if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
   printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","state":"Booted","isAvailable":true}]}}'
   exit 0
@@ -70,6 +72,7 @@ done
 cp "$AXE_TEMPLATE_PNG" "$out"
 `)
 	t.Setenv("AXE_TEMPLATE_PNG", templatePNG)
+	t.Setenv("LOCATION_CALL_LOG", callLog)
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	dir := t.TempDir()
@@ -77,7 +80,7 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 	matrixPath := filepath.Join(dir, "matrix.json")
 	rawDir := filepath.Join(dir, "raw")
 	reviewDir := filepath.Join(dir, "review")
-	writeShotsMatrixFile(t, basePath, `{"version":1,"app":{"bundle_id":"com.example.app"},"steps":[{"action":"launch"},{"action":"screenshot","name":"home"}]}`)
+	writeShotsMatrixFile(t, basePath, `{"version":1,"app":{"bundle_id":"com.example.app"},"defaults":{"location":{"latitude":0,"longitude":0}},"steps":[{"action":"launch"},{"action":"screenshot","name":"home"}]}`)
 	writeShotsMatrixFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"default"}],"output":{"raw_dir":"`+rawDir+`","review_dir":"`+reviewDir+`"}}`)
 
 	root, rootStdout, rootStderr := shotsRootWithDeps(t)
@@ -92,8 +95,9 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 		t.Fatalf("unexpected stderr: %q", stderr)
 	}
 	var result struct {
-		Status     string `json:"status"`
-		TotalCells int    `json:"totalCells"`
+		Status     string                     `json:"status"`
+		TotalCells int                        `json:"totalCells"`
+		Cells      []screenshotLocationOutput `json:"cells"`
 		Review     struct {
 			ManifestPath string `json:"manifestPath"`
 			HTMLPath     string `json:"htmlPath"`
@@ -104,6 +108,15 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 	}
 	if result.Status != "success" || result.TotalCells != 1 {
 		t.Fatalf("unexpected result: %+v", result)
+	}
+	if len(result.Cells) != 1 || result.Cells[0].Location == nil || result.Cells[0].Location.Status != "applied" {
+		t.Fatalf("cell location receipts = %+v, want applied location", result.Cells)
+	}
+	calls, err := os.ReadFile(callLog)
+	locationIndex := strings.Index(string(calls), "simctl location SIM-UDID set 0,0\n")
+	launchIndex := strings.Index(string(calls), "simctl launch ")
+	if err != nil || locationIndex < 0 || launchIndex < locationIndex || strings.Contains(string(calls), "location SIM-UDID clear") {
+		t.Fatalf("xcrun calls = %q, error = %v; want location applied before launch and left in place", calls, err)
 	}
 	if strings.Contains(stdout, "total_cells") || strings.Contains(stdout, "manifest_path") {
 		t.Fatalf("matrix output contains legacy snake_case fields: %s", stdout)
@@ -119,6 +132,12 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 	}
 	if strings.Contains(string(manifest), "SIM-UDID") || strings.Contains(string(manifest), "AppleLocale") {
 		t.Fatalf("manifest leaked execution details: %s", manifest)
+	}
+	var review struct {
+		Cells []screenshotLocationOutput `json:"cells"`
+	}
+	if err := json.Unmarshal(manifest, &review); err != nil || len(review.Cells) != 1 || review.Cells[0].Location == nil || review.Cells[0].Location.Status != "applied" {
+		t.Fatalf("review location receipt = %+v, error = %v; want applied location", review.Cells, err)
 	}
 }
 

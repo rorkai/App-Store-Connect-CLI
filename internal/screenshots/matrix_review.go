@@ -898,6 +898,7 @@ func matrixReviewCellOutput(cell MatrixCellResult) asc.MatrixCellResult {
 		Status:       cell.Status,
 		Attempts:     cell.Attempts,
 		DurationMS:   cell.DurationMS,
+		Location:     cell.Location,
 		RawPaths:     append([]string(nil), cell.RawPaths...),
 		FramedPaths:  append([]string(nil), cell.FramedPaths...),
 		FailureStage: "",
