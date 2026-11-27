@@ -25,7 +25,7 @@ func TestUsersCommandsWarnDeprecatedAccessToReportsRole(t *testing.T) {
 		},
 		{
 			name:     "invite",
-			args:     []string{"users", "invite", "--email", "user@example.com", "--first-name", "Jane", "--last-name", "Doe", "--roles", "access_to_reports", "--all-apps", "--output", "json"},
+			args:     []string{"users", "invite", "--email", "user@example.com", "--first-name", "Jane", "--last-name", "Doe", "--roles", "access_to_reports", "--all-apps", "--output", "json", "--confirm"},
 			request:  asctest.POST("/v1/userInvitations").JSONBody(`{"data":{"type":"userInvitations","attributes":{"email":"user@example.com","firstName":"Jane","lastName":"Doe","roles":["ACCESS_TO_REPORTS"],"allAppsVisible":true}}}`),
 			response: `{"data":{"type":"userInvitations","id":"invite-1","attributes":{"email":"user@example.com","roles":["ACCESS_TO_REPORTS"],"allAppsVisible":true,"provisioningAllowed":false}}}`,
 			wantID:   "invite-1",

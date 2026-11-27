@@ -148,7 +148,7 @@ func TestEnterpriseUsersInviteOmitsAppVisibility(t *testing.T) {
 	captureOutput(t, func() {
 		args := []string{
 			"users", "invite", "--email", "user@example.com", "--first-name", "Jane",
-			"--last-name", "Doe", "--roles", "ADMIN", "--output", "json",
+			"--last-name", "Doe", "--roles", "ADMIN", "--output", "json", "--confirm",
 		}
 		if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitSuccess {
 			t.Fatalf("exit code = %d", code)

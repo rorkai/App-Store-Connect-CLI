@@ -87,7 +87,7 @@ func TestUsersProvisioningAllowedRequestBody(t *testing.T) {
 		},
 		{
 			name:     "invite",
-			args:     []string{"users", "invite", "--email", "user@example.com", "--first-name", "Jane", "--last-name", "Doe", "--roles", "developer", "--all-apps", "--output", "json"},
+			args:     []string{"users", "invite", "--email", "user@example.com", "--first-name", "Jane", "--last-name", "Doe", "--roles", "developer", "--all-apps", "--output", "json", "--confirm"},
 			method:   http.MethodPost,
 			path:     "/v1/userInvitations",
 			status:   http.StatusCreated,

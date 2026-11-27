@@ -35,7 +35,7 @@ func TestUsersInviteNormalizesRoles(t *testing.T) {
 	reg.Register(asctest.POST("/v1/userInvitations").JSONBody(`{"data":{"type":"userInvitations","attributes":{"email":"user@example.com","firstName":"Jane","lastName":"Doe","roles":["DEVELOPER"],"allAppsVisible":true}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"userInvitations","id":"invite-1","attributes":{"roles":["DEVELOPER"]}}}`))
 
-	if _, _, err := runRootWithDeps(t, stubClient(t, reg), "users", "invite", "--email", "user@example.com", "--first-name", "Jane", "--last-name", "Doe", "--roles", "developer", "--all-apps", "--output", "json"); err != nil {
+	if _, _, err := runRootWithDeps(t, stubClient(t, reg), "users", "invite", "--email", "user@example.com", "--first-name", "Jane", "--last-name", "Doe", "--roles", "developer", "--all-apps", "--output", "json", "--confirm"); err != nil {
 		t.Fatalf("run error: %v", err)
 	}
 }

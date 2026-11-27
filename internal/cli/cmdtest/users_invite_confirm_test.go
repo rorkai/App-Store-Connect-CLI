@@ -2,50 +2,44 @@ package cmdtest
 
 import (
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
-// users invite gives a person a role on the team, so it is moving to
-// --confirm. Until a later release requires it, an invite without --confirm
-// still goes through and warns on stderr.
-func TestUsersInviteConfirmTransition(t *testing.T) {
+// users invite puts a person on the team, so it requires --confirm. Without
+// it the command refuses before any request, with usage exit code 2.
+func TestUsersInviteRequiresConfirm(t *testing.T) {
 	const (
-		inviteWarning = "Warning: users invite sends an invitation to join your App Store Connect team and will require --confirm in a future release; pass --confirm to acknowledge.\n"
-		inviteBody    = `{"data":{"type":"userInvitations","attributes":{"email":"user@example.com","firstName":"Jane","lastName":"Doe","roles":["DEVELOPER"],"allAppsVisible":true}}}`
-		inviteReply   = `{"data":{"type":"userInvitations","id":"invite-1","attributes":{"email":"user@example.com","roles":["DEVELOPER"],"allAppsVisible":true}}}`
+		inviteBody  = `{"data":{"type":"userInvitations","attributes":{"email":"user@example.com","firstName":"Jane","lastName":"Doe","roles":["DEVELOPER"],"allAppsVisible":true}}}`
+		inviteReply = `{"data":{"type":"userInvitations","id":"invite-1","attributes":{"email":"user@example.com","roles":["DEVELOPER"],"allAppsVisible":true}}}`
 	)
 	base := []string{"users", "invite", "--email", "user@example.com", "--first-name", "Jane", "--last-name", "Doe", "--roles", "DEVELOPER", "--output", "json"}
 	tests := []struct {
-		name       string
-		args       []string
-		sends      bool
-		wantCode   int
-		wantStderr string
+		name     string
+		args     []string
+		sends    bool
+		wantCode int
+		wantErr  string
 	}{
 		{
-			name:       "without --confirm sends the invite and warns",
-			args:       append(append([]string{}, base...), "--all-apps"),
-			sends:      true,
-			wantCode:   0,
-			wantStderr: inviteWarning,
+			name:     "without --confirm refuses before any request",
+			args:     append(append([]string{}, base...), "--all-apps"),
+			wantCode: 2,
+			wantErr:  "Error: --confirm is required",
 		},
 		{
-			name:       "with --confirm sends the invite quietly",
-			args:       append(append([]string{}, base...), "--all-apps", "--confirm"),
-			sends:      true,
-			wantCode:   0,
-			wantStderr: "",
+			name:     "with --confirm sends exactly one invitation",
+			args:     append(append([]string{}, base...), "--all-apps", "--confirm"),
+			sends:    true,
+			wantCode: 0,
 		},
 		{
-			// A usage error comes first; the warning is only for a call
-			// that is about to send.
-			name:       "usage error does not warn",
-			args:       base,
-			wantCode:   2,
-			wantStderr: "Error: --all-apps or --visible-app is required\n",
+			// The access flags are required flags, so they are reported first.
+			name:     "missing access is reported before --confirm",
+			args:     base,
+			wantCode: 2,
+			wantErr:  "Error: --all-apps or --visible-app is required",
 		},
 	}
 
@@ -61,23 +55,19 @@ func TestUsersInviteConfirmTransition(t *testing.T) {
 			if code != test.wantCode {
 				t.Fatalf("exit code = %d, want %d (stderr %q)", code, test.wantCode, stderr)
 			}
-			if test.sends {
-				if !strings.Contains(stdout, `"id":"invite-1"`) {
-					t.Fatalf("stdout = %q, want the invitation", stdout)
+			requests := reg.Requests()
+			if !test.sends {
+				if len(requests) != 0 {
+					t.Fatalf("sent %d requests, want none", len(requests))
 				}
-				if stderr != test.wantStderr {
-					t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
-				}
+				assertUsageExitOutput(t, stdout, stderr, test.wantErr)
 				return
 			}
-			if stdout != "" {
-				t.Fatalf("stdout = %q, want empty", stdout)
+			if len(requests) != 1 {
+				t.Fatalf("sent %d requests, want exactly one POST", len(requests))
 			}
-			if !strings.HasPrefix(stderr, test.wantStderr) {
-				t.Fatalf("stderr = %q, want it to start with %q", stderr, test.wantStderr)
-			}
-			if strings.Contains(stderr, "Warning:") {
-				t.Fatalf("stderr = %q, want no warning before a usage error", stderr)
+			if stdout == "" || stderr != "" {
+				t.Fatalf("stdout = %q, stderr = %q, want the invitation on stdout and nothing on stderr", stdout, stderr)
 			}
 		})
 	}
