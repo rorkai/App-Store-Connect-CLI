@@ -20,6 +20,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/api"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/diagnosticoutput"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/telemetry"
 )
@@ -51,7 +52,7 @@ func Run(args []string, versionInfo string) int {
 
 // RunWithDeps is Run with the commands that take dependencies built on d, and
 // the root's own output written to d's streams.
-func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
+func RunWithDeps(args []string, versionInfo string, d *shared.Deps) (exitCode int) {
 	defer shared.CleanupTempPrivateKeys()
 	// --read-only is per invocation: clear it on return so an embedded or
 	// test caller's next Run starts from the environment alone.
@@ -71,10 +72,22 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 		return ExitSuccess
 	}
 
+	errorFormat := requestedErrorFormat(d, args)
+	var diagnosticErr error
+	var failureType string
+	if errorFormat == "json" {
+		originalStderr := d.IO.ErrOut
+		d = withQuietErrorStream(d)
+		restoreDiagnostics := diagnosticoutput.Suppress()
+		defer func() {
+			restoreDiagnostics()
+			if exitCode != ExitSuccess {
+				writeJSONError(originalStderr, exitCode, failureType, diagnosticErr)
+			}
+		}()
+	}
 	root := rootCommandForArgs(versionInfo, d, args)
-	// The credential profile is a root-owned selector, so relocate a misplaced
-	// `--profile` before anything else reads the argv. Running it first also
-	// keeps spaced boolean recovery working for the flags that follow it.
+	// Relocate a misplaced root profile selector before parsing.
 	args = hoistRootProfileFlag(root, args)
 	args = normalizeSpacedBooleanFlags(root, args)
 	// A guessed command (`get` for `view`, `app-infos` for `apps info`)
@@ -110,6 +123,10 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	// have resolved, and no resolved value can reach help output or a parse
 	// diagnostic.
 	helpArgs, helpRequested := requestedHelpArgs(root, args)
+	if !helpRequested && errorFormat != "text" && errorFormat != "json" {
+		fmt.Fprintln(d.IO.ErrOut, "Error: --error-format requires text or json. Place it before the subcommand.")
+		return ExitUsage
+	}
 	var parseArgs []string
 	if helpRequested {
 		parseArgs = dropIndirectFlagValues(root, helpArgs)
@@ -119,10 +136,12 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 			resolvedArgs, err = resolveFlagValueIndirection(d, root, resolvedArgs)
 		}
 		if err != nil {
+			diagnosticErr = err
 			recoverCIReportFlags(root, args)
 			fmt.Fprint(d.IO.ErrOut, errfmt.FormatStderr(err))
 			commandName := getCommandName(root, args)
 			if reportErr := writeUsageJUnitReport(commandName, err); reportErr != nil {
+				diagnosticErr = reportErr
 				printUsageJUnitReportFailure(d.IO.ErrOut, commandName, versionInfo, analysis, reportErr)
 				return ExitError
 			}
@@ -138,6 +157,7 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	parseErr := root.Parse(parseArgs)
 	restoreFlagOutputs()
 	if parseErr != nil {
+		diagnosticErr = parseErr
 		if errors.Is(parseErr, flag.ErrHelp) {
 			// Explicitly requested help is the command's result, not a
 			// diagnostic: agents pipe and redirect it, so it belongs on stdout
@@ -152,11 +172,13 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 		}
 		recoverCIReportFlags(root, args)
 		if err := shared.ValidateReportFlags(); err != nil {
+			diagnosticErr = err
 			fmt.Fprint(d.IO.ErrOut, errfmt.FormatStderr(err))
 			emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, err))
 			return ExitUsage
 		}
 		badFlagSyntax := parseErr.Error()
+		failureType = "invalid_flag"
 		if firstLine, _, _ := strings.Cut(parseOutput.String(), "\n"); strings.HasPrefix(firstLine, "bad flag syntax:") {
 			badFlagSyntax = firstLine
 		}
@@ -188,6 +210,7 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 
 	// Validate CI report flags after parsing
 	if err := shared.ValidateReportFlags(); err != nil {
+		diagnosticErr = err
 		fmt.Fprint(d.IO.ErrOut, errfmt.FormatStderr(err))
 		emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, err))
 		return ExitUsage
@@ -210,6 +233,7 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 
 	commandName := getCommandName(root, args)
 	if invalid, suggested, ok := commonCommandPathRecovery(root, analysis, args); ok {
+		failureType = "unknown_command"
 		fmt.Fprintf(d.IO.ErrOut, "Error: unknown command `%s`\nTry:\n  %s\nFor help:\n  %s --help\n", invalid, suggested, commandName)
 		if err := writeUsageJUnitReport(commandName, commonCommandPathRecoveryError(invalid)); err != nil {
 			printUsageJUnitReportFailure(d.IO.ErrOut, commandName, versionInfo, analysis, err)
@@ -219,6 +243,7 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 		return ExitUsage
 	}
 	if shouldRenderConciseUnknownChild(root, analysis, commandName) {
+		failureType = "unknown_command"
 		printConciseUnknownCommand(d.IO.ErrOut, analysis, commandName)
 		if err := writeUsageJUnitReport(commandName, unknownCommandError(analysis, commandName)); err != nil {
 			printUsageJUnitReportFailure(d.IO.ErrOut, commandName, versionInfo, analysis, err)
@@ -244,6 +269,7 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	if err := groupFlagsBeforeSubcommandError(root); err != nil {
 		fmt.Fprint(d.IO.ErrOut, errfmt.FormatStderr(err))
 		if reportErr := writeUsageJUnitReport(commandName, err); reportErr != nil {
+			diagnosticErr = reportErr
 			printUsageJUnitReportFailure(d.IO.ErrOut, commandName, versionInfo, analysis, reportErr)
 			return ExitError
 		}
@@ -286,6 +312,7 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 			// Report write failure is a hard error - CI depends on it
 			fmt.Fprintf(d.IO.ErrOut, "Error: failed to write JUnit report: %v\n", reportErr)
 			if reportRunErr == nil {
+				diagnosticErr = reportErr
 				emitTelemetry(commandName, versionInfo, elapsed, ExitError, withAPIOperation(telemetry.EventContext{
 					InvocationShape: analysis.shape,
 					ErrorKind:       telemetry.ErrorKindOther,
@@ -301,6 +328,10 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	}
 
 	if runErr != nil {
+		diagnosticErr = runErr
+		if analysis.unknownToken != "" {
+			failureType = "unknown_command"
+		}
 		if _, ok := errors.AsType[shared.ReportedError](runErr); ok {
 			if !shared.IsPrintedToStderr(runErr) {
 				fmt.Fprint(d.IO.ErrOut, errfmt.FormatCommandStderr(commandName, runErr))

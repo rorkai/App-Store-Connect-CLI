@@ -181,7 +181,7 @@ Examples:
 				NoCodeSigning:    *noCodeSigning,
 				Overwrite:        *overwrite,
 				XcodebuildArgs:   []string(xcodebuildFlags),
-				LogWriter:        d.IO.ErrOut,
+				LogWriter:        d.IO.ChildStderr(),
 			}
 			if err := localxcode.ValidateArchiveXcodebuildArgs(opts); err != nil {
 				return d.UsageError(err.Error())
@@ -441,7 +441,7 @@ Examples:
 				ExportDir:      osPath(d, strings.TrimSpace(*exportDir)),
 				Overwrite:      *overwrite,
 				XcodebuildArgs: []string(xcodebuildFlags),
-				LogWriter:      d.IO.ErrOut,
+				LogWriter:      d.IO.ChildStderr(),
 			})
 			if err != nil {
 				if *timeout > 0 && errors.Is(err, context.DeadlineExceeded) {
@@ -601,7 +601,7 @@ Examples:
 				APIKey:     trimmedAPIKey,
 				APIIssuer:  trimmedAPIIssuer,
 				P8FilePath: p8FilePath,
-				LogWriter:  d.IO.ErrOut,
+				LogWriter:  d.IO.ChildStderr(),
 			})
 			if err != nil {
 				return xcodeCommandError("xcode validate", err)

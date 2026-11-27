@@ -23,6 +23,8 @@ type IO struct {
 	StdinTTY  bool
 	StdoutTTY bool
 	StderrTTY bool
+
+	operatorStderr io.Writer
 }
 
 // Deps holds what a command takes from the process: its App Store Connect
@@ -113,10 +115,28 @@ func (s *IO) stdinTerminal() bool {
 // terminal for the commands the child runs, and s.ErrOut otherwise, which then
 // receives the child's output through a pipe.
 func (s *IO) ChildStderr() io.Writer {
-	if _, ok := s.ErrOut.(processStderr); ok {
+	stderr := s.OperatorStderr()
+	if _, ok := stderr.(processStderr); ok {
 		return os.Stderr
 	}
+	return stderr
+}
+
+// OperatorStderr preserves instructions that need a person's attention.
+func (s *IO) OperatorStderr() io.Writer {
+	if s.operatorStderr != nil {
+		return s.operatorStderr
+	}
 	return s.ErrOut
+}
+
+// WithQuietDiagnostics discards CLI diagnostics while retaining operator and child output.
+func (s *IO) WithQuietDiagnostics() *IO {
+	streams := *s
+	streams.operatorStderr = s.OperatorStderr()
+	streams.ErrOut = io.Discard
+	streams.StderrTTY = false
+	return &streams
 }
 
 // The process streams are resolved on each call, so a command built before

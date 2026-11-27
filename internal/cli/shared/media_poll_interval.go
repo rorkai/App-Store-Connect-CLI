@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/diagnosticoutput"
 )
 
 // minMediaPollInterval keeps --poll-interval from polling faster than the
@@ -32,7 +34,7 @@ func BindMediaPollIntervalFlag(fs *flag.FlagSet) *MediaPollIntervalFlag {
 // Apply validates the flag and, when set, returns a context whose media
 // processing waits poll at the requested fixed interval.
 func (f *MediaPollIntervalFlag) Apply(ctx context.Context) (context.Context, error) {
-	return f.applyTo(ctx, os.Stderr)
+	return f.applyTo(ctx, diagnosticoutput.Writer(os.Stderr))
 }
 
 // ApplyWith is Apply with the "Error:" line written to d's stderr.

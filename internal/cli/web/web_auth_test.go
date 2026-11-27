@@ -954,6 +954,7 @@ func TestLoginWithOptionalTwoFactorRepromptsAfterFallbackPhoneRequest(t *testing
 		return nil
 	}
 	d.IO.ErrOut = &statusOutput
+	d.IO = d.IO.WithQuietDiagnostics()
 
 	session, err := loginWithOptionalTwoFactor(context.Background(), d, "user@example.com", "secret", "", nil, nil)
 	if err != nil {

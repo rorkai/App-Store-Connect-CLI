@@ -12,6 +12,8 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"gopkg.in/yaml.v3"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/diagnosticoutput"
 )
 
 // WatchOptions configures optional review regeneration after each watch cycle.
@@ -21,7 +23,7 @@ type WatchOptions struct {
 	ReviewOutputDir string
 	// ReviewRawDir is the raw screenshots directory for review generation.
 	ReviewRawDir string
-	// Stderr receives the watch progress messages; nil writes to os.Stderr.
+	// Stderr receives the watch progress messages; nil uses the process diagnostic stream.
 	Stderr io.Writer
 }
 
@@ -29,7 +31,7 @@ type WatchOptions struct {
 // directories it references) for changes, then re-runs kou generate on each
 // change.  It blocks until ctx is cancelled.
 func WatchAndRegenerate(ctx context.Context, configPath string, debounce time.Duration, onCycle func(results []WatchCycleResult, err error), opts *WatchOptions) error {
-	stderr := io.Writer(os.Stderr)
+	stderr := io.Writer(diagnosticoutput.Writer(os.Stderr))
 	if opts != nil && opts.Stderr != nil {
 		stderr = opts.Stderr
 	}

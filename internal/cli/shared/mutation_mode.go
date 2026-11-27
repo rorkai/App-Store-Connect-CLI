@@ -3,6 +3,8 @@ package shared
 import (
 	"io"
 	"os"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/diagnosticoutput"
 )
 
 // RequireConfirm enforces --confirm on a destructive command. Without it, it
@@ -13,7 +15,7 @@ func RequireConfirm(confirm bool) error {
 	if confirm {
 		return nil
 	}
-	return missingConfirmTo(os.Stderr)
+	return missingConfirmTo(diagnosticoutput.Writer(os.Stderr))
 }
 
 // RequireConfirm is RequireConfirm with the "Error:" line written to d's

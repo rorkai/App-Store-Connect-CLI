@@ -57,7 +57,7 @@ Examples:
 			report, doctorErr := runToolchainDoctor(ctx, localxcode.ToolchainOptions{
 				DeveloperDir: osPath(d, strings.TrimSpace(*developerDir)),
 				SDK:          strings.TrimSpace(*sdk),
-				LogWriter:    d.IO.ErrOut,
+				LogWriter:    d.IO.ChildStderr(),
 			})
 			if report != nil {
 				if outputErr := d.PrintOutput(toolchainReportOutput(report), *output.Output, *output.Pretty); outputErr != nil {

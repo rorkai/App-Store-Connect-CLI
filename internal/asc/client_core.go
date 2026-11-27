@@ -16,6 +16,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/diagnosticoutput"
 )
 
 const (
@@ -61,7 +62,7 @@ const (
 	BulkMutatingRequestLimit = 16
 )
 
-var retryLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+var retryLogger = slog.New(slog.NewTextHandler(diagnosticoutput.Writer(os.Stderr), &slog.HandlerOptions{
 	Level: slog.LevelInfo,
 	ReplaceAttr: func(_ []string, attr slog.Attr) slog.Attr {
 		if attr.Key == slog.TimeKey {
@@ -71,7 +72,7 @@ var retryLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 	},
 }))
 
-var debugLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+var debugLogger = slog.New(slog.NewTextHandler(diagnosticoutput.Writer(os.Stderr), &slog.HandlerOptions{
 	Level: slog.LevelInfo,
 	ReplaceAttr: func(_ []string, attr slog.Attr) slog.Attr {
 		if attr.Key == slog.TimeKey {

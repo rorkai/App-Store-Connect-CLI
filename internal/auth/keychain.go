@@ -22,6 +22,7 @@ import (
 	"github.com/99designs/keyring"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/diagnosticoutput"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/testguard"
 )
@@ -282,7 +283,7 @@ func warnInvalidBypassKeychainValueOnce(value string) {
 	invalidBypassKeychainWarningsMu.Unlock()
 
 	fmt.Fprintf(
-		os.Stderr,
+		diagnosticoutput.Writer(os.Stderr),
 		"Warning: invalid %s value %q (expected true/false, 1/0, yes/no, or on/off); %s\n",
 		bypassKeychainEnv,
 		value,

@@ -215,6 +215,7 @@ Use `asc <command> --help` for subcommands and flags.
 
 - `--api-debug` - HTTP request/response logging (redacted)
 - `--debug` - Debug logging
+- `--error-format` - Emit structured errors on stderr. Set before the command name.
 - `--no-telemetry` - Send no telemetry for this invocation (see `DO_NOT_TRACK`)
 - `--profile` - Use a named authentication profile (accepted before or after the command name)
 - `--read-only` - Refuse every mutating request before it is sent (see `ASC_READ_ONLY`)

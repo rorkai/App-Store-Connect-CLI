@@ -353,7 +353,7 @@ func runPublishLocalBuild(ctx context.Context, d *shared.Deps, client *asc.Clien
 		Clean:          config.Clean,
 		Overwrite:      true,
 		XcodebuildArgs: publishArchiveXcodebuildArgs(platform, version, buildNumber, config.ArchiveXcodebuildArgs),
-		LogWriter:      d.IO.ErrOut,
+		LogWriter:      d.IO.ChildStderr(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("archive local build: %w", err)
@@ -389,7 +389,7 @@ func runPublishLocalBuild(ctx context.Context, d *shared.Deps, client *asc.Clien
 		PKGPath:        config.PKGPath,
 		Overwrite:      true,
 		XcodebuildArgs: publishExportXcodebuildArgs(config.ExportXcodebuildArgs),
-		LogWriter:      d.IO.ErrOut,
+		LogWriter:      d.IO.ChildStderr(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("export local build: %w", err)

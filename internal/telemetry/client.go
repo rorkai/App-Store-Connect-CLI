@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/diagnosticoutput"
 )
 
 const (
@@ -225,7 +227,7 @@ func debugf(format string, args ...any) {
 	if !debugEnabled() {
 		return
 	}
-	fmt.Fprintf(os.Stderr, format+"\n", args...)
+	fmt.Fprintf(diagnosticoutput.Writer(os.Stderr), format+"\n", args...)
 }
 
 func debugEnabled() bool {

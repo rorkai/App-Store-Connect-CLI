@@ -132,8 +132,8 @@ func serveDeviceRegistration(ctx context.Context, d *shared.Deps, options device
 		errCh <- httpServer.Serve(listener)
 	}()
 	pageURL := publicURL + "/enroll?token=" + url.QueryEscape(token)
-	fmt.Fprintf(d.IO.ErrOut, "Open this URL on the device, or scan the QR code. Unsigned profiles show as Not Verified on iOS.\n%s\n", pageURL)
-	printDeviceRegistrationQR(d.IO.ErrOut, pageURL)
+	fmt.Fprintf(d.IO.OperatorStderr(), "Open this URL on the device, or scan the QR code. Unsigned profiles show as Not Verified on iOS.\n%s\n", pageURL)
+	printDeviceRegistrationQR(d.IO.OperatorStderr(), pageURL)
 	var serveErr error
 	select {
 	case serveErr = <-errCh:

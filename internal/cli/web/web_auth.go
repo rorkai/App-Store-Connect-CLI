@@ -880,6 +880,7 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, d *shared.Deps, progre
 			return nil, fmt.Errorf("2fa challenge setup failed: %w", prepErr)
 		}
 
+		operatorStderr := d.IO.OperatorStderr()
 		if challenge != nil && challenge.Method == appleauth.TwoFactorMethodSecurityKey {
 			if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey && !securityKeyAvailableFn() {
 				err := fmt.Errorf("security key required by Apple: %w; after installing a supported build, run 'asc web auth login --two-factor-method security-key' explicitly", securitykey.ErrUnavailable)
@@ -893,8 +894,8 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, d *shared.Deps, progre
 				err := errors.New("security key required by Apple; retry with --two-factor-method security-key")
 				return nil, shared.WithDiagnostic(err, shared.DiagnosticConflictingInput, "")
 			}
-			if d.IO.ErrOut != nil {
-				_, _ = fmt.Fprintln(d.IO.ErrOut, "Touch your security key to complete Apple sign-in.")
+			if operatorStderr != nil {
+				_, _ = fmt.Fprintln(operatorStderr, "Touch your security key to complete Apple sign-in.")
 			}
 			interruptCtx, stopInterrupt := signal.NotifyContext(shared.ContextWithoutTimeout(ctx), os.Interrupt)
 			defer stopInterrupt()
@@ -907,37 +908,41 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, d *shared.Deps, progre
 			}
 			return session, nil
 		}
-		if consumedCodeNotice && d.IO.ErrOut != nil {
-			_, _ = fmt.Fprintln(d.IO.ErrOut, "The previous verification code was consumed by the expired session. Enter the new code Apple just sent, not the previous one.")
+		if consumedCodeNotice && operatorStderr != nil {
+			_, _ = fmt.Fprintln(operatorStderr, "The previous verification code was consumed by the expired session. Enter the new code Apple just sent, not the previous one.")
 		}
 
 		writeDeliveryNotice := func(destination string) {
 			destination = strings.TrimSpace(destination)
-			if destination == "" || d.IO.ErrOut == nil {
+			stderr := operatorStderr
+			if command != "" {
+				stderr = d.IO.ErrOut
+			}
+			if destination == "" || stderr == nil {
 				return
 			}
-			_, _ = fmt.Fprintf(d.IO.ErrOut, "Verification code sent to %s.\n", destination)
+			_, _ = fmt.Fprintf(stderr, "Verification code sent to %s.\n", destination)
 		}
 		writeFallbackGuidance := func(usingCommand bool) {
-			if d.IO.ErrOut == nil {
+			if operatorStderr == nil {
 				return
 			}
 			if usingCommand {
 				_, _ = fmt.Fprintln(d.IO.ErrOut, "Trusted-device verification was rejected. Re-running the configured 2FA code command for the phone verification code.")
 				return
 			}
-			_, _ = fmt.Fprintln(d.IO.ErrOut, "Trusted-device verification was rejected. Enter the phone verification code that was just sent.")
+			_, _ = fmt.Fprintln(operatorStderr, "Trusted-device verification was rejected. Enter the phone verification code that was just sent.")
 		}
 		writeInitialPhoneFallbackGuidance := func() {
-			if challenge == nil || !challenge.PhoneFallbackAvailable || d.IO.ErrOut == nil {
+			if challenge == nil || !challenge.PhoneFallbackAvailable || operatorStderr == nil {
 				return
 			}
 			destination := strings.TrimSpace(challenge.Destination)
 			if destination != "" {
-				_, _ = fmt.Fprintf(d.IO.ErrOut, "Need a phone verification code? Enter an incorrect trusted-device code once; Apple will then deliver a verification code to %s.\n", destination)
+				_, _ = fmt.Fprintf(operatorStderr, "Need a phone verification code? Enter an incorrect trusted-device code once; Apple will then deliver a verification code to %s.\n", destination)
 				return
 			}
-			_, _ = fmt.Fprintln(d.IO.ErrOut, "Need a phone verification code? Enter an incorrect trusted-device code once; Apple will then deliver a verification code to your registered phone number.")
+			_, _ = fmt.Fprintln(operatorStderr, "Need a phone verification code? Enter an incorrect trusted-device code once; Apple will then deliver a verification code to your registered phone number.")
 		}
 		codeRequestedAt := d.Now()
 		readCode := func() (string, error) {
