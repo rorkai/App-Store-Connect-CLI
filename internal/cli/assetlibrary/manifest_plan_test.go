@@ -259,6 +259,7 @@ func manifestTestClient(t *testing.T, transport http.RoundTripper) *asc.Client {
 
 func TestCreativeManifestValidationBeforeAPI(t *testing.T) {
 	for _, tc := range []struct{ name, manifest, want string }{
+		{"incomplete replacement identity", `{"schemaVersion":1,"entries":[{"locale":"en-US","file":"header.png","placementType":"PRODUCT_PAGE_HEADER_ASSET","expectedPlacementId":"old"}]}`, "expectedPlacementId and expectedAssetId"},
 		{"unknown field", `{"schemaVersion":1,"entries":[{"locale":"en-US","file":"header.png","placementType":"PRODUCT_PAGE_HEADER_ASSET","unexpected":true}]}`, `unknown field "unexpected"`},
 		{"path escape", `{"schemaVersion":1,"entries":[{"locale":"en-US","file":"../header.png","placementType":"PRODUCT_PAGE_HEADER_ASSET"}]}`, "path escapes trusted root"},
 		{"image poster", `{"schemaVersion":1,"entries":[{"locale":"en-US","file":"header.png","placementType":"PRODUCT_PAGE_HEADER_ASSET","previewFrameTimeCode":"00:00:00:00"}]}`, "previewFrameTimeCode requires video"},

@@ -27,6 +27,8 @@ type creativeManifest struct {
 }
 type creativeManifestEntry struct {
 	Locale               string  `json:"locale"`
+	ExpectedPlacementID  string  `json:"expectedPlacementId,omitempty"`
+	ExpectedAssetID      string  `json:"expectedAssetId,omitempty"`
 	File                 string  `json:"file"`
 	PlacementType        string  `json:"placementType"`
 	PlacementGroup       string  `json:"placementGroup,omitempty"`
@@ -96,73 +98,81 @@ Example:
 			if err != nil {
 				return err
 			}
-			ctx = asc.WithNoRedirectReads(ctx)
-			requestCtx, cancel := d.Timeout(ctx)
-			owned, err := shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, appID, versionID, "")
-			cancel()
+			result, err := buildCreativeManifestPlan(ctx, d, client, appID, versionID, root, manifest)
 			if err != nil {
 				return err
 			}
-			locales, err := creativeManifestLocalizations(ctx, d, client, versionID)
-			if err != nil {
-				return err
-			}
-			libraryRaw, err := getLibraryResource(ctx, d, client, "/v1/apps/"+appID+"/assetLibrary")
-			if err != nil {
-				return err
-			}
-			var library struct{ Data struct{ ID, Type string } }
-			if err := json.Unmarshal(libraryRaw, &library); err != nil {
-				return err
-			}
-			if library.Data.Type != "appAssetLibraries" || !resourceIDPattern.MatchString(library.Data.ID) {
-				return fmt.Errorf("invalid owned Asset Library response")
-			}
-			reference, err := getLibraryResource(ctx, d, client, "/v1/appAssetLibraryRefData")
-			if err != nil {
-				return err
-			}
-			result := &asc.CreativeManifestPlan{AppID: appID, VersionID: versionID, VersionState: string(owned.Attributes.AppStoreState), LibraryID: library.Data.ID, ReadOnly: true, Entries: []asc.CreativeManifestPlanEntry{}}
-			sources := map[string]bool{}
-			for i, entry := range manifest.Entries {
-				if _, _, err := resolvePlacementGroup(d, reference, LocalizationUpload{PlacementType: entry.PlacementType, PlacementGroup: entry.PlacementGroup}); err != nil {
-					return fmt.Errorf("entry %d: %w", i+1, err)
-				}
-				placements := []asc.CreativeManifestPlacement{}
-				localizationID := locales[entry.Locale]
-				if localizationID != "" {
-					placements, err = creativeManifestPlacements(ctx, d, client, localizationID, entry.PlacementType, entry.PlacementGroup)
-					if err != nil {
-						return fmt.Errorf("entry %d: %w", i+1, err)
-					}
-				}
-				planned, err := planCreativeSource(ctx, d, root, entry, reference)
-				if err != nil {
-					return fmt.Errorf("entry %d (%s): %w", i+1, entry.Locale, err)
-				}
-				planned.Locale, planned.LocalizationID, planned.PlacementType, planned.PlacementGroup = entry.Locale, localizationID, entry.PlacementType, entry.PlacementGroup
-				planned.ExistingPlacements = placements
-				planned.TargetStatus = "empty"
-				switch {
-				case localizationID == "":
-					planned.TargetStatus = "missingLocalization"
-				case len(placements) > 1:
-					planned.TargetStatus = "ambiguous"
-				case len(placements) == 1:
-					planned.TargetStatus = "occupied"
-					if placements[0].MediaType != planned.MediaType {
-						planned.TargetStatus = "mediaTypeConflict"
-					} else if placements[0].AssetID == "" {
-						planned.TargetStatus = "unverifiedExistingMedia"
-					}
-				}
-				sources[planned.SourceKey] = true
-				result.Entries = append(result.Entries, planned)
-			}
-			result.UniqueSources = len(sources)
 			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func buildCreativeManifestPlan(ctx context.Context, d *shared.Deps, client *asc.Client, appID, versionID string, root rootfs.Root, manifest creativeManifest) (*asc.CreativeManifestPlan, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
+	owned, err := shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, appID, versionID, "")
+	cancel()
+	if err != nil {
+		return nil, err
+	}
+	locales, err := creativeManifestLocalizations(ctx, d, client, versionID)
+	if err != nil {
+		return nil, err
+	}
+	libraryRaw, err := getLibraryResource(ctx, d, client, "/v1/apps/"+appID+"/assetLibrary")
+	if err != nil {
+		return nil, err
+	}
+	var library struct{ Data struct{ ID, Type string } }
+	if err := json.Unmarshal(libraryRaw, &library); err != nil {
+		return nil, err
+	}
+	if library.Data.Type != "appAssetLibraries" || !resourceIDPattern.MatchString(library.Data.ID) {
+		return nil, fmt.Errorf("invalid owned Asset Library response")
+	}
+	reference, err := getLibraryResource(ctx, d, client, "/v1/appAssetLibraryRefData")
+	if err != nil {
+		return nil, err
+	}
+	result := &asc.CreativeManifestPlan{AppID: appID, VersionID: versionID, VersionState: string(owned.Attributes.AppStoreState), LibraryID: library.Data.ID, ReadOnly: true, Entries: []asc.CreativeManifestPlanEntry{}}
+	sources := map[string]bool{}
+	for i, entry := range manifest.Entries {
+		if _, _, err := resolvePlacementGroup(d, reference, LocalizationUpload{PlacementType: entry.PlacementType, PlacementGroup: entry.PlacementGroup}); err != nil {
+			return nil, fmt.Errorf("entry %d: %w", i+1, err)
+		}
+		placements := []asc.CreativeManifestPlacement{}
+		localizationID := locales[entry.Locale]
+		if localizationID != "" {
+			placements, err = creativeManifestPlacements(ctx, d, client, localizationID, entry.PlacementType, entry.PlacementGroup)
+			if err != nil {
+				return nil, fmt.Errorf("entry %d: %w", i+1, err)
+			}
+		}
+		planned, err := planCreativeSource(ctx, d, root, entry, reference)
+		if err != nil {
+			return nil, fmt.Errorf("entry %d (%s): %w", i+1, entry.Locale, err)
+		}
+		planned.Locale, planned.LocalizationID, planned.PlacementType, planned.PlacementGroup = entry.Locale, localizationID, entry.PlacementType, entry.PlacementGroup
+		planned.ExistingPlacements = placements
+		planned.TargetStatus = "empty"
+		switch {
+		case localizationID == "":
+			planned.TargetStatus = "missingLocalization"
+		case len(placements) > 1:
+			planned.TargetStatus = "ambiguous"
+		case len(placements) == 1:
+			planned.TargetStatus = "occupied"
+			if placements[0].MediaType != planned.MediaType {
+				planned.TargetStatus = "mediaTypeConflict"
+			} else if placements[0].AssetID == "" {
+				planned.TargetStatus = "unverifiedExistingMedia"
+			}
+		}
+		sources[planned.SourceKey] = true
+		result.Entries = append(result.Entries, planned)
+	}
+	result.UniqueSources = len(sources)
+	return result, nil
 }
 
 func decodeCreativeManifest(data []byte) (creativeManifest, error) {
@@ -184,6 +194,9 @@ func decodeCreativeManifest(data []byte) (creativeManifest, error) {
 		locale, err := shared.CanonicalizeAppStoreLocalizationLocale(entry.Locale)
 		if err != nil {
 			return manifest, fmt.Errorf("entry %d locale: %w", i+1, err)
+		}
+		if (entry.ExpectedPlacementID == "") != (entry.ExpectedAssetID == "") || (entry.ExpectedPlacementID != "" && (!resourceIDPattern.MatchString(entry.ExpectedPlacementID) || !resourceIDPattern.MatchString(entry.ExpectedAssetID))) {
+			return manifest, fmt.Errorf("entry %d expectedPlacementId and expectedAssetId require two resource IDs", i+1)
 		}
 		entry.Locale = locale
 		if err := rootfs.ValidateRelative(entry.File); err != nil {

@@ -4,6 +4,14 @@ Operational contracts, endpoint quirks, filter/include rules, and live-verificat
 
 Dated maintainer canary transcripts, authenticated browser/source captures, and disposable test fixture records live in the repository at [API_CANARY_LOG.md](API_CANARY_LOG.md) and are intentionally excluded from the embedded `asc docs show api-notes` guide to keep CLI output concise.
 
+## Creative video assignment readiness
+
+- A processed `CREATIVE_ASSETS` video can return an explicit `videoAsset: null` while `state` is `PREPARE_FOR_SUBMISSION`, `specId` is populated, and its requested poster is `COMPLETE`. Assignment and exact readback were live-verified for a draft app-version header placement in this state. The frozen schema types `videoAsset` as an optional URI string; the observed null is a provider extension.
+- `asset-library manifest apply` accepts this explicit null only with a complete, dimensioned poster and an observable time code matching the requested or retained frame. Missing or empty-string URI fields do not qualify. Standalone video uploads and native preview uploads retain their existing URI-based readiness.
+- The library does not expose an original upload checksum. Manifest source keys describe local bytes and poster choices. Remote reuse requires an acknowledged-transfer checkpoint in the retained journal, owned library, generated transaction reference, processing metadata, and observed poster; filename or size matches alone cannot establish content identity.
+
+- Manifest apply requires native identity-checked atomic journal replacement. Windows is currently unsupported and fails before provider mutations.
+
 ## Enterprise Program API
 
 - `asc auth login --key-type enterprise` (or `ASC_KEY_TYPE=enterprise`) sends requests to `https://api.enterprise.developer.apple.com` with the JWT audience `apple-developer-enterprise-v1`. Enterprise keys are created at developer.apple.com under Users and Access > Integrations, and they work only with this API.
