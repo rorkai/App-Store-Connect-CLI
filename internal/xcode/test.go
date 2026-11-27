@@ -1401,7 +1401,7 @@ func parseRawTestNode(node rawTestNode) (TestCase, error) {
 			return TestCase{}, fmt.Errorf("decode test case duration: %w", err)
 		}
 	}
-	message, attributed := testNodeFailureMessage(node.Children)
+	message, attributed := testNodeMessage(node.Children, status)
 	if !attributed {
 		childMessage := message
 		message = node.Message
@@ -1422,14 +1422,14 @@ func parseRawTestNode(node rawTestNode) (TestCase, error) {
 	}, nil
 }
 
-// testNodeFailureMessage returns the first failure message under a test case.
+// testNodeMessage returns the first diagnostic message under a test case.
 // When the case has device, argument, or repetition variants, it instead lists
-// every failure message in tree order, one line each, prefixed by its variant,
+// every diagnostic message in tree order, one line each, prefixed by its variant,
 // and reports that the text is attributed.
-func testNodeFailureMessage(children []rawTestNode) (string, bool) {
+func testNodeMessage(children []rawTestNode, status string) (string, bool) {
 	var lines []string
 	attributed := false
-	appendTestNodeFailureMessages(&lines, &attributed, children, "")
+	appendTestNodeMessages(&lines, &attributed, children, "", status)
 	if len(lines) == 0 {
 		return "", false
 	}
@@ -1439,7 +1439,7 @@ func testNodeFailureMessage(children []rawTestNode) (string, bool) {
 	return boundTestMessage(strings.Join(lines, "\n")), true
 }
 
-func appendTestNodeFailureMessages(lines *[]string, attributed *bool, children []rawTestNode, variant string) {
+func appendTestNodeMessages(lines *[]string, attributed *bool, children []rawTestNode, variant, status string) {
 	for _, child := range children {
 		childVariant := variant
 		if label := testNodeVariantLabel(child); label != "" {
@@ -1449,7 +1449,10 @@ func appendTestNodeFailureMessages(lines *[]string, attributed *bool, children [
 			}
 			childVariant += label
 		}
-		if strings.EqualFold(strings.TrimSpace(child.NodeType), "failure message") {
+		kind := strings.ToLower(strings.TrimSpace(child.NodeType))
+		if kind == "failure message" ||
+			(kind == "skip message" && status == "skipped") ||
+			(kind == "expected failure" && status == "expected-failure") {
 			message := child.Name
 			if strings.TrimSpace(message) == "" {
 				message = child.Message
@@ -1465,7 +1468,7 @@ func appendTestNodeFailureMessages(lines *[]string, attributed *bool, children [
 				*lines = append(*lines, message)
 			}
 		}
-		appendTestNodeFailureMessages(lines, attributed, child.Children, childVariant)
+		appendTestNodeMessages(lines, attributed, child.Children, childVariant, status)
 	}
 }
 

@@ -17,11 +17,11 @@ import (
 )
 
 const junitSummaryFixture = `{
-  "totalTestCount": 2,
+  "totalTestCount": 4,
   "passedTests": 1,
   "failedTests": 1,
-  "skippedTests": 0,
-  "expectedFailures": 0
+  "skippedTests": 1,
+  "expectedFailures": 1
 }`
 
 const junitCasesFixture = `{
@@ -37,7 +37,24 @@ const junitCasesFixture = `{
       "nodeIdentifier": "DemoTests/Smoke/testFail",
       "name": "testFail",
       "result": "Failed",
-      "message": "expected true"
+      "children": [
+        {"nodeType":"Expected Failure","name":"An anticipated issue in this test."},
+        {"nodeType":"Failure Message","name":"expected true"}
+      ]
+    },
+    {
+      "nodeType": "Test Case",
+      "nodeIdentifier": "ReasonTests/testSkippedFeature()",
+      "name": "testSkippedFeature()",
+      "result": "Skipped",
+      "children": [{"nodeType":"Skip Message","name":"Test skipped - The fixture deliberately skips an unavailable feature."}]
+    },
+    {
+      "nodeType": "Test Case",
+      "nodeIdentifier": "ReasonTests/testExpectedFailure()",
+      "name": "testExpectedFailure()",
+      "result": "Expected Failure",
+      "children": [{"nodeType":"Expected Failure","name":"The fixture tracks a known calculation discrepancy."}]
     }
   ]
 }`
@@ -72,10 +89,50 @@ func TestXcodeTestJUnitWritesGoldenReportFromFixtureSummary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	xml := string(data)
-	for _, want := range []string{`name="testPass"`, `name="testFail"`, `failures="1"`, `asc xcode test junit`} {
-		if !strings.Contains(xml, want) {
-			t.Fatalf("junit xml missing %q:\n%s", want, xml)
+	var suite struct {
+		Name     string `xml:"name,attr"`
+		Tests    int    `xml:"tests,attr"`
+		Failures int    `xml:"failures,attr"`
+		Skipped  int    `xml:"skipped,attr"`
+		Cases    []struct {
+			Name    string `xml:"name,attr"`
+			Failure *struct {
+				Message string `xml:"message,attr"`
+			} `xml:"failure"`
+			Skipped *struct {
+				Message string `xml:"message,attr"`
+			} `xml:"skipped"`
+			SystemOut string `xml:"system-out"`
+		} `xml:"testcase"`
+	}
+	if err := xml.Unmarshal(data, &suite); err != nil {
+		t.Fatalf("decode junit: %v\n%s", err, data)
+	}
+	if suite.Name != "asc xcode test junit" || suite.Tests != 4 || suite.Failures != 1 || suite.Skipped != 1 || len(suite.Cases) != 4 {
+		t.Fatalf("unexpected junit suite: %s", data)
+	}
+	wantMessages := map[string]string{
+		"testPass": "", "testFail": "expected true",
+		"testSkippedFeature()":  "Test skipped - The fixture deliberately skips an unavailable feature.",
+		"testExpectedFailure()": "Expected failure: The fixture tracks a known calculation discrepancy.",
+	}
+	for _, testCase := range suite.Cases {
+		want, ok := wantMessages[testCase.Name]
+		if !ok {
+			t.Fatalf("unexpected testcase %q: %s", testCase.Name, data)
+		}
+		delete(wantMessages, testCase.Name)
+		if (testCase.Failure != nil) != (testCase.Name == "testFail") || (testCase.Skipped != nil) != (testCase.Name == "testSkippedFeature()") {
+			t.Errorf("testcase %q status lost: %s", testCase.Name, data)
+		}
+		message := testCase.SystemOut
+		if testCase.Failure != nil {
+			message = testCase.Failure.Message
+		} else if testCase.Skipped != nil {
+			message = testCase.Skipped.Message
+		}
+		if message != want {
+			t.Errorf("testcase %q message = %q, want %q", testCase.Name, message, want)
 		}
 	}
 }
