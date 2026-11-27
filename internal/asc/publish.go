@@ -13,12 +13,14 @@ const (
 // PublishArchiveStageResult captures local archive stage details for nested
 // publish command output.
 type PublishArchiveStageResult struct {
-	ArchivePath   string `json:"archivePath"`
-	BundleID      string `json:"bundleId,omitempty"`
-	Version       string `json:"version,omitempty"`
-	BuildNumber   string `json:"buildNumber,omitempty"`
-	Scheme        string `json:"scheme,omitempty"`
-	Configuration string `json:"configuration,omitempty"`
+	ArchivePath     string                `json:"archivePath"`
+	BundleID        string                `json:"bundleId,omitempty"`
+	Version         string                `json:"version,omitempty"`
+	BuildNumber     string                `json:"buildNumber,omitempty"`
+	Scheme          string                `json:"scheme,omitempty"`
+	Configuration   string                `json:"configuration,omitempty"`
+	DisplayName     string                `json:"displayName,omitempty"`
+	ProjectCheckout *XcodeProjectCheckout `json:"projectCheckout,omitempty"`
 }
 
 // PublishExportStageResult captures local export stage details for nested
@@ -30,6 +32,7 @@ type PublishExportStageResult struct {
 	BundleID          string `json:"bundleId,omitempty"`
 	Version           string `json:"version,omitempty"`
 	BuildNumber       string `json:"buildNumber,omitempty"`
+	DisplayName       string `json:"displayName,omitempty"`
 	ExportOptionsPath string `json:"exportOptionsPath,omitempty"`
 	DirectUpload      bool   `json:"directUpload"`
 }

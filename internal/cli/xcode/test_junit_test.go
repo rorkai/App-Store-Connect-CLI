@@ -2,6 +2,7 @@ package xcode
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"os"
@@ -9,17 +10,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const junitSummaryFixture = `{
-  "totalTestCount": 2,
+  "totalTestCount": 4,
   "passedTests": 1,
   "failedTests": 1,
-  "skippedTests": 0,
-  "expectedFailures": 0
+  "skippedTests": 1,
+  "expectedFailures": 1
 }`
 
 const junitCasesFixture = `{
@@ -35,7 +37,24 @@ const junitCasesFixture = `{
       "nodeIdentifier": "DemoTests/Smoke/testFail",
       "name": "testFail",
       "result": "Failed",
-      "message": "expected true"
+      "children": [
+        {"nodeType":"Expected Failure","name":"An anticipated issue in this test."},
+        {"nodeType":"Failure Message","name":"expected true"}
+      ]
+    },
+    {
+      "nodeType": "Test Case",
+      "nodeIdentifier": "ReasonTests/testSkippedFeature()",
+      "name": "testSkippedFeature()",
+      "result": "Skipped",
+      "children": [{"nodeType":"Skip Message","name":"Test skipped - The fixture deliberately skips an unavailable feature."}]
+    },
+    {
+      "nodeType": "Test Case",
+      "nodeIdentifier": "ReasonTests/testExpectedFailure()",
+      "name": "testExpectedFailure()",
+      "result": "Expected Failure",
+      "children": [{"nodeType":"Expected Failure","name":"The fixture tracks a known calculation discrepancy."}]
     }
   ]
 }`
@@ -70,10 +89,50 @@ func TestXcodeTestJUnitWritesGoldenReportFromFixtureSummary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	xml := string(data)
-	for _, want := range []string{`name="testPass"`, `name="testFail"`, `failures="1"`, `asc xcode test junit`} {
-		if !strings.Contains(xml, want) {
-			t.Fatalf("junit xml missing %q:\n%s", want, xml)
+	var suite struct {
+		Name     string `xml:"name,attr"`
+		Tests    int    `xml:"tests,attr"`
+		Failures int    `xml:"failures,attr"`
+		Skipped  int    `xml:"skipped,attr"`
+		Cases    []struct {
+			Name    string `xml:"name,attr"`
+			Failure *struct {
+				Message string `xml:"message,attr"`
+			} `xml:"failure"`
+			Skipped *struct {
+				Message string `xml:"message,attr"`
+			} `xml:"skipped"`
+			SystemOut string `xml:"system-out"`
+		} `xml:"testcase"`
+	}
+	if err := xml.Unmarshal(data, &suite); err != nil {
+		t.Fatalf("decode junit: %v\n%s", err, data)
+	}
+	if suite.Name != "asc xcode test junit" || suite.Tests != 4 || suite.Failures != 1 || suite.Skipped != 1 || len(suite.Cases) != 4 {
+		t.Fatalf("unexpected junit suite: %s", data)
+	}
+	wantMessages := map[string]string{
+		"testPass": "", "testFail": "expected true",
+		"testSkippedFeature()":  "Test skipped - The fixture deliberately skips an unavailable feature.",
+		"testExpectedFailure()": "Expected failure: The fixture tracks a known calculation discrepancy.",
+	}
+	for _, testCase := range suite.Cases {
+		want, ok := wantMessages[testCase.Name]
+		if !ok {
+			t.Fatalf("unexpected testcase %q: %s", testCase.Name, data)
+		}
+		delete(wantMessages, testCase.Name)
+		if (testCase.Failure != nil) != (testCase.Name == "testFail") || (testCase.Skipped != nil) != (testCase.Name == "testSkippedFeature()") {
+			t.Errorf("testcase %q status lost: %s", testCase.Name, data)
+		}
+		message := testCase.SystemOut
+		if testCase.Failure != nil {
+			message = testCase.Failure.Message
+		} else if testCase.Skipped != nil {
+			message = testCase.Skipped.Message
+		}
+		if message != want {
+			t.Errorf("testcase %q message = %q, want %q", testCase.Name, message, want)
 		}
 	}
 }
@@ -274,10 +333,17 @@ func TestXcodeTestDestinationsParsesFixtureAndFiltersUnavailable(t *testing.T) {
 		}
 		calls++
 		return []byte(`{
+		  "runtimes": [
+		    {"identifier":"com.apple.CoreSimulator.SimRuntime.iOS-27-1","version":"27.1"},
+		    {"identifier":"com.apple.CoreSimulator.SimRuntime.iOS-27-2-iPhone19-4","version":"27.2"}
+		  ],
 		  "devices": {
-		    "com.apple.CoreSimulator.SimRuntime.iOS-18-2": [
+		    "com.apple.CoreSimulator.SimRuntime.iOS-27-2-iPhone19-4": [
 		      {"udid":"11111111-1111-1111-1111-111111111111","name":"iPhone 16","state":"Shutdown","isAvailable":true},
 		      {"udid":"22222222-2222-2222-2222-222222222222","name":"iPhone 16 Unavailable","state":"Shutdown","isAvailable":false}
+		    ],
+		    "com.apple.CoreSimulator.SimRuntime.iOS-18-2": [
+		      {"udid":"44444444-4444-4444-4444-444444444444","name":"iPhone 16 Legacy","state":"Shutdown","isAvailable":true}
 		    ],
 		    "com.apple.CoreSimulator.SimRuntime.xrOS-2-1": [
 		      {"udid":"33333333-3333-3333-3333-333333333333","name":"Apple Vision Pro","state":"Shutdown","isAvailable":true}
@@ -299,6 +365,22 @@ func TestXcodeTestDestinationsParsesFixtureAndFiltersUnavailable(t *testing.T) {
 	}
 	if strings.Contains(stdout, "22222222") || strings.Contains(stdout, "visionOS") || strings.Contains(stdout, "platform=macOS") {
 		t.Fatalf("filtered destinations leaked: %s", stdout)
+	}
+	var result asc.XcodeTestDestinationsResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("decode destinations: %v\n%s", err, stdout)
+	}
+	wantVersions := map[string]string{
+		"11111111-1111-1111-1111-111111111111": "27.2",
+		"44444444-4444-4444-4444-444444444444": "18.2",
+	}
+	if len(result.Destinations) != len(wantVersions) {
+		t.Fatalf("destinations = %+v, want %d", result.Destinations, len(wantVersions))
+	}
+	for _, destination := range result.Destinations {
+		if want := wantVersions[destination.UDID]; destination.Runtime != want {
+			t.Errorf("destination %s runtime = %q, want %q", destination.UDID, destination.Runtime, want)
+		}
 	}
 }
 

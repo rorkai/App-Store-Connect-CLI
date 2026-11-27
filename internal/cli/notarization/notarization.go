@@ -121,9 +121,10 @@ func NewNotarizationCommand(d *shared.Deps) *ffcli.Command {
 		Name:       "notarization",
 		ShortUsage: "asc notarization <subcommand> [flags]",
 		ShortHelp:  "Manage macOS notarization submissions.",
-		LongHelp: `Manage macOS notarization submissions via the Apple Notary API.
+		LongHelp: `Package macOS apps locally and manage submissions via the Apple Notary API.
 
 Examples:
+  asc notarization package --file ./MyApp.app --output-path ./MyApp.zip
   asc notarization submit --file ./MyApp.zip
   asc notarization submit --file ./MyApp.zip --wait
   asc notarization staple --file ./MyApp.dmg --confirm
@@ -133,6 +134,7 @@ Examples:
   asc notarization list`,
 		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			packageCommand(d),
 			submitCommand(d),
 			stapleCommand(d),
 			validateStapleCommand(d),
