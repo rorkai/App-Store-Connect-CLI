@@ -118,7 +118,9 @@ func newWebAuthCapabilitiesCommand(d *shared.Deps) *ffcli.Command {
 		LongHelp: `WEB SESSION WORKFLOWS
 
 Return exact role metadata for an App Store Connect API key using Apple web-session endpoints, then map those roles to the bundled Apple capability reference.
-Unlike "asc auth capabilities", which probes effective public-API access, this command reads the web-visible key role assignment directly and expands it with documented role capabilities.
+Use "asc account status" to check whether the API credential can list apps.
+Add --app APP_ID to check access to a specific app. This read probe confirms
+access to that resource. The web command reports the documented role capabilities.
 
 JSON output includes:
   - exact role codes and role details
