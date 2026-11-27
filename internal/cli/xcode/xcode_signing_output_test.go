@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 )
 
@@ -44,6 +45,10 @@ func TestXcodeSigningPlanOutputPreservesArtifactJSONShape(t *testing.T) {
 			NewValue:      &value,
 			Path:          "/tmp/Demo.xcodeproj/project.pbxproj",
 			Source:        "pbxproj",
+		}},
+		Inferences: []localxcode.SigningPlanInference{{
+			ProfileUUID:  "profile-uuid",
+			Verification: asc.SigningProfileVerification{CMSSignature: "verified", AppleTrust: "notChecked"},
 		}},
 		MissingOptionalIncludes: []string{"/tmp/Configs/Missing.xcconfig"},
 		Blockers:                []string{},
