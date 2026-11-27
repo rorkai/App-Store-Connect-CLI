@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
@@ -13,9 +15,13 @@ func TestPublishTestflightExistingBuildIDSkipsUpload(t *testing.T) {
 	// The build's app version is only reported, so a failed pre-release read
 	// leaves it out of the receipt rather than stopping the distribution.
 	for _, tc := range []struct {
-		name        string
-		preRelease  asctest.Responder
-		wantVersion string
+		name              string
+		preRelease        asctest.Responder
+		wantVersion       string
+		timeout           string
+		configTimeout     string
+		wantElapsed       time.Duration
+		distributionDelay time.Duration
 	}{
 		{
 			name:        "reports the build's app version",
@@ -26,11 +32,34 @@ func TestPublishTestflightExistingBuildIDSkipsUpload(t *testing.T) {
 			name:       "distributes when the app version cannot be read",
 			preRelease: asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"There is no resource of type 'preReleaseVersions' for build 'build-1'"}]}`),
 		},
+		{
+			name:        "bounds a stalled receipt lookup without wait",
+			wantElapsed: 5 * time.Second,
+		},
+		{
+			name:        "honors a shorter explicit timeout",
+			timeout:     "1s",
+			wantElapsed: time.Second,
+		},
+		{
+			name:          "honors a shorter configured timeout",
+			configTimeout: "2s",
+			wantElapsed:   2 * time.Second,
+		},
+		{
+			name:              "honors the remaining publish timeout",
+			timeout:           "1s",
+			distributionDelay: 750 * time.Millisecond,
+			wantElapsed:       time.Second,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			t.Setenv("ASC_APP_ID", "")
+			t.Setenv("ASC_TIMEOUT", tc.configTimeout)
+			t.Setenv("ASC_TIMEOUT_SECONDS", "")
+			t.Setenv("ASC_MAX_RETRIES", "0")
 
 			reg := asctest.NewRegistry(t)
 			reg.Register(asctest.GET("/v1/builds/build-1/app"),
@@ -41,16 +70,44 @@ func TestPublishTestflightExistingBuildIDSkipsUpload(t *testing.T) {
 				asctest.JSON(http.StatusOK, `{"data":[]}`))
 			reg.Register(asctest.GET("/v1/builds/build-1"),
 				asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
-			reg.Register(asctest.GET("/v1/builds/build-1/preReleaseVersion"), tc.preRelease)
+			preRelease := tc.preRelease
+			if preRelease == nil {
+				preRelease = func(req *http.Request) (*http.Response, error) {
+					<-req.Context().Done()
+					return nil, req.Context().Err()
+				}
+			}
+			reg.Register(asctest.GET("/v1/builds/build-1/preReleaseVersion"), preRelease)
 			reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-1"}]}`),
-				asctest.JSON(http.StatusNoContent, ""))
+				func(req *http.Request) (*http.Response, error) {
+					<-time.After(tc.distributionDelay)
+					return asctest.JSON(http.StatusNoContent, "")(req)
+				})
 
-			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), []string{
+			args := []string{
 				"publish", "testflight",
 				"--app", "123",
 				"--build-id", "build-1",
 				"--group", "group-1",
-			}...)
+			}
+			if tc.timeout != "" {
+				args = append(args, "--timeout", tc.timeout)
+			}
+			client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if err := req.Context().Err(); err != nil {
+					return nil, err
+				}
+				return reg.RoundTrip(req)
+			}))
+			var stdout, stderr string
+			var err error
+			synctest.Test(t, func(t *testing.T) {
+				start := time.Now()
+				stdout, stderr, err = runRootWithDeps(t, client, args...)
+				if elapsed := time.Since(start); elapsed != tc.wantElapsed {
+					t.Errorf("publish elapsed = %s, want %s", elapsed, tc.wantElapsed)
+				}
+			})
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -109,6 +166,9 @@ func TestPublishTestflightExistingBuildDoesNotRetryPostUploadPropagationError(t 
 	}
 	if !strings.Contains(stdout, `"status":"failed"`) || !strings.Contains(stdout, `"failureCode":"beta_group_distribution_failed"`) || strings.Contains(stdout, `"status":"partial"`) || stderr != "" {
 		t.Fatalf("existing-build failure must have a failed receipt without invented progress: stdout=%q stderr=%q", stdout, stderr)
+	}
+	if result := decodePublishTestFlightSubmitOutput(t, stdout); result.BuildVersion != "1.2.3" {
+		t.Fatalf("failed receipt lost the build's app version: %+v", result)
 	}
 }
 

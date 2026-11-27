@@ -111,7 +111,6 @@ func TestPublishTestflightSubmitWaitsForProcessingBeforeAddingGroups(t *testing.
 		"GET /v1/apps/123/betaGroups",
 		"GET /v1/builds/build-1/app",
 		"GET /v1/builds/build-1",
-		"GET /v1/builds/build-1/preReleaseVersion",
 		"GET /v1/builds/build-1",
 		"GET /v1/builds/build-1/betaAppReviewSubmission",
 		"GET /v1/betaAppLocalizations",
@@ -121,6 +120,7 @@ func TestPublishTestflightSubmitWaitsForProcessingBeforeAddingGroups(t *testing.
 		"POST /v1/builds/build-1/relationships/betaGroups",
 		"GET /v1/builds/build-1/betaAppReviewSubmission",
 		"POST /v1/betaAppReviewSubmissions",
+		"GET /v1/builds/build-1/preReleaseVersion",
 	)
 	result := decodePublishTestFlightSubmitOutput(t, stdout)
 	if result.BetaReviewSubmitted == nil || !*result.BetaReviewSubmitted {

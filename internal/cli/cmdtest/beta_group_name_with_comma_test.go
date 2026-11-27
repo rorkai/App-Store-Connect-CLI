@@ -78,7 +78,13 @@ func TestBetaGroupFlagResolvesWholeNameBeforeSplittingOnCommas(t *testing.T) {
 				} `json:"data"`
 			}
 			requests := reg.Requests()
-			if err := json.Unmarshal(requests[len(requests)-1].Body, &payload); err != nil {
+			assignment := slices.IndexFunc(requests, func(req asctest.Request) bool {
+				return req.Method == http.MethodPost && req.URL.Path == "/v1/builds/build-1/relationships/betaGroups"
+			})
+			if assignment < 0 {
+				t.Fatal("missing beta group assignment request")
+			}
+			if err := json.Unmarshal(requests[assignment].Body, &payload); err != nil {
 				t.Fatalf("failed to decode group assignment payload: %v", err)
 			}
 			var addedIDs []string
