@@ -2,6 +2,7 @@ package xcode
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -274,10 +276,17 @@ func TestXcodeTestDestinationsParsesFixtureAndFiltersUnavailable(t *testing.T) {
 		}
 		calls++
 		return []byte(`{
+		  "runtimes": [
+		    {"identifier":"com.apple.CoreSimulator.SimRuntime.iOS-27-1","version":"27.1"},
+		    {"identifier":"com.apple.CoreSimulator.SimRuntime.iOS-27-2-iPhone19-4","version":"27.2"}
+		  ],
 		  "devices": {
-		    "com.apple.CoreSimulator.SimRuntime.iOS-18-2": [
+		    "com.apple.CoreSimulator.SimRuntime.iOS-27-2-iPhone19-4": [
 		      {"udid":"11111111-1111-1111-1111-111111111111","name":"iPhone 16","state":"Shutdown","isAvailable":true},
 		      {"udid":"22222222-2222-2222-2222-222222222222","name":"iPhone 16 Unavailable","state":"Shutdown","isAvailable":false}
+		    ],
+		    "com.apple.CoreSimulator.SimRuntime.iOS-18-2": [
+		      {"udid":"44444444-4444-4444-4444-444444444444","name":"iPhone 16 Legacy","state":"Shutdown","isAvailable":true}
 		    ],
 		    "com.apple.CoreSimulator.SimRuntime.xrOS-2-1": [
 		      {"udid":"33333333-3333-3333-3333-333333333333","name":"Apple Vision Pro","state":"Shutdown","isAvailable":true}
@@ -299,6 +308,22 @@ func TestXcodeTestDestinationsParsesFixtureAndFiltersUnavailable(t *testing.T) {
 	}
 	if strings.Contains(stdout, "22222222") || strings.Contains(stdout, "visionOS") || strings.Contains(stdout, "platform=macOS") {
 		t.Fatalf("filtered destinations leaked: %s", stdout)
+	}
+	var result asc.XcodeTestDestinationsResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("decode destinations: %v\n%s", err, stdout)
+	}
+	wantVersions := map[string]string{
+		"11111111-1111-1111-1111-111111111111": "27.2",
+		"44444444-4444-4444-4444-444444444444": "18.2",
+	}
+	if len(result.Destinations) != len(wantVersions) {
+		t.Fatalf("destinations = %+v, want %d", result.Destinations, len(wantVersions))
+	}
+	for _, destination := range result.Destinations {
+		if want := wantVersions[destination.UDID]; destination.Runtime != want {
+			t.Errorf("destination %s runtime = %q, want %q", destination.UDID, destination.Runtime, want)
+		}
 	}
 }
 
