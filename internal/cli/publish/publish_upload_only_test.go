@@ -38,7 +38,7 @@ func TestPublishTestFlightUploadOnlyIPAWaitsThenStopsBeforeDistribution(t *testi
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "friendly-app",
-		"--ipa", "Demo.ipa",
+		"--ipa", writePublishIPA(t, "iPhoneOS"),
 		"--version", "1.2.3",
 		"--build-number", "42",
 		"--upload-only",
@@ -285,7 +285,7 @@ func TestPublishTestFlightUploadOnlyProcessingFailurePrintsPartialBuildAndDoesNo
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "friendly-app",
-		"--ipa", "Demo.ipa",
+		"--ipa", writePublishIPA(t, "iPhoneOS"),
 		"--version", "1.2.3",
 		"--build-number", "42",
 		"--upload-only",

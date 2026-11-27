@@ -411,7 +411,7 @@ func TestPublishTestFlightUploadReportsStructuredRecoveryResultAfterBetaReviewFa
 
 	stdout, _, runErr := runPublishCommand(t, newPublishTestFlightCommand, []string{
 		"--app", "app-123",
-		"--ipa", "Demo.ipa",
+		"--ipa", writePublishIPA(t, "iPhoneOS"),
 		"--version", "1.2.3",
 		"--build-number", "42",
 		"--group", "External",
@@ -462,7 +462,7 @@ func TestPublishTestFlightUploadTestNotesFailurePreservesStructuredRecoveryConte
 
 	stdout, _, runErr := runPublishCommand(t, newPublishTestFlightCommand, []string{
 		"--app", "app-123",
-		"--ipa", "Demo.ipa",
+		"--ipa", writePublishIPA(t, "iPhoneOS"),
 		"--version", "1.2.3",
 		"--build-number", "42",
 		"--group", "External",
@@ -537,7 +537,7 @@ func TestPublishTestFlightUploadReportsTerminalProcessingStateAfterWaitFailure(t
 
 	stdout, _, runErr := runPublishCommand(t, newPublishTestFlightCommand, []string{
 		"--app", "app-123",
-		"--ipa", "Demo.ipa",
+		"--ipa", writePublishIPA(t, "iPhoneOS"),
 		"--version", "1.2.3",
 		"--build-number", "42",
 		"--group", "External",
@@ -990,7 +990,7 @@ func TestPublishIPAUploadResolvesAppIDBeforeUpload(t *testing.T) {
 
 			stdout, stderr, runErr := runPublishCommand(t, test.command, append([]string{
 				"--app", "friendly-app",
-				"--ipa", "Demo.ipa",
+				"--ipa", writePublishIPA(t, "iPhoneOS"),
 				"--version", "1.2.3",
 				"--build-number", "42",
 				"--poll-interval", "5s",
@@ -1119,7 +1119,7 @@ func TestPublishAppStoreMetadataDirAppliesAfterEnsureVersionBeforeAttach(t *test
 
 	stdout, _, runErr := runPublishCommandOnFakeClock(t, newPublishAppStoreCommand, []string{
 		"--app", "app-1",
-		"--ipa", "app.ipa",
+		"--ipa", writePublishIPA(t, "iPhoneOS"),
 		"--version", "1.2.3",
 		"--build-number", "42",
 		"--metadata-dir", metadataDir,
@@ -1190,7 +1190,7 @@ func TestPublishAppStoreMetadataInputFailureUsesUsageExit(t *testing.T) {
 
 	stdout, stderr, runErr := runPublishCommand(t, newPublishAppStoreCommand, []string{
 		"--app", "app-1",
-		"--ipa", "app.ipa",
+		"--ipa", writePublishIPA(t, "iPhoneOS"),
 		"--version", "1.2.3",
 		"--build-number", "42",
 		"--metadata-dir", metadataDir,
@@ -1252,7 +1252,7 @@ func TestPublishAppStoreRefreshesVersionContextAfterProcessingWait(t *testing.T)
 
 	stdout, stderr, _ := runPublishCommandOnFakeClock(t, newPublishAppStoreCommand, []string{
 		"--app", "app-1",
-		"--ipa", "app.ipa",
+		"--ipa", writePublishIPA(t, "iPhoneOS"),
 		"--version", "1.2.3",
 		"--build-number", "42",
 		"--wait",
@@ -1268,10 +1268,7 @@ func TestPublishAppStoreDryRunPlanIncludesMetadataStepWhenMetadataDirProvided(t 
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
 
-	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
-	if err := os.WriteFile(ipaPath, []byte("payload"), 0o600); err != nil {
-		t.Fatalf("write IPA fixture: %v", err)
-	}
+	ipaPath := writePublishIPA(t, "iPhoneOS")
 	metadataDir := t.TempDir()
 	writePublishVersionMetadataFixture(t, metadataDir, "1.2.3")
 

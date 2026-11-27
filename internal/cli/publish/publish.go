@@ -84,7 +84,7 @@ func newPublishTestFlightCommand(d *shared.Deps) *ffcli.Command {
 	version := fs.String("version", "", "CFBundleShortVersionString (auto-extracted from IPA if not provided; required with --pkg)")
 	buildNumber := fs.String("build-number", "", "CFBundleVersion (required with --pkg; used for build lookup when no artifact is provided)")
 	shared.BindBuildFlagAlias(fs)
-	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
+	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (auto-detected from prebuilt artifacts when omitted)")
 	groupIDs := fs.String("group", "", "Beta group ID(s) or name(s), comma-separated")
 	uploadOnly := fs.Bool("upload-only", false, "Upload the build without adding it to beta groups or submitting beta review")
 	notify := fs.Bool("notify", false, "Request a build-wide tester notification after adding groups")
@@ -289,10 +289,9 @@ Examples:
 					uploadFileInfo, err = validatePublishPKGPathFn(d.OSPath(pkgValue))
 					uploadVersionValue, uploadBuildNumberValue = versionValue, buildNumberValue
 				} else {
-					uploadFileInfo, err = validatePublishIPAPathFn(d.OSPath(ipaValue))
-					if err == nil {
-						uploadVersionValue, uploadBuildNumberValue, err = shared.ResolveBundleInfoForIPA(d.OSPath(ipaValue), *version, *buildNumber)
-					}
+					var info shared.IPABundleInfo
+					uploadFileInfo, info, err = resolvePublishIPA(d, ipaValue, *version, *buildNumber, normalizedPlatform, setFlags["platform"])
+					uploadVersionValue, uploadBuildNumberValue, normalizedPlatform = info.Version, info.BuildNumber, string(info.Platform)
 				}
 				if err != nil {
 					return fmt.Errorf("publish testflight: %w", err)
@@ -619,7 +618,7 @@ func newPublishAppStoreCommand(d *shared.Deps) *ffcli.Command {
 	pkgPath := fs.String("pkg", "", "Path to prebuilt macOS .pkg file (requires --version and --build-number)")
 	version := fs.String("version", "", "App Store version string (defaults to IPA version; required with --pkg)")
 	buildNumber := fs.String("build-number", "", "CFBundleVersion (auto-extracted from IPA; required with --pkg)")
-	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
+	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (auto-detected from prebuilt artifacts when omitted)")
 	metadataDir := fs.String("metadata-dir", "", "Metadata directory with version/<version>/*.json files to apply after ensuring the App Store version")
 	submit := fs.Bool("submit", false, "Submit for review after attaching build")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required with --submit)")
@@ -749,10 +748,9 @@ Examples:
 				if pkgValue != "" {
 					fileInfo, err = validatePublishPKGPathFn(d.OSPath(pkgValue))
 				} else {
-					fileInfo, err = validatePublishIPAPathFn(d.OSPath(ipaValue))
-					if err == nil {
-						versionValue, buildNumberValue, err = shared.ResolveBundleInfoForIPA(d.OSPath(ipaValue), *version, *buildNumber)
-					}
+					var info shared.IPABundleInfo
+					fileInfo, info, err = resolvePublishIPA(d, ipaValue, *version, *buildNumber, normalizedPlatform, setFlags["platform"])
+					versionValue, buildNumberValue, normalizedPlatform = info.Version, info.BuildNumber, string(info.Platform)
 				}
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
@@ -1241,6 +1239,24 @@ func validatePublishPKGMetadata(d *shared.Deps, version, buildNumber string) err
 		return d.UsageErrorf("%s required for PKG uploads", strings.Join(missingFlags, " and "))
 	}
 	return nil
+}
+
+func resolvePublishIPA(d *shared.Deps, ipaPath, version, buildNumber, platform string, platformWasSet bool) (os.FileInfo, shared.IPABundleInfo, error) {
+	fileInfo, err := validatePublishIPAPathFn(d.OSPath(ipaPath))
+	if err != nil {
+		return nil, shared.IPABundleInfo{}, err
+	}
+	info, err := shared.ResolveBundleInfoForIPA(d.OSPath(ipaPath), version, buildNumber)
+	if err != nil {
+		return nil, shared.IPABundleInfo{}, err
+	}
+	if info.Platform == "" {
+		info.Platform = asc.Platform(platform)
+	} else if platformWasSet && platform != string(info.Platform) {
+		return nil, shared.IPABundleInfo{}, d.UsageErrorf("--platform %s does not match IPA platform %s", platform, info.Platform)
+	}
+	_, err = validatePublishPrebuiltArtifactPlatform(d, ipaPath, "", string(info.Platform), true)
+	return fileInfo, info, err
 }
 
 func validatePublishPrebuiltArtifactPlatform(d *shared.Deps, ipaPath, pkgPath, platform string, platformWasSet bool) (string, error) {
