@@ -690,13 +690,13 @@ func TestWebAuthCapabilitiesAuthResolutionFailureIsUsageError(t *testing.T) {
 	}
 }
 
-func TestWebAuthCapabilitiesHelpContrastsPublicCapabilities(t *testing.T) {
+func TestWebAuthCapabilitiesHelpPointsToAccountAccessProbe(t *testing.T) {
 	d, _, _ := newWebTestDeps()
 	cmd := newWebAuthCapabilitiesCommand(d)
 	usage := cmd.UsageFunc(cmd)
 
-	if !strings.Contains(usage, `Unlike "asc auth capabilities", which probes effective public-API access`) {
-		t.Fatalf("expected usage to contrast public auth capabilities, got %q", usage)
+	if !strings.Contains(usage, `asc account status`) {
+		t.Fatalf("expected usage to name the public API access probe, got %q", usage)
 	}
 	if !strings.Contains(usage, "--key-id") {
 		t.Fatalf("expected usage to describe --key-id, got %q", usage)
