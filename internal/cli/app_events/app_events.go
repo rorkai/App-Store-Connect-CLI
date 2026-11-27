@@ -25,7 +25,7 @@ func NewAppEventsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc app-events list --app "APP_ID"
   asc app-events view --event-id "EVENT_ID"
-  asc app-events create --app "APP_ID" --name "Summer Challenge" --event-type CHALLENGE --start "2026-06-01T00:00:00Z" --end "2026-06-30T23:59:59Z"
+  asc app-events create --app "APP_ID" --name "Summer Challenge" --event-type CHALLENGE --start "2026-06-01T00:00:00Z" --end "2026-06-30T23:59:59Z" --territories all
   asc app-events update --event-id "EVENT_ID" --priority HIGH
   asc app-events delete --event-id "EVENT_ID" --confirm
   asc app-events links --event-id "EVENT_ID"`,
@@ -174,10 +174,10 @@ func newAppEventsCreateCommand(d *shared.Deps) *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	name := fs.String("name", "", "Reference name")
 	eventType := fs.String("event-type", "", "Event type: "+strings.Join(asc.ValidAppEventBadges, ", "))
-	start := fs.String("start", "", "Event start time (RFC3339)")
+	start := fs.String("start", "", "Event start time (RFC3339); events last 15 minutes to 31 days")
 	end := fs.String("end", "", "Event end time (RFC3339)")
-	publishStart := fs.String("publish-start", "", "Publish start time (RFC3339)")
-	territories := shared.BindOnceCSVFlag(fs, "territories", "Territory codes (comma-separated)")
+	publishStart := fs.String("publish-start", "", "Publish start time (RFC3339), at most 14 days before --start")
+	territories := shared.BindOnceCSVFlag(fs, "territories", "Territory codes (comma-separated), or all for every territory the app is available in")
 	deepLink := fs.String("deep-link", "", "URL that Open on the event card leads to; App Store Connect asks for one before review")
 	purchaseRequirement := fs.String("purchase-requirement", "", "Purchase requirement (currently supported: "+supportedAppEventPurchaseRequirementValues()+")")
 	primaryLocale := fs.String("primary-locale", "", "Primary locale (e.g., en-US)")
@@ -193,7 +193,7 @@ func newAppEventsCreateCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc app-events create --app "APP_ID" --name "Summer Challenge"
-  asc app-events create --app "APP_ID" --name "Summer Challenge" --event-type CHALLENGE --start "2026-06-01T00:00:00Z" --end "2026-06-30T23:59:59Z"
+  asc app-events create --app "APP_ID" --name "Summer Challenge" --event-type CHALLENGE --start "2026-06-01T00:00:00Z" --end "2026-06-30T23:59:59Z" --territories all
   asc app-events create --app "APP_ID" --name "Launch Party" --event-type PREMIERE --priority HIGH --purpose ATTRACT_NEW_USERS
   asc app-events create --app "APP_ID" --name "Retro Challenge" --event-type LIVE_EVENT --priority HIGH --purpose APPROPRIATE_FOR_ALL_USERS`,
 		FlagSet:   fs,
@@ -238,11 +238,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			schedule, scheduleProvided, err := normalizeAppEventTerritorySchedule(*start, *end, *publishStart, territories.String())
+			eventSchedule, err := normalizeAppEventTerritorySchedule(*start, *end, *publishStart, territories.String(), true)
 			if err != nil {
 				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return flag.ErrHelp
 			}
+			schedule, scheduleProvided := eventSchedule.schedule, eventSchedule.provided
 
 			attrs := asc.AppEventCreateAttributes{
 				ReferenceName:       nameValue,
@@ -257,6 +258,22 @@ Examples:
 			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-events create: %w", err)
+			}
+
+			if eventSchedule.allTerritories {
+				// Resolve the territories before creating anything, so a failed
+				// lookup leaves no event behind.
+				territoryCtx, cancelTerritories := d.Timeout(ctx)
+				defer cancelTerritories()
+
+				territoryIDs, err := shared.FetchAvailableTerritoryIDs(territoryCtx, client, resolvedAppID)
+				if err != nil {
+					return fmt.Errorf("app-events create: --territories all: %w", err)
+				}
+				if len(territoryIDs) == 0 {
+					return fmt.Errorf("app-events create: --territories all: app %q is not available in any territory", resolvedAppID)
+				}
+				schedule.Territories = territoryIDs
 			}
 
 			createCtx, cancelCreate := d.Timeout(ctx)
@@ -315,9 +332,9 @@ func newAppEventsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	name := fs.String("name", "", "Reference name")
 	eventType := fs.String("event-type", "", "Event type: "+strings.Join(asc.ValidAppEventBadges, ", "))
-	start := fs.String("start", "", "Event start time (RFC3339)")
+	start := fs.String("start", "", "Event start time (RFC3339); events last 15 minutes to 31 days")
 	end := fs.String("end", "", "Event end time (RFC3339)")
-	publishStart := fs.String("publish-start", "", "Publish start time (RFC3339)")
+	publishStart := fs.String("publish-start", "", "Publish start time (RFC3339), at most 14 days before --start")
 	territories := shared.BindOnceCSVFlag(fs, "territories", "Territory codes (comma-separated)")
 	deepLink := fs.String("deep-link", "", "URL that Open on the event card leads to; App Store Connect asks for one before review")
 	purchaseRequirement := fs.String("purchase-requirement", "", "Purchase requirement (currently supported: "+supportedAppEventPurchaseRequirementValues()+")")
@@ -418,13 +435,13 @@ Examples:
 				}
 			}
 
-			schedule, scheduleProvided, err := normalizeAppEventTerritorySchedule(*start, *end, *publishStart, territories.String())
+			eventSchedule, err := normalizeAppEventTerritorySchedule(*start, *end, *publishStart, territories.String(), false)
 			if err != nil {
 				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return flag.ErrHelp
 			}
-			if scheduleProvided {
-				attrs.TerritorySchedules = []asc.AppEventTerritorySchedule{schedule}
+			if eventSchedule.provided {
+				attrs.TerritorySchedules = []asc.AppEventTerritorySchedule{eventSchedule.schedule}
 				hasUpdate = true
 			}
 

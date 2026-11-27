@@ -38,6 +38,46 @@ func TestAppEventsValidationErrors(t *testing.T) {
 			wantErr: "Error: --end is required",
 		},
 		{
+			name:    "create schedule missing territories",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--start", "2026-01-01T00:00:00Z", "--end", "2026-01-02T00:00:00Z"},
+			wantErr: "Error: --territories is required with a schedule: pass territory codes such as USA,GBR, or all for every territory the app is available in\n",
+		},
+		{
+			name:    "create territories all mixed with codes",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--start", "2026-01-01T00:00:00Z", "--end", "2026-01-02T00:00:00Z", "--territories", "all,USA"},
+			wantErr: "Error: --territories all cannot be combined with territory codes\n",
+		},
+		{
+			name:    "update schedule missing territories",
+			args:    []string{"app-events", "update", "--event-id", "EVENT_ID", "--start", "2026-01-01T00:00:00Z", "--end", "2026-01-02T00:00:00Z"},
+			wantErr: "Error: --territories is required with a schedule: pass territory codes such as USA,GBR\n",
+		},
+		{
+			name:    "update territories all",
+			args:    []string{"app-events", "update", "--event-id", "EVENT_ID", "--start", "2026-01-01T00:00:00Z", "--end", "2026-01-02T00:00:00Z", "--territories", "all"},
+			wantErr: "Error: --territories all is supported only by app-events create; pass territory codes such as USA,GBR\n",
+		},
+		{
+			name:    "create event longer than 31 days",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--start", "2026-11-29T17:00:00Z", "--end", "2027-01-03T17:00:00Z", "--territories", "USA"},
+			wantErr: "Error: --end must be at most 31 days after --start (latest: 2026-12-30T17:00:00Z)\n",
+		},
+		{
+			name:    "create event shorter than 15 minutes",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--start", "2026-11-29T17:00:00Z", "--end", "2026-11-29T17:10:00Z", "--territories", "USA"},
+			wantErr: "Error: --end must be at least 15 minutes after --start\n",
+		},
+		{
+			name:    "create publish more than 14 days before start",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--publish-start", "2026-11-01T00:00:00Z", "--start", "2026-11-29T17:00:00Z", "--end", "2026-12-30T17:00:00Z", "--territories", "USA"},
+			wantErr: "Error: --publish-start must be at most 14 days before --start (earliest: 2026-11-15T17:00:00Z)\n",
+		},
+		{
+			name:    "update event longer than 31 days",
+			args:    []string{"app-events", "update", "--event-id", "EVENT_ID", "--start", "2026-11-29T17:00:00Z", "--end", "2027-01-03T17:00:00Z", "--territories", "USA"},
+			wantErr: "Error: --end must be at most 31 days after --start (latest: 2026-12-30T17:00:00Z)\n",
+		},
+		{
 			name:    "update missing event-id",
 			args:    []string{"app-events", "update", "--name", "Launch"},
 			wantErr: "Error: --event-id is required",
@@ -61,6 +101,21 @@ func TestAppEventsValidationErrors(t *testing.T) {
 			name:    "localizations create missing locale",
 			args:    []string{"app-events", "localizations", "create", "--event-id", "EVENT_ID"},
 			wantErr: "Error: --locale is required",
+		},
+		{
+			name:    "localizations create name over 30 characters",
+			args:    []string{"app-events", "localizations", "create", "--event-id", "EVENT_ID", "--locale", "en-US", "--name", "Your ritual now on every screen"},
+			wantErr: "Error: --name must be at most 30 characters (got 31)\n",
+		},
+		{
+			name:    "localizations create short description over 50 characters",
+			args:    []string{"app-events", "localizations", "create", "--event-id", "EVENT_ID", "--locale", "en-US", "--short-description", strings.Repeat("a", 51)},
+			wantErr: "Error: --short-description must be at most 50 characters (got 51)\n",
+		},
+		{
+			name:    "localizations update long description over 120 characters",
+			args:    []string{"app-events", "localizations", "update", "--localization-id", "LOC_ID", "--long-description", strings.Repeat("a", 121)},
+			wantErr: "Error: --long-description must be at most 120 characters (got 121)\n",
 		},
 		{
 			name:    "localizations update missing localization-id",

@@ -103,7 +103,7 @@ asc app-events create \
 * `--start` - Event start time (RFC3339 format)
 * `--end` - Event end time (RFC3339 format)
 * `--publish-start` - Publish start time (when event appears on App Store)
-* `--territories` - Comma-separated territory codes (e.g., `USA,CAN,GBR`)
+* `--territories` - Comma-separated territory codes (e.g., `USA,CAN,GBR`), or `all` for every territory the app is available in. Required with a schedule
 * `--deep-link` - URL that Open on the event card leads to; App Store Connect asks for one before review
 * `--purchase-requirement` - Currently supported: `NO_COST_ASSOCIATED`
 * `--primary-locale` - Primary locale (e.g., `en-US`)
@@ -119,7 +119,8 @@ asc app-events create \
   --name "Summer Challenge" \
   --event-type CHALLENGE \
   --start "2026-06-01T00:00:00Z" \
-  --end "2026-06-30T23:59:59Z"
+  --end "2026-06-30T23:59:59Z" \
+  --territories all
 
 # Create high-priority premiere
 asc app-events create \
@@ -128,6 +129,8 @@ asc app-events create \
   --event-type PREMIERE \
   --priority HIGH \
   --purpose ATTRACT_NEW_USERS \
+  --start "2026-08-01T00:00:00Z" \
+  --end "2026-08-15T00:00:00Z" \
   --territories "USA,CAN,GBR"
 
 # Create live event with deep link
@@ -137,6 +140,7 @@ asc app-events create \
   --event-type LIVE_EVENT \
   --start "2026-07-15T18:00:00Z" \
   --end "2026-07-15T21:00:00Z" \
+  --territories all \
   --deep-link "myapp://event/championship" \
   --priority HIGH
 ```
@@ -162,7 +166,7 @@ asc app-events update \
 * `--start` - Event start time
 * `--end` - Event end time
 * `--publish-start` - Publish start time
-* `--territories` - Territory codes
+* `--territories` - Territory codes (required with a schedule)
 * `--deep-link` - URL that Open on the event card leads to; App Store Connect asks for one before review
 * `--purchase-requirement` - Purchase requirement
 * `--primary-locale` - Primary locale
@@ -257,6 +261,12 @@ YYYY-MM-DDTHH:MM:SSZ
 * `2026-06-01T00:00:00Z` - June 1, 2026 at midnight UTC
 * `2026-07-15T18:30:00Z` - July 15, 2026 at 6:30 PM UTC
 
+**Schedule limits** (checked before any request):
+
+* An event lasts at least 15 minutes and at most 31 days
+* `--publish-start` is at most 14 days before `--start`
+* `--territories` is required with a schedule
+
 **Converting from Local Time:**
 
 ```bash
@@ -303,6 +313,8 @@ asc app-events localizations delete \
 * Name (30 characters max)
 * Short description (50 characters max)
 * Long description (120 characters max)
+
+`localizations create` and `localizations update` check these limits before any request, so an overlong translation fails with the flag and its length instead of an App Store Connect error.
 
 ## Screenshots
 
@@ -461,7 +473,8 @@ asc app-events create \
   --name "Spring Festival" \
   --event-type NEW_SEASON \
   --start "2026-03-20T00:00:00Z" \
-  --end "2026-04-20T23:59:59Z" \
+  --end "2026-04-19T23:59:59Z" \
+  --territories all \
   --priority HIGH
 
 # Summer Event
@@ -470,7 +483,8 @@ asc app-events create \
   --name "Summer Games" \
   --event-type COMPETITION \
   --start "2026-06-21T00:00:00Z" \
-  --end "2026-07-21T23:59:59Z" \
+  --end "2026-07-20T23:59:59Z" \
+  --territories all \
   --priority HIGH
 
 # Fall Event
@@ -479,7 +493,8 @@ asc app-events create \
   --name "Autumn Challenge" \
   --event-type CHALLENGE \
   --start "2026-09-22T00:00:00Z" \
-  --end "2026-10-22T23:59:59Z" \
+  --end "2026-10-21T23:59:59Z" \
+  --territories all \
   --priority HIGH
 
 # Winter Event
@@ -488,7 +503,8 @@ asc app-events create \
   --name "Winter Wonderland" \
   --event-type SPECIAL_EVENT \
   --start "2026-12-21T00:00:00Z" \
-  --end "2027-01-21T23:59:59Z" \
+  --end "2027-01-20T23:59:59Z" \
+  --territories all \
   --priority HIGH
 ```
 

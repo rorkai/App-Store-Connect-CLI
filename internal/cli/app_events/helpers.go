@@ -132,30 +132,100 @@ func buildAppEventTerritorySchedule(territories []string, publishStart, start, e
 	return schedule
 }
 
-func normalizeAppEventTerritorySchedule(start, end, publishStart, territories string) (asc.AppEventTerritorySchedule, bool, error) {
+// App Store Connect's limits on an event schedule: an event lasts from 15
+// minutes to 31 days, and is published at most 14 days before it starts.
+const (
+	appEventMinDuration        = 15 * time.Minute
+	appEventMaxDuration        = 31 * 24 * time.Hour
+	appEventMaxPublishLeadTime = 14 * 24 * time.Hour
+)
+
+// validateAppEventScheduleWindow checks normalized RFC3339 schedule values
+// against App Store Connect's schedule limits, so a schedule it would reject
+// fails before any request.
+func validateAppEventScheduleWindow(start, end, publishStart string) error {
+	startTime, err := time.Parse(time.RFC3339, start)
+	if err != nil {
+		return fmt.Errorf("--start must be in RFC3339 format")
+	}
+	endTime, err := time.Parse(time.RFC3339, end)
+	if err != nil {
+		return fmt.Errorf("--end must be in RFC3339 format")
+	}
+	if endTime.Sub(startTime) < appEventMinDuration {
+		return fmt.Errorf("--end must be at least 15 minutes after --start")
+	}
+	if endTime.Sub(startTime) > appEventMaxDuration {
+		return fmt.Errorf("--end must be at most 31 days after --start (latest: %s)", startTime.Add(appEventMaxDuration).Format(time.RFC3339))
+	}
+	if publishStart == "" {
+		return nil
+	}
+	publishTime, err := time.Parse(time.RFC3339, publishStart)
+	if err != nil {
+		return fmt.Errorf("--publish-start must be in RFC3339 format")
+	}
+	if startTime.Sub(publishTime) > appEventMaxPublishLeadTime {
+		return fmt.Errorf("--publish-start must be at most 14 days before --start (earliest: %s)", startTime.Add(-appEventMaxPublishLeadTime).Format(time.RFC3339))
+	}
+	return nil
+}
+
+// appEventSchedule is the schedule given by the event schedule flags.
+// allTerritories means --territories all, which create resolves from the
+// app's availability before it sends the schedule.
+type appEventSchedule struct {
+	schedule       asc.AppEventTerritorySchedule
+	provided       bool
+	allTerritories bool
+}
+
+func normalizeAppEventTerritorySchedule(start, end, publishStart, territories string, allowAllTerritories bool) (appEventSchedule, error) {
 	scheduleProvided := strings.TrimSpace(start) != "" ||
 		strings.TrimSpace(end) != "" ||
 		strings.TrimSpace(publishStart) != "" ||
 		strings.TrimSpace(territories) != ""
 	if !scheduleProvided {
-		return asc.AppEventTerritorySchedule{}, false, nil
+		return appEventSchedule{}, nil
 	}
 
 	startValue, err := normalizeRFC3339(start, "--start", true)
 	if err != nil {
-		return asc.AppEventTerritorySchedule{}, false, err
+		return appEventSchedule{}, err
 	}
 	endValue, err := normalizeRFC3339(end, "--end", true)
 	if err != nil {
-		return asc.AppEventTerritorySchedule{}, false, err
+		return appEventSchedule{}, err
 	}
 	publishValue, err := normalizeRFC3339(publishStart, "--publish-start", false)
 	if err != nil {
-		return asc.AppEventTerritorySchedule{}, false, err
+		return appEventSchedule{}, err
 	}
-	territoryValues := shared.SplitCSVUpper(territories)
 
-	return buildAppEventTerritorySchedule(territoryValues, publishValue, startValue, endValue), true, nil
+	if err := validateAppEventScheduleWindow(startValue, endValue, publishValue); err != nil {
+		return appEventSchedule{}, err
+	}
+
+	territoryValues := shared.SplitCSVUpper(territories)
+	allTerritories := slices.Contains(territoryValues, "ALL")
+	switch {
+	case len(territoryValues) == 0 && allowAllTerritories:
+		return appEventSchedule{}, fmt.Errorf("--territories is required with a schedule: pass territory codes such as USA,GBR, or all for every territory the app is available in")
+	case len(territoryValues) == 0:
+		return appEventSchedule{}, fmt.Errorf("--territories is required with a schedule: pass territory codes such as USA,GBR")
+	case allTerritories && !allowAllTerritories:
+		return appEventSchedule{}, fmt.Errorf("--territories all is supported only by app-events create; pass territory codes such as USA,GBR")
+	case allTerritories && len(territoryValues) > 1:
+		return appEventSchedule{}, fmt.Errorf("--territories all cannot be combined with territory codes")
+	case allTerritories:
+		territoryValues = nil
+	}
+
+	return appEventSchedule{
+		schedule:       buildAppEventTerritorySchedule(territoryValues, publishValue, startValue, endValue),
+		provided:       true,
+		allTerritories: allTerritories,
+	}, nil
 }
 
 func appEventHasTerritorySchedule(event *asc.AppEventResponse, expected asc.AppEventTerritorySchedule) bool {

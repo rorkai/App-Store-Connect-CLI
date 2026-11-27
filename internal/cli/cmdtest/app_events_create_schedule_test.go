@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -118,7 +120,7 @@ func TestAppEventsCreateAppliesScheduleAfterCreate(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected territory schedule object, got %#v", schedules[0])
 			}
-			if schedule["publishStart"] != "2026-05-15T00:00:00Z" {
+			if schedule["publishStart"] != "2026-05-18T00:00:00Z" {
 				t.Fatalf("expected publishStart to be preserved, got %#v", schedule["publishStart"])
 			}
 			if schedule["eventStart"] != "2026-06-01T00:00:00Z" {
@@ -135,7 +137,7 @@ func TestAppEventsCreateAppliesScheduleAfterCreate(t *testing.T) {
 				t.Fatalf("expected normalized territories [USA CAN], got %#v", territories)
 			}
 
-			return jsonResponse(http.StatusOK, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch","badge":"CHALLENGE","primaryLocale":"en-US","territorySchedules":[{"territories":["USA","CAN"],"publishStart":"2026-05-15T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}]}}}`)
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch","badge":"CHALLENGE","primaryLocale":"en-US","territorySchedules":[{"territories":["USA","CAN"],"publishStart":"2026-05-18T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}]}}}`)
 		default:
 			t.Fatalf("unexpected extra request %d: %s %s", requests, req.Method, req.URL.Path)
 			return nil, nil
@@ -149,7 +151,7 @@ func TestAppEventsCreateAppliesScheduleAfterCreate(t *testing.T) {
 		"--event-type", "CHALLENGE",
 		"--start", "2026-06-01T00:00:00Z",
 		"--end", "2026-06-30T23:59:59Z",
-		"--publish-start", "2026-05-15T00:00:00Z",
+		"--publish-start", "2026-05-18T00:00:00Z",
 		"--territories", "usa, can",
 		"--primary-locale", "en-US",
 	)
@@ -178,7 +180,7 @@ func TestAppEventsCreateAppliesScheduleAfterCreate(t *testing.T) {
 	if schedule.EventEnd != "2026-06-30T23:59:59Z" {
 		t.Fatalf("expected eventEnd to be preserved, got %q", schedule.EventEnd)
 	}
-	if schedule.PublishStart != "2026-05-15T00:00:00Z" {
+	if schedule.PublishStart != "2026-05-18T00:00:00Z" {
 		t.Fatalf("expected publishStart to be preserved, got %q", schedule.PublishStart)
 	}
 	if len(schedule.Territories) != 2 || schedule.Territories[0] != "USA" || schedule.Territories[1] != "CAN" {
@@ -258,6 +260,7 @@ func TestAppEventsCreateReportsScheduleFailureOutcome(t *testing.T) {
 				"--event-type", "CHALLENGE",
 				"--start", "2026-06-01T00:00:00Z",
 				"--end", "2026-06-30T23:59:59Z",
+				"--territories", "USA",
 			)
 			if err == nil {
 				t.Fatal("expected create to fail")
@@ -278,6 +281,102 @@ func TestAppEventsCreateReportsScheduleFailureOutcome(t *testing.T) {
 	}
 }
 
+func TestAppEventsCreateTerritoriesAllUsesAppAvailability(t *testing.T) {
+	const availabilityPath = "/v1/apps/app-123/appAvailabilityV2"
+	const territoriesPath = "/v2/appAvailabilities/availability-1/territoryAvailabilities"
+	territory := func(id string, available bool) string {
+		return fmt.Sprintf(`{"type":"territoryAvailabilities","id":"ta-%s","attributes":{"available":%t},"relationships":{"territory":{"data":{"type":"territories","id":"%s"}}}}`, id, available, id)
+	}
+
+	tests := []struct {
+		name            string
+		territories     string
+		wantRequests    []string
+		wantTerritories []string
+		wantErr         string
+	}{
+		{
+			name:            "available territories become the schedule",
+			territories:     `{"data":[` + territory("USA", true) + `,` + territory("FRA", false) + `,` + territory("CAN", true) + `],"links":{"next":""}}`,
+			wantRequests:    []string{"GET " + availabilityPath, "GET " + territoriesPath, "POST /v1/appEvents", "PATCH /v1/appEvents/event-1"},
+			wantTerritories: []string{"CAN", "USA"},
+		},
+		{
+			name:         "app with no available territories creates nothing",
+			territories:  `{"data":[` + territory("FRA", false) + `],"links":{"next":""}}`,
+			wantRequests: []string{"GET " + availabilityPath, "GET " + territoriesPath},
+			wantErr:      `app-events create: --territories all: app "app-123" is not available in any territory`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var requests []string
+			var gotTerritories []string
+			client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests = append(requests, req.Method+" "+req.URL.Path)
+				switch req.Method + " " + req.URL.Path {
+				case "GET " + availabilityPath:
+					return jsonResponse(http.StatusOK, `{"data":{"type":"appAvailabilities","id":"availability-1"}}`)
+				case "GET " + territoriesPath:
+					return jsonResponse(http.StatusOK, test.territories)
+				case "POST /v1/appEvents":
+					return jsonResponse(http.StatusCreated, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch"}}}`)
+				case "PATCH /v1/appEvents/event-1":
+					var body struct {
+						Data struct {
+							Attributes struct {
+								TerritorySchedules []asc.AppEventTerritorySchedule `json:"territorySchedules"`
+							} `json:"attributes"`
+						} `json:"data"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+						t.Fatalf("failed to decode schedule update: %v", err)
+					}
+					if len(body.Data.Attributes.TerritorySchedules) != 1 {
+						t.Fatalf("territorySchedules = %#v, want one schedule", body.Data.Attributes.TerritorySchedules)
+					}
+					gotTerritories = body.Data.Attributes.TerritorySchedules[0].Territories
+					return jsonResponse(http.StatusOK, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch"}}}`)
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+					return nil, nil
+				}
+			}))
+
+			stdout, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil },
+				"app-events", "create",
+				"--app", "app-123",
+				"--name", "Launch",
+				"--start", "2026-06-01T00:00:00Z",
+				"--end", "2026-06-30T23:59:59Z",
+				"--territories", "all",
+			)
+			if !slices.Equal(requests, test.wantRequests) {
+				t.Fatalf("requests = %q, want %q", requests, test.wantRequests)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			if test.wantErr != "" {
+				if err == nil || err.Error() != test.wantErr {
+					t.Fatalf("error = %v, want %q", err, test.wantErr)
+				}
+				if stdout != "" {
+					t.Fatalf("expected empty stdout, got %q", stdout)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("create failed: %v", err)
+			}
+			if !slices.Equal(gotTerritories, test.wantTerritories) {
+				t.Fatalf("schedule territories = %q, want %q", gotTerritories, test.wantTerritories)
+			}
+		})
+	}
+}
+
 func TestAppEventsCreateSucceedsWhenVerificationShowsScheduleApplied(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -291,28 +390,28 @@ func TestAppEventsCreateSucceedsWhenVerificationShowsScheduleApplied(t *testing.
 		{
 			name:            "exact match",
 			territoriesFlag: "USA",
-			verified:        `{"territories":["USA"],"publishStart":"2026-05-15T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}`,
+			verified:        `{"territories":["USA"],"publishStart":"2026-05-18T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}`,
 			wantStart:       "2026-06-01T00:00:00Z",
 			wantEnd:         "2026-06-30T23:59:59Z",
-			wantPublish:     "2026-05-15T00:00:00Z",
+			wantPublish:     "2026-05-18T00:00:00Z",
 			wantTerritories: []string{"USA"},
 		},
 		{
 			name:            "reordered territories",
 			territoriesFlag: "USA, CAN",
-			verified:        `{"territories":["CAN","USA"],"publishStart":"2026-05-15T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}`,
+			verified:        `{"territories":["CAN","USA"],"publishStart":"2026-05-18T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}`,
 			wantStart:       "2026-06-01T00:00:00Z",
 			wantEnd:         "2026-06-30T23:59:59Z",
-			wantPublish:     "2026-05-15T00:00:00Z",
+			wantPublish:     "2026-05-18T00:00:00Z",
 			wantTerritories: []string{"CAN", "USA"},
 		},
 		{
 			name:            "canonicalized timestamps",
 			territoriesFlag: "USA, CAN",
-			verified:        `{"territories":["USA","CAN"],"publishStart":"2026-05-15T02:00:00+02:00","eventStart":"2026-06-01T02:00:00+02:00","eventEnd":"2026-07-01T01:59:59+02:00"}`,
+			verified:        `{"territories":["USA","CAN"],"publishStart":"2026-05-18T02:00:00+02:00","eventStart":"2026-06-01T02:00:00+02:00","eventEnd":"2026-07-01T01:59:59+02:00"}`,
 			wantStart:       "2026-06-01T02:00:00+02:00",
 			wantEnd:         "2026-07-01T01:59:59+02:00",
-			wantPublish:     "2026-05-15T02:00:00+02:00",
+			wantPublish:     "2026-05-18T02:00:00+02:00",
 			wantTerritories: []string{"USA", "CAN"},
 		},
 	}
@@ -345,7 +444,7 @@ func TestAppEventsCreateSucceedsWhenVerificationShowsScheduleApplied(t *testing.
 				"--event-type", "CHALLENGE",
 				"--start", "2026-06-01T00:00:00Z",
 				"--end", "2026-06-30T23:59:59Z",
-				"--publish-start", "2026-05-15T00:00:00Z",
+				"--publish-start", "2026-05-18T00:00:00Z",
 				"--territories", test.territoriesFlag,
 			)
 			if err != nil {
