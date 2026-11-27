@@ -333,11 +333,11 @@ func ValidateSetVersion(ctx context.Context, opts SetVersionOptions) error {
 	if project.xcproj != nil {
 		return errXCProjAgvtoolUnsupported
 	}
-	return validateSetVersionLegacy(ctx)
+	return validateSetVersionLegacy(ctx, opts)
 }
 
 func setVersionLegacy(ctx context.Context, opts SetVersionOptions) (*SetVersionResult, error) {
-	if err := validateSetVersionLegacy(ctx); err != nil {
+	if err := validateSetVersionLegacy(ctx, opts); err != nil {
 		return nil, err
 	}
 	if strings.TrimSpace(opts.Target) != "" {
@@ -363,11 +363,27 @@ func setVersionLegacy(ctx context.Context, opts SetVersionOptions) (*SetVersionR
 	return result, nil
 }
 
-func validateSetVersionLegacy(ctx context.Context) error {
+func validateSetVersionLegacy(ctx context.Context, opts SetVersionOptions) error {
+	if err := validateLegacyVersionValue("--version", opts.Version); err != nil {
+		return err
+	}
+	if err := validateLegacyVersionValue("--build-number", opts.BuildNumber); err != nil {
+		return err
+	}
 	if err := requireMacOS(); err != nil {
 		return err
 	}
 	return requireAgvtool(ctx)
+}
+
+func validateLegacyVersionValue(flagName, value string) error {
+	for _, char := range strings.TrimSpace(value) {
+		if (char >= '0' && char <= '9') || (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || char == '.' || char == '-' || char == '_' {
+			continue
+		}
+		return fmt.Errorf("%s must contain only ASCII letters, digits, periods, hyphens, and underscores when using agvtool", flagName)
+	}
+	return nil
 }
 
 func attachBuildSettingsLookupSession(opts *BumpVersionOptions) error {
@@ -456,7 +472,7 @@ func ValidateBumpVersion(ctx context.Context, opts BumpVersionOptions) error {
 	if project.xcproj != nil {
 		return errXCProjAgvtoolUnsupported
 	}
-	if err := validateSetVersionLegacy(ctx); err != nil {
+	if err := validateSetVersionLegacy(ctx, SetVersionOptions{BuildNumber: opts.BuildNumber}); err != nil {
 		return err
 	}
 	current, err := getVersionLegacy(ctx, opts.ProjectDir, "", opts.BuildSettingsSession)
@@ -551,10 +567,7 @@ func (project *structuredVersionProject) prepareBump(opts BumpVersionOptions) (*
 }
 
 func bumpVersionLegacy(ctx context.Context, opts BumpVersionOptions) (*BumpVersionResult, error) {
-	if err := requireMacOS(); err != nil {
-		return nil, err
-	}
-	if err := requireAgvtool(ctx); err != nil {
+	if err := validateSetVersionLegacy(ctx, SetVersionOptions{BuildNumber: opts.BuildNumber}); err != nil {
 		return nil, err
 	}
 	trimmedTarget := strings.TrimSpace(opts.Target)
