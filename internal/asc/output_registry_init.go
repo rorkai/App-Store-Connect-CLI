@@ -430,6 +430,7 @@ func registerAllOutputRenderers() {
 	})
 	registerRows(buildExpireAllResultRows)
 	registerRows(appScreenshotListResultRows)
+	registerRows(screenshotPlanValidationRows)
 	registerDirect(matrixResultTables)
 	registerRows(matrixCellResultRows)
 	registerRows(matrixReviewResultRows)

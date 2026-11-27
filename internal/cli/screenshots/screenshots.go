@@ -25,6 +25,7 @@ If you face issues, please file feedback at:
 https://github.com/rorkai/App-Store-Connect-CLI/issues/new/choose
 
 Local workflow:
+  asc screenshots validate-plan --plan .asc/screenshots.json
   asc screenshots run --plan .asc/screenshots.json
   asc screenshots matrix --plan .asc/screenshots-matrix.json
   asc screenshots capture --bundle-id "com.example.app" --name home
@@ -58,6 +59,7 @@ default; use --all only when you need the full matrix.`,
 		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			shots.NewShotsRunCommand(d),
+			shots.NewShotsValidatePlanCommand(d),
 			shots.NewShotsMatrixCommand(d),
 			shots.NewShotsCaptureCommand(d),
 			shots.NewShotsFrameCommand(d),
