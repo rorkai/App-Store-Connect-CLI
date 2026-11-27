@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/handlertest"
 )
 
 func TestFindOrCreatePublishAppStoreVersionUsesFreshCreateDeadline(t *testing.T) {
@@ -202,5 +203,65 @@ func TestFindOrCreatePublishAppStoreVersionPreservesNonTransientCreateError(t *t
 	}
 	if reads != 2 || creates != 1 {
 		t.Fatalf("expected one readback and no replay, reads=%d creates=%d", reads, creates)
+	}
+}
+
+func TestFindOrCreatePublishAppStoreVersionExplainsRefusedCreate(t *testing.T) {
+	fixture := handlertest.New(t)
+	creates := 0
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions" && req.URL.Query().Has("filter[versionString]"):
+			return publishCommandJSONResponse(http.StatusOK, `{"data":[]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-122","attributes":{"platform":"IOS","versionString":"1.2.2","appVersionState":"WAITING_FOR_REVIEW","appStoreState":"WAITING_FOR_REVIEW"}}]}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersions":
+			creates++
+			return publishCommandJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","title":"The provided entity includes a relationship with an invalid value","detail":"You cannot create a new version of the App in the current state."}]}`)
+		default:
+			return nil, fixture.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+	client := newPublishCommandTestClient(t)
+
+	_, err := findOrCreatePublishAppStoreVersion(context.Background(), newPublishTestDeps(), client, "app-1", "1.2.3", asc.PlatformIOS)
+	if !errors.Is(err, asc.ErrConflict) {
+		t.Fatalf("error = %v, want App Store Connect's 409", err)
+	}
+	want := "\n  1.2.2  IOS  WAITING_FOR_REVIEW  version-122\n" +
+		`Version 1.2.2 is WAITING_FOR_REVIEW; wait until review finishes or it is released, or inspect it: asc versions view --version-id "version-122"`
+	if !strings.HasSuffix(err.Error(), want) {
+		t.Fatalf("error =\n%s\nwant suffix%s", err.Error(), want)
+	}
+	if creates != 1 {
+		t.Fatalf("creates = %d, want one and no replay", creates)
+	}
+}
+
+func TestFindOrCreatePublishAppStoreVersionSkipsDiagnosticsAfterFailedReadBack(t *testing.T) {
+	fixture := handlertest.New(t)
+	lookups := 0
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions" && req.URL.Query().Has("filter[versionString]"):
+			lookups++
+			if lookups == 1 {
+				return publishCommandJSONResponse(http.StatusOK, `{"data":[]}`)
+			}
+			return publishCommandJSONResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN_ERROR","title":"Forbidden","detail":"not allowed"}]}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersions":
+			return publishCommandJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","title":"The provided entity includes a relationship with an invalid value","detail":"You cannot create a new version of the App in the current state."}]}`)
+		default:
+			return nil, fixture.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+	client := newPublishCommandTestClient(t)
+
+	_, err := findOrCreatePublishAppStoreVersion(context.Background(), newPublishTestDeps(), client, "app-1", "1.2.3", asc.PlatformIOS)
+	if !errors.Is(err, asc.ErrConflict) {
+		t.Fatalf("error = %v, want App Store Connect's 409", err)
+	}
+	if lookups != 2 {
+		t.Fatalf("version lookups = %d, want the lookup and one read-back", lookups)
 	}
 }

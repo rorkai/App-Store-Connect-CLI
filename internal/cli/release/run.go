@@ -419,7 +419,7 @@ func executePipeline(ctx context.Context, d *shared.Deps, opts runOptions) (runR
 				VersionString: opts.Version,
 			})
 			if createErr != nil {
-				return stepOutcome{}, fmt.Errorf("ensure version: create app store version: %w", createErr)
+				return stepOutcome{}, fmt.Errorf("ensure version: create app store version: %w", shared.WithAppStoreVersionCreateConflictRerunDiagnostics(requestCtx, client, opts.AppID, opts.Version, opts.Platform, createErr))
 			}
 			return stepOutcome{
 				Status:     "ok",

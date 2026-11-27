@@ -433,18 +433,29 @@ func TestAppStoreVersionCreateConflictDiagnosticsGuidanceByState(t *testing.T) {
 }
 
 func TestAppStoreVersionCreateConflictDiagnosticsNameDuplicateVersion(t *testing.T) {
-	client, _ := newDiagnosticTestClient(t, func(req diagnosticRequest) (*http.Response, error) {
-		return diagnosticJSONResponse(http.StatusOK, diagnosticVersionsList)
-	})
-	original := asc.ParseErrorWithStatus([]byte(diagnosticVersionsDuplicate409), http.StatusConflict)
+	for _, tt := range []struct {
+		name    string
+		explain func(context.Context, *asc.Client, string, string, string, error) error
+		reuse   string
+	}{
+		{name: "versions create", explain: WithAppStoreVersionCreateConflictDiagnostics, reuse: "Reuse it with --if-exists skip or --if-exists update"},
+		{name: "rerun", explain: WithAppStoreVersionCreateConflictRerunDiagnostics, reuse: "Run the command again to use it"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client, _ := newDiagnosticTestClient(t, func(req diagnosticRequest) (*http.Response, error) {
+				return diagnosticJSONResponse(http.StatusOK, diagnosticVersionsList)
+			})
+			original := asc.ParseErrorWithStatus([]byte(diagnosticVersionsDuplicate409), http.StatusConflict)
 
-	err := WithAppStoreVersionCreateConflictDiagnostics(context.Background(), client, "app-1", "1.2.0", "IOS", original)
-	want := strings.Join([]string{
-		original.Error(),
-		`Version "1.2.0" already exists on IOS as ver-120 (PREPARE_FOR_SUBMISSION). Reuse it with --if-exists skip or --if-exists update, or inspect it: asc versions view --version-id "ver-120"`,
-	}, "\n")
-	if err.Error() != want {
-		t.Fatalf("error =\n%s\nwant\n%s", err.Error(), want)
+			err := tt.explain(context.Background(), client, "app-1", "1.2.0", "IOS", original)
+			want := strings.Join([]string{
+				original.Error(),
+				`Version "1.2.0" already exists on IOS as ver-120 (PREPARE_FOR_SUBMISSION). ` + tt.reuse + `, or inspect it: asc versions view --version-id "ver-120"`,
+			}, "\n")
+			if err.Error() != want {
+				t.Fatalf("error =\n%s\nwant\n%s", err.Error(), want)
+			}
+		})
 	}
 }
 
