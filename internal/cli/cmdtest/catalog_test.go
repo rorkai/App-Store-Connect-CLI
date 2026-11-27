@@ -1,6 +1,7 @@
 package cmdtest
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -456,6 +457,77 @@ func TestCatalogSavedPlanRefusesDriftWithSameOperation(t *testing.T) {
 	}
 	if got := len(reg.Requests()); got != 4 {
 		t.Fatalf("expected four preflight GETs and no writes, got %d requests", got)
+	}
+}
+
+func TestCatalogSavedPlanFailureReceipts(t *testing.T) {
+	offers := `{"data":[{"type":"subscriptionIntroductoryOffers","id":"offer-1","attributes":{"offerMode":"FREE_TRIAL","duration":"ONE_WEEK","numberOfPeriods":1},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},{"type":"subscriptionIntroductoryOffers","id":"offer-2","attributes":{"offerMode":"FREE_TRIAL","duration":"ONE_WEEK","numberOfPeriods":1},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}]}`
+	canceled := func(*http.Request) (*http.Response, error) { return nil, context.Canceled }
+	for _, tc := range []struct {
+		name         string
+		readFailure  asctest.Responder
+		writeFailure asctest.Responder
+		rateLimited  bool
+		readAttempts int
+		wantStatus   string
+		wantWrites   int
+	}{
+		{name: "changed offer", readFailure: asctest.JSON(200, strings.ReplaceAll(offers, "ONE_WEEK", "TWO_WEEKS")), readAttempts: 1, wantStatus: "failed"},
+		{name: "prewrite 503", readFailure: asctest.JSON(503, `{}`), readAttempts: 2, wantStatus: "failed"},
+		{name: "prewrite cancellation", readFailure: canceled, readAttempts: 1, wantStatus: "failed"},
+		{name: "changed offer after rejected write", readFailure: asctest.JSON(200, strings.ReplaceAll(offers, "ONE_WEEK", "TWO_WEEKS")), rateLimited: true, readAttempts: 1, wantStatus: "failed", wantWrites: 1},
+		{name: "write 503", writeFailure: asctest.JSON(503, `{}`), wantStatus: "unknown", wantWrites: 1},
+		{name: "write cancellation", writeFailure: canceled, wantStatus: "unknown", wantWrites: 1},
+		{name: "write 503 after rejection", writeFailure: asctest.JSON(503, `{}`), rateLimited: true, wantStatus: "unknown", wantWrites: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_MAX_RETRIES", "1")
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			readOffers := asctest.GET("/v1/subscriptions/sub-1/introductoryOffers", "include=territory,subscriptionPricePoint", "limit=200")
+			deleteOffer := asctest.DELETE("/v1/subscriptionIntroductoryOffers/offer-1")
+			for range 2 {
+				reg.Register(asctest.GET("/v1/apps/123/subscriptionGroups", "limit=200"), asctest.JSON(200, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Pro"}}]}`))
+				reg.Register(asctest.GET("/v1/apps/123/inAppPurchasesV2", "limit=200"), asctest.JSON(200, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2"}}`))
+				reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", "limit=200"), asctest.JSON(200, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"productId":"p","name":"Monthly","subscriptionPeriod":"ONE_MONTH"}}]}`))
+				reg.Register(readOffers, asctest.JSON(200, offers))
+			}
+			if tc.rateLimited {
+				reg.Register(readOffers, asctest.JSON(200, offers))
+				reg.Register(deleteOffer, asctest.JSON(429, `{}`))
+			}
+			if tc.readFailure != nil {
+				for range tc.readAttempts {
+					reg.Register(readOffers, tc.readFailure)
+				}
+			} else {
+				reg.Register(readOffers, asctest.JSON(200, offers))
+				reg.Register(deleteOffer, tc.writeFailure)
+			}
+			file := catalogFile(t, `{"groups":[{"referenceName":"Pro"}],"subscriptions":[{"group":"Pro","productId":"p","name":"Monthly","subscriptionPeriod":"ONE_MONTH","introductoryOffers":[]}]}`)
+			plan := filepath.Join(t.TempDir(), "approved.json")
+			if out, stderr, err := runCommand(t, []string{"catalog", "plan", "--app", "123", "--file", file, "--out", plan, "--output", "json"}); err != nil {
+				t.Fatalf("plan stdout=%s stderr=%s err=%v", out, stderr, err)
+			}
+			out, stderr, err := runCommandOnFakeClock(t, []string{"catalog", "apply", "--app", "123", "--file", file, "--plan", plan, "--confirm", "--output", "json"})
+			var receipt asc.CatalogResult
+			if decodeErr := json.Unmarshal([]byte(out), &receipt); decodeErr != nil {
+				t.Fatalf("receipt=%s decode=%v command=%v stderr=%s", out, decodeErr, err, stderr)
+			}
+			writes := 0
+			for _, request := range reg.Requests() {
+				if request.Method != http.MethodGet {
+					writes++
+				}
+			}
+			if err == nil || writes != tc.wantWrites || receipt.Status != "partial" || len(receipt.Items) != 4 || receipt.Items[2].Status != tc.wantStatus || receipt.Items[3].Status != "pending" || receipt.Recovery == "" {
+				t.Fatalf("writes=%d want=%d status=%s stdout=%s stderr=%s err=%v", writes, tc.wantWrites, tc.wantStatus, out, stderr, err)
+			}
+			if tc.wantStatus == "failed" && receipt.Items[2].Error != "The operation stopped before writing." {
+				t.Fatalf("prewrite failure message=%q", receipt.Items[2].Error)
+			}
+		})
 	}
 }
 

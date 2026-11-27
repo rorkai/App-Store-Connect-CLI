@@ -198,6 +198,14 @@ func (c *Client) doWithHTTPClient(ctx context.Context, method, path string, body
 
 type guardedMutationAttemptKey struct{}
 
+type mutationDispatchObserverKey struct{}
+
+// WithMutationDispatchObserver calls observe synchronously when a mutation is
+// handed to the HTTP client, after request validation and authentication.
+func WithMutationDispatchObserver(ctx context.Context, observe func()) context.Context {
+	return context.WithValue(ctx, mutationDispatchObserverKey{}, observe)
+}
+
 // RetryGuardedMutation reruns a single mutation and its eligibility checks after
 // a rate-limit rejection. Each attempt must issue at most one write.
 func RetryGuardedMutation[T any](ctx context.Context, attempt func(context.Context, bool) (T, error)) (T, error) {
@@ -433,6 +441,11 @@ func (c *Client) doOnce(ctx context.Context, method, path string, body io.Reader
 		)
 	}
 
+	if shouldLimitMutatingMethod(method) {
+		if observe, ok := ctx.Value(mutationDispatchObserverKey{}).(func()); ok && observe != nil {
+			observe()
+		}
+	}
 	resp, err := httpClient.Do(req)
 	elapsed := time.Since(start)
 

@@ -229,7 +229,12 @@ No product or group is deleted.`,
 						item.Status = "unchanged"
 						continue
 					}
+					writeDispatched := false
 					id, writeErr := asc.RetryGuardedMutation(ctx, func(attemptCtx context.Context, _ bool) (string, error) {
+						if useSavedPlan {
+							writeDispatched = false
+							attemptCtx = asc.WithMutationDispatchObserver(attemptCtx, func() { writeDispatched = true })
+						}
 						return op.write(attemptCtx)
 					})
 					if writeErr == nil && strings.TrimSpace(id) == "" {
@@ -239,7 +244,7 @@ No product or group is deleted.`,
 						item.Status = "failed"
 						item.Error = writeErr.Error()
 						if useSavedPlan {
-							item.Status, item.Error = savedCatalogFailure(writeErr)
+							item.Status, item.Error = savedCatalogFailure(writeErr, writeDispatched)
 							result.Recovery = "Read the current catalog with a new plan, review the remaining operations, and apply that plan."
 						}
 						result.Status = "partial"

@@ -43,6 +43,62 @@ func setFastRetryEnv(t *testing.T, maxRetries string) {
 	t.Cleanup(resetConfigCacheForTest)
 }
 
+func TestMutationDispatchObserverIgnoresLocalFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+	}{
+		{name: "authentication", err: ErrMissingKeyID},
+		{name: "canceled before request", err: context.Canceled},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setFastRetryEnv(t, "0")
+			client := newMutationRetryTestClient(t, &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+				t.Error("local failure reached HTTP transport")
+				return nil, errors.New("unexpected request")
+			})})
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if errors.Is(tc.err, context.Canceled) {
+				cancel()
+			} else {
+				client.keyID = ""
+			}
+			dispatched := false
+			ctx = WithMutationDispatchObserver(ctx, func() { dispatched = true })
+			_, err := client.do(ctx, http.MethodPost, "/v1/subscriptionGroups", nil)
+			if !errors.Is(err, tc.err) || dispatched {
+				t.Fatalf("dispatched=%v err=%v, want no dispatch and %v", dispatched, err, tc.err)
+			}
+		})
+	}
+}
+
+func TestGuardedMutationCancellationPreservesRejection(t *testing.T) {
+	setFastRetryEnv(t, "1")
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		ctx = context.WithValue(ctx, requestObservationKey{}, &requestObservation{retry: func(error) { cancel() }})
+		dispatched := false
+		ctx = WithMutationDispatchObserver(ctx, func() { dispatched = true })
+		requests := 0
+		client := newMutationRetryTestClient(t, &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			requests++
+			return &http.Response{StatusCode: http.StatusTooManyRequests, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{}`))}, nil
+		})})
+		attempts := 0
+		_, err := RetryGuardedMutation(ctx, func(ctx context.Context, _ bool) ([]byte, error) {
+			attempts++
+			return client.do(ctx, http.MethodDelete, "/v1/subscriptionIntroductoryOffers/offer-1", nil)
+		})
+		var status interface{ HTTPStatusCode() int }
+		if !errors.Is(err, context.Canceled) || !errors.As(err, &status) || status.HTTPStatusCode() != http.StatusTooManyRequests || !dispatched || requests != 1 || attempts != 1 {
+			t.Fatalf("canceled rejection: err=%v dispatched=%v requests=%d attempts=%d", err, dispatched, requests, attempts)
+		}
+	})
+}
+
 // A 429 is a rejection: App Store Connect never processed the request, so
 // replaying the identical payload cannot double-apply the mutation.
 func TestClientDo_RetriesRateLimitedMutation(t *testing.T) {

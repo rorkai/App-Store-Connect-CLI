@@ -159,7 +159,10 @@ func canonicalCatalogJSON(value any) ([]byte, error) {
 	return json.Marshal(normalized)
 }
 
-func savedCatalogFailure(err error) (status, message string) {
+func savedCatalogFailure(err error, writeDispatched bool) (status, message string) {
+	if !writeDispatched {
+		return "failed", "The operation stopped before writing."
+	}
 	var response interface{ HTTPStatusCode() int }
 	if errors.Is(err, readonly.ErrRefused) || (errors.As(err, &response) && response.HTTPStatusCode() >= 400 &&
 		response.HTTPStatusCode() < 500 && response.HTTPStatusCode() != http.StatusRequestTimeout) {
