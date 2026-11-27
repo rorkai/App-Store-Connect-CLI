@@ -775,12 +775,20 @@ func persistPromptedWebPassword(d *shared.Deps, appleID string, password resolve
 	}
 }
 
+func webSignInNoticeWriter(d *shared.Deps) io.Writer {
+	if twoFactorPromptAvailableFn() {
+		return d.IO.OperatorStderr()
+	}
+	return d.IO.ErrOut
+}
+
 func forgetRejectedStoredPassword(d *shared.Deps, appleID string) {
-	if d.IO.ErrOut != nil {
-		_, _ = fmt.Fprintln(d.IO.ErrOut, "Saved Apple Account password was rejected; removing it. Enter the current password to save a new one.")
+	writer := webSignInNoticeWriter(d)
+	if writer != nil {
+		_, _ = fmt.Fprintln(writer, "Saved Apple Account password was rejected; removing it. Enter the current password to save a new one.")
 	}
 	if err := deleteStoredWebPasswordFn(appleID); err != nil {
-		printPasswordStoreWarning(d.IO.ErrOut, "remove", err)
+		printPasswordStoreWarning(writer, "remove", err)
 	}
 }
 
@@ -1226,7 +1234,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, d *shared.Deps, appleID, p
 		if expiredNoticePrinted {
 			return
 		}
-		printExpiredSessionNotice(d.IO.ErrOut)
+		printExpiredSessionNotice(webSignInNoticeWriter(d))
 		expiredNoticePrinted = true
 	}
 
