@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
@@ -445,7 +447,7 @@ func TestAppEventsSubmitReportsPartialCreateWithoutAddingOrSubmitting(t *testing
 }
 
 func TestAppEventsSubmitWarnsWhenEventHasNoDeepLinkAndStillSubmits(t *testing.T) {
-	const deepLinkWarning = `Warning: app-events submit: event "event-1" has no deep link; App Store Connect asks for one so Open on the event card leads to the event in your app. Set it with: asc app-events update --event-id event-1 --deep-link "URL"` + "\n"
+	const deepLinkWarning = `Warning: app-events submit: event "event-1" has no deep link; App Store Connect asks for one so Open on the event card leads to the event in your app. Set it while the event is editable. After submitting, remove the event from review before updating it. Update with: asc app-events update --event-id event-1 --deep-link "URL"` + "\n"
 
 	tests := []struct {
 		name       string
@@ -533,4 +535,36 @@ func TestAppEventsSubmitWarnsWhenEventHasNoDeepLinkAndStillSubmits(t *testing.T)
 			}
 		})
 	}
+}
+
+func TestAppEventsSubmitAdvisoryTimeoutPreservesSubmissionBudget(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "1s")
+	t.Setenv("ASC_MAX_RETRIES", "0")
+	synctest.Test(t, func(t *testing.T) {
+		writes := 0
+		client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.Method == http.MethodGet {
+				<-req.Context().Done()
+				return nil, req.Context().Err()
+			}
+			if err := req.Context().Err(); err != nil {
+				return nil, err
+			}
+			writes++
+			deadline, ok := req.Context().Deadline()
+			if !ok || time.Until(deadline) != time.Second {
+				t.Fatalf("submission did not get a fresh timeout: %s", time.Until(deadline))
+			}
+			return jsonResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN_ERROR","title":"Forbidden"}]}`)
+		}))
+		started := time.Now()
+		_, _, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil },
+			"app-events", "submit", "--event-id", "event-1", "--app", "123", "--confirm")
+		if !errors.Is(err, asc.ErrForbidden) || writes != 1 {
+			t.Fatalf("error=%v, writes=%d; want forbidden after one submission request", err, writes)
+		}
+		if elapsed := time.Since(started); elapsed != time.Second {
+			t.Fatalf("lookup did not honor the shorter configured timeout: %s", elapsed)
+		}
+	})
 }

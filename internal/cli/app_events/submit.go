@@ -5,8 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -60,10 +60,10 @@ Examples:
 				return fmt.Errorf("app-events submit: %w", err)
 			}
 
+			warnIfAppEventMissingDeepLink(ctx, d, client, id)
+
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
-
-			warnIfAppEventMissingDeepLink(requestCtx, client, d.IO.ErrOut, id)
 
 			reviewSubmission, err := client.CreateReviewSubmission(requestCtx, resolvedAppID, asc.Platform(normalizedPlatform))
 			if err != nil {
@@ -119,11 +119,15 @@ Examples:
 	}
 }
 
-// warnIfAppEventMissingDeepLink warns on w when the event has no deep link.
+// warnIfAppEventMissingDeepLink warns when the event has no deep link.
 // App Store Connect asks for one, but the API accepts an event without it, so
 // the warning is advisory and a failed lookup never blocks the submission.
-func warnIfAppEventMissingDeepLink(ctx context.Context, client *asc.Client, w io.Writer, eventID string) {
-	event, err := client.GetAppEvent(ctx, eventID)
+func warnIfAppEventMissingDeepLink(ctx context.Context, d *shared.Deps, client *asc.Client, eventID string) {
+	requestCtx, cancel := d.Timeout(ctx)
+	defer cancel()
+	lookupCtx, cancelLookup := shared.ContextWithTimeoutDuration(requestCtx, 5*time.Second)
+	defer cancelLookup()
+	event, err := client.GetAppEvent(lookupCtx, eventID)
 	if err != nil || event == nil {
 		return
 	}
@@ -131,5 +135,5 @@ func warnIfAppEventMissingDeepLink(ctx context.Context, client *asc.Client, w io
 		return
 	}
 	safeID := shared.SanitizeTerminal(eventID)
-	fmt.Fprintf(w, "Warning: app-events submit: event %q has no deep link; App Store Connect asks for one so Open on the event card leads to the event in your app. Set it with: asc app-events update --event-id %s --deep-link \"URL\"\n", safeID, safeID)
+	fmt.Fprintf(d.IO.ErrOut, "Warning: app-events submit: event %q has no deep link; App Store Connect asks for one so Open on the event card leads to the event in your app. Set it while the event is editable. After submitting, remove the event from review before updating it. Update with: asc app-events update --event-id %s --deep-link \"URL\"\n", safeID, safeID)
 }
