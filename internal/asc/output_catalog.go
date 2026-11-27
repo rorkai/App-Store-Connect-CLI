@@ -1,6 +1,10 @@
 package asc
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+)
 
 type CatalogItem struct {
 	Kind     string         `json:"kind"`
@@ -28,4 +32,23 @@ func catalogResultRows(result *CatalogResult) ([]string, [][]string) {
 		rows = append(rows, []string{item.Kind, item.Key, item.ID, item.Action, item.Status, string(changes), item.Error})
 	}
 	return []string{"Kind", "Key", "ID", "Action", "Status", "Changes", "Error"}, rows
+}
+
+func catalogResultTables(w io.Writer, result *CatalogResult, render func([]string, [][]string)) error {
+	var receipt [][]string
+	if result.PlanSHA256 != "" {
+		receipt = append(receipt, []string{"Plan SHA256", result.PlanSHA256})
+	}
+	if result.Recovery != "" {
+		receipt = append(receipt, []string{"Recovery", result.Recovery})
+	}
+	if len(receipt) > 0 {
+		render([]string{"Receipt", "Value"}, receipt)
+		if _, err := fmt.Fprintln(w); err != nil {
+			return err
+		}
+	}
+	headers, rows := catalogResultRows(result)
+	render(headers, rows)
+	return nil
 }
