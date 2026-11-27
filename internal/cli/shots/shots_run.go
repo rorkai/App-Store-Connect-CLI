@@ -35,7 +35,8 @@ button takes button apple-pay, home, lock, side-button, or siri, and optional du
 pinch takes scale above 0 and not 1 (above 1 zooms in), and optional x and y (default: the screen centre) and radius.
 rotate takes x, y, radius, and degrees from -360 to 360, not 0 (clockwise).
 double_tap takes x and y; it does not accept label or id.
-scroll and swipe need AXe 2.0 or later.
+long_press, pinch, rotate, double_tap, and scroll with distance, label, id, or
+max_swipes need AXe 2.0 or later. Required tools are checked before steps run.
 Set defaults.status_bar to screenshot, low-battery, no-service, or charging to
 override the simulator status bar during the run (needs AXe 2.0+ and Xcode 27+).
 When the run ends, every status bar override on that simulator is cleared,
