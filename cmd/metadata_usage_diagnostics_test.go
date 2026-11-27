@@ -65,7 +65,7 @@ func TestRunMetadataRequiredInputsAreConciseAndStructured(t *testing.T) {
 		{
 			name:          "push missing version",
 			args:          []string{"metadata", "push", "--app", "app-1", "--dir", "./metadata"},
-			wantError:     "--version is required",
+			wantError:     "--version is required. Pass the App Store version string, for example --version 1.2.3. If you have version localizations, match the folder under version/ in --dir.",
 			wantParameter: "--version",
 		},
 		{
@@ -83,7 +83,7 @@ func TestRunMetadataRequiredInputsAreConciseAndStructured(t *testing.T) {
 		{
 			name:          "plan missing version",
 			args:          []string{"metadata", "plan", "--app", "app-1", "--dir", "./metadata"},
-			wantError:     "--version is required",
+			wantError:     "--version is required. Pass the App Store version string, for example --version 1.2.3. If you have version localizations, match the folder under version/ in --dir.",
 			wantParameter: "--version",
 		},
 		{
@@ -101,7 +101,7 @@ func TestRunMetadataRequiredInputsAreConciseAndStructured(t *testing.T) {
 		{
 			name:          "apply missing version",
 			args:          []string{"metadata", "apply", "--app", "app-1", "--dir", "./metadata"},
-			wantError:     "--version is required",
+			wantError:     "--version is required. Pass the App Store version string, for example --version 1.2.3. If you have version localizations, match the folder under version/ in --dir.",
 			wantParameter: "--version",
 		},
 		{
