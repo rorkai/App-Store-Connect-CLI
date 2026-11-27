@@ -52,6 +52,7 @@ func Run(args []string, versionInfo string) int {
 
 // RunWithDeps is Run with the commands that take dependencies built on d, and
 // the root's own output written to d's streams.
+// Calls must be serialized because root flags and other invocation state are process-wide.
 func RunWithDeps(args []string, versionInfo string, d *shared.Deps) (exitCode int) {
 	defer shared.CleanupTempPrivateKeys()
 	// --read-only is per invocation: clear it on return so an embedded or
@@ -329,7 +330,7 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) (exitCode in
 
 	if runErr != nil {
 		diagnosticErr = runErr
-		if analysis.unknownToken != "" {
+		if analysis.shape == telemetry.InvocationShapeUnknownChild {
 			failureType = "unknown_command"
 		}
 		if _, ok := errors.AsType[shared.ReportedError](runErr); ok {
