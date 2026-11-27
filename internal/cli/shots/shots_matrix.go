@@ -43,6 +43,9 @@ and content-variant axes.
 Target simulators must already exist and be booted. This command is local-only:
 it does not upload screenshots or change App Store Connect state. Every run
 writes review/manifest.json and review/index.html, including failed cells.
+Required AXe capabilities are checked before simulator settings or app launches
+change. An unmet requirement is reported on stderr and marks affected cells
+as preflight failures.
 
 A base plan's defaults.status_bar is applied once per cell and cleared after
 it (needs AXe 2.0+ and Xcode 27+).

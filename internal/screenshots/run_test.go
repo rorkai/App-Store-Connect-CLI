@@ -212,6 +212,7 @@ func TestRunPlan_ScrollAndSwipeStepsCallAXe(t *testing.T) {
 	axeLog := filepath.Join(t.TempDir(), "axe.log")
 	writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
 set -eu
+if [ "$1" = "--version" ]; then printf '2.0.0\n'; exit 0; fi
 printf '%s\n' "$*" >> "$AXE_LOG"
 `)
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -498,6 +499,7 @@ fi
 `)
 			writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
 set -eu
+if [ "$1" = "--version" ]; then printf '2.0.0\n'; exit 0; fi
 printf '%s\n' "$*" >> "$AXE_LOG"
 if [ "$1" = "$AXE_FAIL_ON" ]; then exit 1; fi
 if [ "$AXE_FAIL_CLEAR" = "1" ] && [ "$1" = "settings" ] && [ "$3" = "clear" ]; then exit 1; fi

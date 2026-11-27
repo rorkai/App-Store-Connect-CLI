@@ -118,6 +118,10 @@ func RunMatrixWithDependencies(ctx context.Context, matrixPath string, matrixPla
 
 	deps := dependencies
 	useDefaultDeviceCheck := deps.RunPlan == nil && deps.RunPlanRooted == nil && deps.Frame == nil && deps.FrameRooted == nil && deps.Appearance == nil && deps.CheckDevice == nil
+	capturePlan := base
+	if deps.RunPlan != nil || deps.RunPlanRooted != nil {
+		capturePlan = &Plan{Defaults: base.Defaults}
+	}
 	if deps.RunPlan == nil && deps.RunPlanRooted == nil {
 		deps.RunPlanRooted = runPlanWithRoot
 	}
@@ -145,6 +149,20 @@ func RunMatrixWithDependencies(ctx context.Context, matrixPath string, matrixPla
 			}
 		}
 	}
+	var captureToolErr error
+	if preflightErr == nil && len(deviceFailures) < len(matrixPlan.Devices) {
+		captureToolErr = checkPlanCaptureTools(ctx, capturePlan)
+		if isMatrixContextTermination(captureToolErr) {
+			preflightErr = captureToolErr
+			captureToolErr = nil
+		} else if captureToolErr != nil {
+			for _, device := range matrixPlan.Devices {
+				if _, failed := deviceFailures[device.ID]; !failed {
+					deviceFailures[device.ID] = matrixDeviceFailure{Code: "capture_tool_requirement", Message: "capture tool requirements are not met"}
+				}
+			}
+		}
+	}
 	if preflightErr != nil {
 		markMatrixCellsCanceled(result)
 	} else {
@@ -166,7 +184,7 @@ func RunMatrixWithDependencies(ctx context.Context, matrixPath string, matrixPla
 			setMatrixScreenshotStatuses(&result.Cells[index])
 		}
 	}
-	runErr := preflightErr
+	runErr := errors.Join(preflightErr, captureToolErr)
 	var outputRoots matrixOutputRoots
 	var reviewRoot rootfs.Root
 	var reviewRootReady bool

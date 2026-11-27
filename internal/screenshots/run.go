@@ -56,6 +56,11 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (_ *Run
 	if err := validatePlan(plan); err != nil {
 		return nil, err
 	}
+	if rootedOutput == nil {
+		if err := checkPlanCaptureTools(ctx, plan); err != nil {
+			return nil, err
+		}
+	}
 
 	udid := strings.TrimSpace(plan.App.UDID)
 	if udid == "" {
