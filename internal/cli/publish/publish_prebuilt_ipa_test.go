@@ -3,11 +3,13 @@ package publish
 import (
 	"archive/zip"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +34,8 @@ func TestPublishCommandsSelectPrebuiltIPAPlatform(t *testing.T) {
 			name, marker, platform, wantPlatform string
 			args                                 []string
 			wantVersion, wantBuild, wantError    string
+			missingInfoPlist                     bool
+			wantExtractionError                  string
 		}{
 			{name: "visionOS", marker: "XROS", wantPlatform: "VISION_OS", wantVersion: "1.2.3", wantBuild: "42"},
 			{name: "tvOS", marker: "AppleTVOS", wantPlatform: "TV_OS", wantVersion: "1.2.3", wantBuild: "42"},
@@ -39,8 +43,11 @@ func TestPublishCommandsSelectPrebuiltIPAPlatform(t *testing.T) {
 			{name: "legacy explicit", platform: "VISION_OS", wantPlatform: "VISION_OS", wantVersion: "1.2.3", wantBuild: "42"},
 			{name: "version overrides", marker: "XROS", wantPlatform: "VISION_OS", args: []string{"--version", "2.0", "--build-number", "99"}, wantVersion: "2.0", wantBuild: "99"},
 			{name: "mismatch with overrides", marker: "XROS", platform: "IOS", args: []string{"--version", "2.0", "--build-number", "99"}, wantError: "Error: --platform IOS does not match IPA platform VISION_OS\n"},
+			{name: "missing plist with overrides", missingInfoPlist: true, wantPlatform: "IOS", args: []string{"--version", "2.0", "--build-number", "99"}, wantVersion: "2.0", wantBuild: "99"},
+			{name: "missing plist with explicit platform", missingInfoPlist: true, platform: "VISION_OS", wantPlatform: "VISION_OS", args: []string{"--version", "2.0", "--build-number", "99"}, wantVersion: "2.0", wantBuild: "99"},
+			{name: "missing plist needs build number", missingInfoPlist: true, args: []string{"--version", "2.0"}, wantExtractionError: "--build-number required (failed to extract from IPA: missing Info.plist in IPA)"},
 		} {
-			if command.name == "appstore dry run" && test.wantError == "" {
+			if command.name == "appstore dry run" && test.wantError == "" && !test.missingInfoPlist {
 				continue
 			}
 			t.Run(command.name+"/"+test.name, func(t *testing.T) {
@@ -62,7 +69,13 @@ func TestPublishCommandsSelectPrebuiltIPAPlatform(t *testing.T) {
 				d := newPublishTestDeps()
 				cmd := command.new(d)
 				cmd.FlagSet.SetOutput(io.Discard)
-				args := append([]string{"--app", "123", "--ipa", writePublishIPA(t, test.marker), "--output", "json"}, command.args...)
+				var ipaPath string
+				if test.missingInfoPlist {
+					ipaPath = writePublishIPAFile(t, "Payload/Demo.app/Demo", []byte("app executable fixture"))
+				} else {
+					ipaPath = writePublishIPA(t, test.marker)
+				}
+				args := append([]string{"--app", "123", "--ipa", ipaPath, "--output", "json"}, command.args...)
 				args = append(args, test.args...)
 				if test.platform != "" {
 					args = append(args, "--platform", test.platform)
@@ -78,6 +91,18 @@ func TestPublishCommandsSelectPrebuiltIPAPlatform(t *testing.T) {
 				if test.wantError != "" {
 					if !errors.Is(runErr, flag.ErrHelp) || stderr != test.wantError || stdout != "" || clientCalls != 0 {
 						t.Fatalf("mismatch: err=%v stderr=%q stdout=%q client calls=%d", runErr, stderr, stdout, clientCalls)
+					}
+				} else if test.wantExtractionError != "" {
+					if runErr == nil || !strings.HasSuffix(runErr.Error(), test.wantExtractionError) || stdout != "" || clientCalls != 0 {
+						t.Fatalf("extraction: err=%v stdout=%q client calls=%d", runErr, stdout, clientCalls)
+					}
+				} else if command.name == "appstore dry run" {
+					var result asc.AppStorePublishResult
+					if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+						t.Fatalf("decode dry-run: %v; command error: %v", err, runErr)
+					}
+					if runErr != nil || !result.DryRun || result.BuildVersion != test.wantVersion || result.BuildNumber != test.wantBuild || clientCalls != 0 || stderr != "" {
+						t.Fatalf("dry-run: result=%+v err=%v stderr=%q client calls=%d", result, runErr, stderr, clientCalls)
 					}
 				} else if !errors.Is(runErr, stop) || string(gotPlatform) != test.wantPlatform || gotVersion != test.wantVersion || gotBuild != test.wantBuild || stderr != "" {
 					t.Fatalf("upload: platform=%q version=%q build=%q err=%v stderr=%q", gotPlatform, gotVersion, gotBuild, runErr, stderr)
@@ -100,13 +125,18 @@ func writePublishIPA(t *testing.T, platform string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return writePublishIPAFile(t, "Payload/Demo.app/Info.plist", data)
+}
+
+func writePublishIPAFile(t *testing.T, name string, data []byte) string {
+	t.Helper()
 	path := filepath.Join(t.TempDir(), "Demo.ipa")
 	file, err := os.Create(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	writer := zip.NewWriter(file)
-	entry, err := writer.Create("Payload/Demo.app/Info.plist")
+	entry, err := writer.Create(name)
 	if err != nil {
 		t.Fatal(err)
 	}
