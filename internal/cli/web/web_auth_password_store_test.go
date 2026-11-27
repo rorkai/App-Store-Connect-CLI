@@ -518,6 +518,9 @@ func TestResolveSessionReplacesRejectedStoredPasswordOnlyAfterSuccessfulLogin(t 
 
 func TestResolveSessionReplacesRejectedStoredPasswordWithoutCachedSession(t *testing.T) {
 	d, _, _ := newWebTestDeps()
+	origPromptAvailable := twoFactorPromptAvailableFn
+	t.Cleanup(func() { twoFactorPromptAvailableFn = origPromptAvailable })
+	twoFactorPromptAvailableFn = func() bool { return true }
 	preserveWebPasswordHooks(t)
 	preserveWebLoginHooks(t)
 	t.Setenv(webPasswordEnv, "")
@@ -529,7 +532,7 @@ func TestResolveSessionReplacesRejectedStoredPasswordWithoutCachedSession(t *tes
 		return nil, false, nil
 	}
 	loadStoredWebPasswordFn = func(string) (string, bool, error) { return "old-secret", true, nil }
-	promptPasswordFn = func(context.Context) (string, error) { return "new-secret", nil }
+
 	deleteStoredWebPasswordFn = func(string) error { return nil }
 	persistWebSessionFn = func(*webcore.AuthSession) error { return nil }
 
@@ -554,6 +557,13 @@ func TestResolveSessionReplacesRejectedStoredPasswordWithoutCachedSession(t *tes
 	}
 	var warning bytes.Buffer
 	d.IO.ErrOut = &warning
+	d.IO = d.IO.WithQuietDiagnostics()
+	promptPasswordFn = func(context.Context) (string, error) {
+		if !strings.Contains(warning.String(), "Saved Apple Account password was rejected; removing it.") {
+			t.Fatalf("password prompt lost rejection context: %q", warning.String())
+		}
+		return "new-secret", nil
+	}
 	stored := ""
 	storeStoredWebPasswordFn = func(_ string, password string) error {
 		if loginAttempts != 2 {
@@ -578,7 +588,11 @@ func TestResolveSessionReplacesRejectedStoredPasswordWithoutCachedSession(t *tes
 // A run without a terminal cannot replace a rejected saved password, so it must
 // be removed or every later run sends it to Apple again.
 func TestResolveSessionRemovesRejectedStoredPassword(t *testing.T) {
-	d, _, _ := newWebTestDeps()
+	d, _, stderr := newWebTestDeps()
+	d.IO = d.IO.WithQuietDiagnostics()
+	origPromptAvailable := twoFactorPromptAvailableFn
+	t.Cleanup(func() { twoFactorPromptAvailableFn = origPromptAvailable })
+	twoFactorPromptAvailableFn = func() bool { return false }
 	for _, expiredCache := range []bool{false, true} {
 		t.Run(fmt.Sprintf("expiredCache=%t", expiredCache), func(t *testing.T) {
 			configureFreshPasswordLoginTest(t)
@@ -604,8 +618,11 @@ func TestResolveSessionRemovesRejectedStoredPassword(t *testing.T) {
 				return nil
 			}
 
-			if _, _, err := resolveSession(context.Background(), d, "user@example.com", "", ""); err == nil {
+			if _, _, err := resolveSession(context.Background(), d, "user@example.com", "", "123456"); err == nil {
 				t.Fatal("expected resolveSession to fail without a replacement password")
+			}
+			if stderr.Len() != 0 {
+				t.Fatalf("unattended JSON diagnostics leaked text: %q", stderr.String())
 			}
 			if len(deleted) != 1 || deleted[0] != "user@example.com" {
 				t.Fatalf("deleted saved passwords = %v, want [user@example.com]", deleted)
