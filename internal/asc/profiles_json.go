@@ -29,6 +29,7 @@ func (a *ProfileAttributes) UnmarshalJSON(data []byte) error {
 	a.uuidJSON = fields["uuid"]
 	a.createdDateJSON = fields["createdDate"]
 	a.expirationDateJSON = fields["expirationDate"]
+	a.profileVersionJSON = fields["profileVersion"]
 	a.nameValue = a.Name
 	a.platformValue = a.Platform
 	a.profileTypeValue = a.ProfileType
@@ -37,6 +38,7 @@ func (a *ProfileAttributes) UnmarshalJSON(data []byte) error {
 	a.uuidValue = a.UUID
 	a.createdDateValue = a.CreatedDate
 	a.expirationDateValue = a.ExpirationDate
+	a.profileVersionValue = a.ProfileVersion
 	return nil
 }
 
@@ -56,6 +58,7 @@ func (a ProfileAttributes) MarshalJSON() ([]byte, error) {
 		UUID           json.RawMessage `json:"uuid,omitempty"`
 		CreatedDate    json.RawMessage `json:"createdDate,omitempty"`
 		ExpirationDate json.RawMessage `json:"expirationDate,omitempty"`
+		ProfileVersion json.RawMessage `json:"profileVersion,omitempty"`
 	}
 	attributes := attributesJSON{}
 	var err error
@@ -103,6 +106,12 @@ func (a ProfileAttributes) MarshalJSON() ([]byte, error) {
 	}
 	if len(a.expirationDateJSON) > 0 || a.ExpirationDate != "" {
 		attributes.ExpirationDate, err = profileAttributeJSON(a.expirationDateJSON, a.expirationDateValue, a.ExpirationDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(a.profileVersionJSON) > 0 || a.ProfileVersion != "" {
+		attributes.ProfileVersion, err = profileAttributeJSON(a.profileVersionJSON, a.profileVersionValue, a.ProfileVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -182,5 +191,6 @@ func profileAttributesHaveValues(attributes ProfileAttributes) bool {
 		attributes.ProfileContent != "" ||
 		attributes.UUID != "" ||
 		attributes.CreatedDate != "" ||
-		attributes.ExpirationDate != ""
+		attributes.ExpirationDate != "" ||
+		attributes.ProfileVersion != ""
 }
