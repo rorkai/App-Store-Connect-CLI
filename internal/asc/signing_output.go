@@ -21,8 +21,9 @@ type ProfileDownloadResult struct {
 
 // ProfilesDownloadAllResult represents CLI output for bulk profile downloads.
 type ProfilesDownloadAllResult struct {
-	OutputDir string                         `json:"outputDir"`
-	Profiles  []ProfileDownloadAllItemResult `json:"profiles"`
+	OutputDir string                             `json:"outputDir"`
+	Profiles  []ProfileDownloadAllItemResult     `json:"profiles"`
+	Skipped   []ProfileDownloadSkippedItemResult `json:"skipped,omitempty"`
 }
 
 // ProfileDownloadAllItemResult describes one profile written by a bulk download.
@@ -122,9 +123,19 @@ func profileDownloadResultRows(result *ProfileDownloadResult) ([]string, [][]str
 
 func profilesDownloadAllResultRows(result *ProfilesDownloadAllResult) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "UUID", "Profile Type", "Output Path"}
-	rows := make([][]string, 0, len(result.Profiles))
+	if len(result.Skipped) > 0 {
+		headers = append(headers, "Status", "Reason")
+	}
+	rows := make([][]string, 0, len(result.Profiles)+len(result.Skipped))
 	for _, item := range result.Profiles {
-		rows = append(rows, []string{item.ID, compactWhitespace(item.Name), item.UUID, item.ProfileType, item.OutputPath})
+		row := []string{item.ID, compactWhitespace(item.Name), item.UUID, item.ProfileType, item.OutputPath}
+		if len(result.Skipped) > 0 {
+			row = append(row, "downloaded", "")
+		}
+		rows = append(rows, row)
+	}
+	for _, item := range result.Skipped {
+		rows = append(rows, []string{item.ID, "", "", "", "", "skipped", item.Reason})
 	}
 	return headers, rows
 }

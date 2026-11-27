@@ -91,6 +91,70 @@ func TestProfilesDownloadAllExistingFileWritesNothing(t *testing.T) {
 	}
 }
 
+func TestProfilesDownloadAllUnavailableContent(t *testing.T) {
+	for _, mode := range []string{"default", "json", "table", "invalid UUID"} {
+		t.Run(mode, func(t *testing.T) {
+			setupAuth(t)
+			dir := t.TempDir()
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			uuid := "UUID-2"
+			if mode == "invalid UUID" {
+				uuid = "../outside"
+			}
+			reg.Register(asctest.GET("/v1/profiles", "filter[profileState]=ACTIVE", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"profiles","id":"P1","attributes":{"uuid":"UUID-1","profileContent":"cHJvZmlsZQ=="}},{"type":"profiles","id":"P2","attributes":{"uuid":"`+uuid+`"}}],"links":{}}`))
+			args := []string{"profiles", "download", "--all", "--output-dir", dir}
+			if mode != "default" {
+				format := mode
+				if mode == "invalid UUID" {
+					format = "json"
+				}
+				args = append(args, "--skip-unavailable", "--output-format", format)
+			}
+			stdout, _, err := runCommand(t, args)
+			if mode == "default" || mode == "invalid UUID" {
+				if err == nil || !strings.Contains(err.Error(), `profile "P2" has no usable UUID or downloadable content; nothing was written`) || stdout != "" {
+					t.Fatalf("download = %q, %v; want refusal without a receipt", stdout, err)
+				}
+				entries, readErr := os.ReadDir(dir)
+				if readErr != nil || len(entries) != 0 {
+					t.Fatalf("refused download wrote files: %v, %v", entries, readErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("partial download: %v", err)
+			}
+			path := filepath.Join(dir, "UUID-1.mobileprovision")
+			if content, err := os.ReadFile(path); err != nil || string(content) != "profile" {
+				t.Fatalf("downloaded content = %q, %v", content, err)
+			}
+			if entries, err := os.ReadDir(dir); err != nil || len(entries) != 1 {
+				t.Fatalf("downloaded files = %v, %v; want only P1", entries, err)
+			}
+			if mode == "json" {
+				var receipt struct {
+					Profiles []struct{ ID, OutputPath string }
+					Skipped  []struct{ ID, Reason string }
+				}
+				if err := json.Unmarshal([]byte(stdout), &receipt); err != nil {
+					t.Fatal(err)
+				}
+				if len(receipt.Profiles) != 1 || receipt.Profiles[0].ID != "P1" || receipt.Profiles[0].OutputPath != path || len(receipt.Skipped) != 1 || receipt.Skipped[0].ID != "P2" || receipt.Skipped[0].Reason != "no downloadable content" {
+					t.Fatalf("partial receipt = %s", stdout)
+				}
+			} else {
+				for _, want := range []string{"Status", "Reason", "P1", "downloaded", "P2", "skipped", "no downloadable content"} {
+					if !strings.Contains(stdout, want) {
+						t.Fatalf("partial table lacks %q: %s", want, stdout)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestProfilesDownloadAllUsageErrors(t *testing.T) {
 	const dir = "./profiles"
 	tests := []struct {
@@ -105,6 +169,8 @@ func TestProfilesDownloadAllUsageErrors(t *testing.T) {
 		{[]string{"--id", "PROFILE_ID", "--output", "./p.mobileprovision", "--output-dir="}, "Error: profiles download: --output-dir, --profile-type, --profile-state, and --name require --all"},
 		{[]string{"--id", "PROFILE_ID", "--output", "./p.mobileprovision", "--profile-type", "IOS_APP_DEVELOPMENT"}, "Error: profiles download: --output-dir, --profile-type, --profile-state, and --name require --all"},
 		{[]string{"--all", "--output-dir", dir, "--profile-state", "EXPIRED"}, "Error: --profile-state must be one of: ACTIVE, INVALID"},
+		{[]string{"--id", "PROFILE_ID", "--output", "./p.mobileprovision", "--skip-unavailable"}, "Error: profiles download: --skip-unavailable requires --all"},
+		{[]string{"--id", "PROFILE_ID", "--output", "./p.mobileprovision", "--skip-unavailable=false"}, "Error: profiles download: --skip-unavailable requires --all"},
 	}
 	for _, tt := range tests {
 		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {

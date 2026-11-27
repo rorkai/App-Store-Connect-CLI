@@ -558,6 +558,7 @@ func newProfilesDownloadCommand(d *shared.Deps) *ffcli.Command {
 	shared.BindFlagAlias(fs, "output-path", "output")
 	overwrite := fs.Bool("overwrite", false, "Replace an existing file at --output, or existing files in --output-dir")
 	all := fs.Bool("all", false, "Download every matching profile into --output-dir")
+	skipUnavailable := fs.Bool("skip-unavailable", false, "With --all: skip profiles without downloadable content and report their IDs and reasons")
 	outputDir := fs.String("output-dir", "", "Directory for --all; each profile is written as <UUID>.mobileprovision or <UUID>.provisionprofile")
 	profileType := fs.String("profile-type", "", "With --all: filter by profile type(s), comma-separated")
 	profileState := fs.String("profile-state", "", "With --all: filter by profile state(s): ACTIVE, INVALID (default: ACTIVE)")
@@ -575,11 +576,17 @@ Examples:
   asc profiles download --id "PROFILE_ID" --output "./profile.provisionprofile"
   asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision" --overwrite
   asc profiles download --all --output-dir "./profiles" --profile-type IOS_APP_STORE
+  asc profiles download --all --output-dir "./profiles" --skip-unavailable
 
 --all reads every page of profiles and writes each one to --output-dir as
 <UUID>.mobileprovision or <UUID>.provisionprofile. It downloads only ACTIVE
 profiles unless --profile-state says otherwise. Existing files stop the run
-before anything is written unless --overwrite is passed.`,
+before anything is written unless --overwrite is passed.
+
+Profiles without downloadable content also stop the run before files are
+written. With --skip-unavailable, these profiles are skipped and reported
+with their IDs and reasons alongside the downloaded profiles. Skips do not
+fail the command; invalid content, UUIDs, and file errors still do.`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -590,6 +597,9 @@ before anything is written unless --overwrite is passed.`,
 				if value := fs.Lookup(selector).Value.String(); profilesListFlagWasProvided(fs, selector) && len(shared.SplitCSV(value)) == 0 {
 					return shared.UsageErrorf("profiles download: --%s must not be empty", selector)
 				}
+			}
+			if profilesListFlagWasProvided(fs, "skip-unavailable") && !*all {
+				return shared.UsageError("profiles download: --skip-unavailable requires --all")
 			}
 			if *all {
 				if profilesListFlagWasProvided(fs, "id") || profilesListFlagWasProvided(fs, "output") {
@@ -610,7 +620,7 @@ before anything is written unless --overwrite is passed.`,
 				if types := shared.SplitCSVUpper(*profileType); len(types) > 0 {
 					opts = append(opts, asc.WithProfilesTypes(types))
 				}
-				return downloadAllProfiles(ctx, d, dirValue, opts, *overwrite, *output.OutputFormat, *output.Pretty)
+				return downloadAllProfiles(ctx, d, dirValue, opts, *overwrite, *skipUnavailable, *output.OutputFormat, *output.Pretty)
 			}
 			if slices.ContainsFunc([]string{"output-dir", "profile-type", "profile-state", "name"}, func(name string) bool { return profilesListFlagWasProvided(fs, name) }) {
 				return shared.UsageError("profiles download: --output-dir, --profile-type, --profile-state, and --name require --all")
@@ -665,7 +675,7 @@ before anything is written unless --overwrite is passed.`,
 	}
 }
 
-func downloadAllProfiles(ctx context.Context, d *shared.Deps, dir string, opts []asc.ProfilesOption, overwrite bool, format string, pretty bool) error {
+func downloadAllProfiles(ctx context.Context, d *shared.Deps, dir string, opts []asc.ProfilesOption, overwrite, skipUnavailable bool, format string, pretty bool) error {
 	client, err := d.Client()
 	if err != nil {
 		return fmt.Errorf("profiles download: %w", err)
@@ -695,8 +705,13 @@ func downloadAllProfiles(ctx context.Context, d *shared.Deps, dir string, opts [
 	contents := make([][]byte, 0, len(profiles.Data))
 	for _, item := range profiles.Data {
 		attrs := item.Attributes
-		if strings.TrimSpace(attrs.UUID) == "" || strings.ContainsAny(attrs.UUID, `/\`) || strings.TrimSpace(attrs.ProfileContent) == "" {
+		unavailable := strings.TrimSpace(attrs.ProfileContent) == ""
+		if strings.TrimSpace(attrs.UUID) == "" || strings.ContainsAny(attrs.UUID, `/\`) || unavailable && !skipUnavailable {
 			return shared.NewValidationError(fmt.Errorf("profiles download: profile %q has no usable UUID or downloadable content; nothing was written", item.ID))
+		}
+		if unavailable {
+			result.Skipped = append(result.Skipped, asc.ProfileDownloadSkippedItemResult{ID: item.ID, Reason: "no downloadable content"})
+			continue
 		}
 		decoded, err := decodeProfileContent(attrs.ProfileContent)
 		if err != nil {
