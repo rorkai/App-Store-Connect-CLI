@@ -214,7 +214,7 @@ func TestFindOrCreatePublishAppStoreVersionExplainsRefusedCreate(t *testing.T) {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions" && req.URL.Query().Has("filter[versionString]"):
 			return publishCommandJSONResponse(http.StatusOK, `{"data":[]}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-122","attributes":{"platform":"IOS","versionString":"1.2.2","appVersionState":"WAITING_FOR_REVIEW","appStoreState":"WAITING_FOR_REVIEW"}}]}`)
+			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-123","attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"PREPARE_FOR_SUBMISSION"}},{"type":"appStoreVersions","id":"version-122","attributes":{"platform":"IOS","versionString":"1.2.2","appVersionState":"WAITING_FOR_REVIEW","appStoreState":"WAITING_FOR_REVIEW"}}]}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersions":
 			creates++
 			return publishCommandJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","title":"The provided entity includes a relationship with an invalid value","detail":"You cannot create a new version of the App in the current state."}]}`)
@@ -232,6 +232,9 @@ func TestFindOrCreatePublishAppStoreVersionExplainsRefusedCreate(t *testing.T) {
 		`Version 1.2.2 is WAITING_FOR_REVIEW; wait until review finishes or it is released, or inspect it: asc versions view --version-id "version-122"`
 	if !strings.HasSuffix(err.Error(), want) {
 		t.Fatalf("error =\n%s\nwant suffix%s", err.Error(), want)
+	}
+	if !strings.Contains(err.Error(), `Version "1.2.3" already exists on IOS as version-123 (PREPARE_FOR_SUBMISSION). Inspect it: asc versions view --version-id "version-123"`) {
+		t.Fatalf("expected duplicate inspection without suggesting another upload, got %v", err)
 	}
 	if creates != 1 {
 		t.Fatalf("creates = %d, want one and no replay", creates)

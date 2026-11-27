@@ -79,7 +79,7 @@ func findOrCreatePublishAppStoreVersion(ctx context.Context, d *shared.Deps, cli
 		// Name the versions that block the create, unless the read-back
 		// already failed, in which case another read is unlikely to help.
 		if !readBackFailed {
-			err = shared.WithAppStoreVersionCreateConflictRerunDiagnostics(ctx, client, appID, version, platformValue, err)
+			err = shared.WithAppStoreVersionCreateConflictInspectDiagnostics(ctx, client, appID, version, platformValue, err)
 		}
 		return nil, err
 	}
