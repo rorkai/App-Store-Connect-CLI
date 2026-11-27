@@ -166,7 +166,7 @@ asc app-events update \
 * `--start` - Event start time
 * `--end` - Event end time
 * `--publish-start` - Publish start time
-* `--territories` - Territory codes (required with a schedule)
+* `--territories` - Territory codes (required with a schedule). `all` is supported only by `create`
 * `--deep-link` - URL that Open on the event card leads to; App Store Connect asks for one before review
 * `--purchase-requirement` - Purchase requirement
 * `--primary-locale` - Primary locale
@@ -264,7 +264,7 @@ YYYY-MM-DDTHH:MM:SSZ
 **Schedule limits** (checked before any request):
 
 * An event lasts at least 15 minutes and at most 31 days
-* `--publish-start` is at most 14 days before `--start`
+* `--publish-start` is at most 14 days before `--start` and cannot be after `--end`. Publication during the event is allowed
 * `--territories` is required with a schedule
 
 **Converting from Local Time:**
