@@ -146,8 +146,13 @@ func TestIAPAttachmentEvidence(t *testing.T) {
 			if hasCommand != tt.command {
 				t.Fatalf("remediation = %#v, want command %t", check.Resolution, tt.command)
 			}
-			if tt.command && !strings.Contains(check.Resolution.Commands[0], `--iap-id "com.example.item" --submission "draft-1" --confirm`) {
-				t.Fatalf("unsafe command %v", check.Resolution.Commands)
+			if tt.command {
+				wantCommand := `asc review items add --submission "draft-1" --item-type inAppPurchaseVersions --item-id "iap-v1" --if-exists skip`
+				if check.Resolution.Fixability != validation.FixabilityAPIFixable || len(check.Resolution.Commands) != 1 || check.Resolution.Commands[0] != wantCommand {
+					t.Fatalf("recovery = %#v, want api-fixable with %q", check.Resolution, wantCommand)
+				}
+			} else if check.Resolution != nil && check.Resolution.Fixability != validation.FixabilityManual {
+				t.Fatalf("unexpected actionable recovery: %#v", check.Resolution)
 			}
 			if tt.want == validation.DeepStatusBlocked || tt.want == validation.DeepStatusUnverified {
 				if finding == nil {
