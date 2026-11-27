@@ -1035,7 +1035,7 @@ func newWebReviewReplyCommand(d *shared.Deps) *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID; when set, the thread must belong to this app")
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
 	message := fs.String("message", "", "Reply message body, at most 4,000 characters")
-	bodyFile := fs.String("body-file", "", "Read the reply message body from a regular file inside the working directory")
+	bodyFile := fs.String("body-file", "", "Read the reply message body from a regular file (outside the working directory is deprecated)")
 	confirm := fs.Bool("confirm", false, "Confirm sending the reply")
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
@@ -1052,9 +1052,10 @@ and re-reads the thread to verify the created message. It never retries a send
 automatically because a failed response can follow a successful Apple write.
 
 Exactly one of --message or --body-file is required; the body is sent
-verbatim. A --body-file must be a regular file inside the working directory:
-an absolute path outside it, a ".." path, a symlink out, a directory or a FIFO
-is refused before anything is sent. With --app, the thread must belong to that app, as with
+verbatim. A --body-file must be a regular file without symlinks. Files outside
+the working directory remain supported with a deprecation warning; copy them
+into the project directory or use --message before a future release refuses
+them. With --app, the thread must belong to that app, as with
 "asc web review drafts".
 
 A thread holds one unsent draft, so the reply fails while the thread already

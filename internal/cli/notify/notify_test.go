@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -756,7 +757,7 @@ func newNotifyTestDeps(transport http.RoundTripper) (*shared.Deps, *bytes.Buffer
 	}, &stderr
 }
 
-func TestNotifySlackRefusesFilesOutsideWorkingDirectoryWithoutSending(t *testing.T) {
+func TestNotifySlackAcceptsLegacyFilesWithDeprecation(t *testing.T) {
 	root := t.TempDir()
 	project := filepath.Join(root, "project")
 	if err := os.Mkdir(project, 0o700); err != nil {
@@ -773,39 +774,53 @@ func TestNotifySlackRefusesFilesOutsideWorkingDirectoryWithoutSending(t *testing
 	}
 
 	tests := []struct {
-		name string
-		args []string
+		name      string
+		args      []string
+		wantField string
 	}{
-		{name: "payload file", args: []string{"--message", "Release submitted", "--payload-file", outsidePayload}},
-		{name: "blocks file", args: []string{"--message", "Release ready", "--blocks-file", outsideBlocks}},
+		{name: "payload file", args: []string{"--message", "Release submitted", "--payload-file", outsidePayload}, wantField: "attachments"},
+		{name: "blocks file", args: []string{"--message", "Release ready", "--blocks-file", outsideBlocks}, wantField: "blocks"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			requests := 0
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				requests++
-				w.WriteHeader(http.StatusOK)
-			}))
-			defer server.Close()
-			t.Setenv(slackWebhookEnvVar, server.URL)
-			t.Setenv(slackWebhookAllowLocalEnv, "1")
-			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			for _, symlink := range []bool{false, true} {
+				t.Run(fmt.Sprintf("symlink=%t", symlink), func(t *testing.T) {
+					args := append([]string(nil), test.args...)
+					if symlink {
+						link := filepath.Join(project, test.wantField+".json")
+						if err := os.Symlink(args[3], link); err != nil {
+							t.Skipf("symlinks unavailable: %v", err)
+						}
+						args[3] = link
+					}
+					requests := 0
+					var received map[string]json.RawMessage
+					server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						requests++
+						if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+							t.Errorf("decode Slack payload: %v", err)
+						}
+						w.WriteHeader(http.StatusOK)
+					}))
+					defer server.Close()
+					t.Setenv(slackWebhookEnvVar, server.URL)
+					t.Setenv(slackWebhookAllowLocalEnv, "1")
+					t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			d, stderr := newNotifyTestDeps(http.DefaultTransport)
-			cmd := newSlackCommand(d)
-			cmd.FlagSet.SetOutput(io.Discard)
-			if err := cmd.Parse(test.args); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			runErr := cmd.Run(context.Background())
-			if runErr == nil || !strings.Contains(runErr.Error(), "must be a regular file inside the working directory") {
-				t.Fatalf("error = %v, stderr = %q; want the working-directory refusal", runErr, stderr.String())
-			}
-			if !shared.IsReportedUsageError(runErr) {
-				t.Fatalf("error = %v, want a reported usage error (exit 2)", runErr)
-			}
-			if requests != 0 {
-				t.Fatalf("webhook requests = %d, want none after a refusal", requests)
+					d, stderr := newNotifyTestDeps(http.DefaultTransport)
+					cmd := newSlackCommand(d)
+					cmd.FlagSet.SetOutput(io.Discard)
+					if err := cmd.Parse(args); err != nil {
+						t.Fatalf("parse error: %v", err)
+					}
+					runErr := cmd.Run(context.Background())
+					if runErr != nil || requests != 1 || len(received[test.wantField]) == 0 {
+						t.Fatalf("error = %v, requests = %d, payload = %s; want the legacy file sent", runErr, requests, received[test.wantField])
+					}
+					if !strings.Contains(stderr.String(), "Warning: "+args[2]+" outside the working directory or through a symlink is deprecated") || !strings.Contains(stderr.String(), "copy the file into the project directory") {
+						t.Fatalf("expected deprecation guidance, got %q", stderr.String())
+					}
+				})
 			}
 		})
 	}

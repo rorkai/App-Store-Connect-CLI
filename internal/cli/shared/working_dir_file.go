@@ -1,73 +1,91 @@
 package shared
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
+	"runtime"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
-// OpenWorkingDirectoryFile opens path for reading when it names a regular file
-// inside d's working directory, and is the only way a command reads a file
-// whose content it sends to a recipient outside the machine. A relative path
-// resolves against the working directory; an absolute path must already point
-// inside it. Parent traversal, a symlink at any component below the working
-// directory, and non-regular files (directories, devices, FIFOs) are refused
-// before any content is read.
-//
-// A refusal is returned as a plain error that names flagName and suggests hint
-// (for example "use --message, or copy the file into the project directory");
-// callers decide how to report it. A missing or unreadable file inside the
-// directory is a read error, not a refusal.
-func (d *Deps) OpenWorkingDirectoryFile(flagName, hint, path string) (*os.File, error) {
-	refusal := fmt.Errorf("%s must be a regular file inside the working directory; %s", flagName, hint)
+// OpenMessageFile opens a regular file for message content. Outside-directory
+// files remain supported with a deprecation warning. followSymlinks preserves
+// legacy symlink support only for callers that already allowed it; those reads
+// also warn. Every resulting file is opened through rootfs, and read errors
+// retain their causes for the caller's existing error classification.
+func (d *Deps) OpenMessageFile(flagName, hint, path string, followSymlinks bool) (*os.File, error) {
 	workingDir, err := d.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", flagName, err)
 	}
-	absolute := path
-	if !filepath.IsAbs(absolute) {
-		absolute = filepath.Join(workingDir, path)
-	}
-	anchor, relative, ok := relativeToWorkingDirectory(workingDir, filepath.Clean(absolute))
-	if !ok {
-		return nil, refusal
-	}
-	root, err := rootfs.New(anchor)
+	absolute, err := d.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", flagName, err)
 	}
-	defer root.Close()
-	file, err := root.OpenFile(relative)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission) {
+	openPath := absolute
+	if followSymlinks {
+		// Windows resolves drive-relative paths and dot segments before opening.
+		// Unix walks the original components, so link/../file can name another file.
+		source := absolute
+		if runtime.GOOS != "windows" {
+			source = d.OSPath(path)
+		}
+		resolved, err := filepath.EvalSymlinks(source)
+		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", flagName, err)
 		}
-		return nil, refusal
+		openPath, err = d.Abs(resolved)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", flagName, err)
+		}
+	}
+	file, err := rootfs.OpenFileIn(workingDir, openPath)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", flagName, err)
+	}
+	if messageFileNeedsWarning(workingDir, absolute, openPath, followSymlinks) {
+		fmt.Fprintf(d.IO.ErrOut, "Warning: %s outside the working directory or through a symlink is deprecated and will be refused in a future release; %s\n", flagName, hint)
 	}
 	return file, nil
 }
 
-// relativeToWorkingDirectory returns the anchor directory and the path of
-// absolute beneath it. The working directory is tried as the process reports it
-// and then with symlinks resolved, so an absolute path spelled either way inside
-// the directory is accepted. A path equal to the anchor, or outside it, is not.
-func relativeToWorkingDirectory(workingDir, absolute string) (string, string, bool) {
-	anchors := []string{workingDir}
-	if physical, err := filepath.EvalSymlinks(workingDir); err == nil && physical != workingDir {
-		anchors = append(anchors, physical)
+func messageFileNeedsWarning(workingDir, lexicalPath, openPath string, followed bool) bool {
+	physicalDir, err := filepath.EvalSymlinks(workingDir)
+	if err != nil {
+		return true
 	}
-	for _, anchor := range anchors {
-		relative, err := filepath.Rel(anchor, absolute)
-		if err != nil || relative == "." || relative == ".." ||
-			strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
-			continue
+	if !followed || workingDir != physicalDir {
+		openPath, err = filepath.EvalSymlinks(openPath)
+		if err != nil {
+			return true
 		}
-		return anchor, relative, true
 	}
-	return "", "", false
+	if !pathWithinDirectory(physicalDir, openPath) {
+		return true
+	}
+	if !followed {
+		return false
+	}
+	if !pathWithinDirectory(workingDir, lexicalPath) {
+		// Trusted root aliases such as /var and /private/var are not symlink
+		// inputs below the working directory.
+		if rootfs.CheckContainedPath(lexicalPath) != nil {
+			return true
+		}
+		physicalLexical, err := filepath.EvalSymlinks(lexicalPath)
+		if err != nil {
+			return true
+		}
+		selected, err := filepath.Rel(physicalLexical, openPath)
+		return err != nil || selected != "."
+	}
+	relative, _ := filepath.Rel(workingDir, lexicalPath)
+	selected, err := filepath.Rel(filepath.Join(physicalDir, relative), openPath)
+	return err != nil || selected != "."
+}
+
+func pathWithinDirectory(directory, path string) bool {
+	relative, err := filepath.Rel(directory, path)
+	return err == nil && filepath.IsLocal(relative)
 }

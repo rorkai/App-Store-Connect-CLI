@@ -332,9 +332,7 @@ func TestWebReviewReplyWarnsWhenDraftResponseIsLost(t *testing.T) {
 
 func TestWebReviewReplyTakesAppScopeAndBodyFile(t *testing.T) {
 	body := "Line one.\n\nLine two keeps its spacing.  \n"
-	dir := t.TempDir()
-	t.Chdir(dir)
-	bodyFile := filepath.Join(dir, "reply.txt")
+	bodyFile := filepath.Join(t.TempDir(), "reply.txt")
 	if err := os.WriteFile(bodyFile, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -356,6 +354,9 @@ func TestWebReviewReplyTakesAppScopeAndBodyFile(t *testing.T) {
 		_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() { commandErr = command.Exec(context.Background(), nil) })
 		if commandErr != nil || len(*requested) != 4 {
 			t.Fatalf("error=%v requests=%d, want the scoped reply sent", commandErr, len(*requested))
+		}
+		if !strings.Contains(depsStderr.String(), "Warning: --body-file outside the working directory or through a symlink is deprecated") {
+			t.Fatalf("expected deprecation warning for a temporary body file, got %q", depsStderr.String())
 		}
 		var payload struct {
 			Data struct {

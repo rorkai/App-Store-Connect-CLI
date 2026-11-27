@@ -93,7 +93,7 @@ func newWebReviewDraftCreateCommand(d *shared.Deps) *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
 	message := fs.String("message", "", "Draft message body, at most 4,000 characters")
-	bodyFile := fs.String("body-file", "", "Read the draft message body from a regular file inside the working directory")
+	bodyFile := fs.String("body-file", "", "Read the draft message body from a regular file (outside the working directory is deprecated)")
 	confirm := fs.Bool("confirm", false, "Confirm creating the unsent draft")
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
@@ -105,7 +105,9 @@ func newWebReviewDraftCreateCommand(d *shared.Deps) *ffcli.Command {
 		LongHelp: `Create one unsent draft on an app-scoped Resolution Center thread.
 
 Exactly one of --message or --body-file is required. A --body-file must be a
-regular file inside the working directory. The body is preserved
+regular file without symlinks. Files outside the working directory remain
+supported with a deprecation warning; copy them into the project directory or
+use --message before a future release refuses them. The body is preserved
 verbatim after blank-body validation. --confirm is required; this command does
 not send the draft or support attachments.
 
@@ -145,7 +147,7 @@ func newWebReviewDraftUpdateCommand(d *shared.Deps) *ffcli.Command {
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
 	draftID := fs.String("draft-id", "", "Resolution Center draft message ID (defaults to the thread's one unsent draft)")
 	message := fs.String("message", "", "Draft message body, at most 4,000 characters")
-	bodyFile := fs.String("body-file", "", "Read the draft message body from a regular file inside the working directory")
+	bodyFile := fs.String("body-file", "", "Read the draft message body from a regular file (outside the working directory is deprecated)")
 	confirm := fs.Bool("confirm", false, "Confirm updating the unsent draft")
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
@@ -161,7 +163,9 @@ A thread holds at most one unsent draft. --draft-id defaults to that draft;
 when given, it must match it.
 
 Exactly one of --message or --body-file is required. A --body-file must be a
-regular file inside the working directory. The body is preserved
+regular file without symlinks. Files outside the working directory remain
+supported with a deprecation warning; copy them into the project directory or
+use --message before a future release refuses them. The body is preserved
 verbatim after blank-body validation. --confirm is required; this command does
 not send the draft or support attachments.
 
@@ -302,9 +306,9 @@ func readWebReviewDraftBody(d *shared.Deps, fs *flag.FlagSet, message, bodyFile 
 	if path == "-" {
 		return "", d.UsageError("--body-file does not support stdin")
 	}
-	file, err := d.OpenWorkingDirectoryFile("--body-file", "use --message, or copy the file into the project directory", path)
+	file, err := d.OpenMessageFile("--body-file", "use --message, or copy the file into the project directory", path, false)
 	if err != nil {
-		return "", d.UsageError(err.Error())
+		return "", err
 	}
 	defer file.Close()
 	body, err := io.ReadAll(io.LimitReader(file, webReviewDraftBodyMaxBytes+1))

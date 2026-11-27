@@ -1,29 +1,32 @@
-# Message body files must be inside the working directory
+# Message body file locations: deprecation transition
 
-Changed after 7.6.1. `asc web review reply --body-file`,
-`asc web review drafts create --body-file`, `asc web review drafts update
---body-file`, `asc notify slack --blocks-file`, `asc notify slack
---payload-file` and `asc reviews respond-batch --file` now read only a regular
-file inside the working directory. Each of these sends the file's content to a
-recipient outside the machine: App Review, Slack, or App Store customers.
+Changed after 7.6.1. These inputs continue to accept previously supported
+regular files outside the working directory, with a deprecation warning on
+stderr:
 
-A path is refused with a usage error (exit code `2`) before anything is sent,
-and the command makes no request:
+- `asc web review reply --body-file`;
+- `asc web review drafts create --body-file` and `drafts update --body-file`;
+- `asc notify slack --blocks-file` and `--payload-file`;
+- `asc reviews respond-batch --file`.
 
-- an absolute path outside the working directory;
-- a relative path that goes up with `..` out of it;
-- a symlink at any component below the working directory;
-- a directory, a FIFO or another non-regular file.
+Slack and batch review replies also preserve their existing support for
+symlink inputs that resolve to regular files, with the same warning. Web review
+commands retain their existing symlink restrictions. All inputs reject
+directories, FIFOs, and other non-regular files before reading their content.
 
-An absolute path inside the working directory, and a relative path, still work.
-Size, UTF-8 and character-length limits are unchanged. An oversize
-`--body-file` is now a usage error, so it also exits with `2`.
+Copy deprecated input files into the project directory as regular files before
+a future release refuses those paths. Web review also accepts inline text with
+`--message`; Slack accepts `--blocks-json` and `--payload-json`. Inline input is
+unchanged. Ordinary relative and absolute paths inside the working directory
+remain accepted without a warning, including Windows drive-relative paths and
+macOS aliases for the working directory.
+
+For example, a previously supported temporary reply file still works and emits:
 
 ```text
-$ asc web review reply --thread-id THREAD_ID --body-file ~/.ssh/config --confirm
-Error: --body-file must be a regular file inside the working directory; use --message, or copy the file into the project directory
+Warning: --body-file outside the working directory or through a symlink is deprecated and will be refused in a future release; use --message, or copy the file into the project directory
 ```
 
-To send a body from elsewhere, copy the file into the project directory, or pass
-the text with `--message` (or `--blocks-json` and `--payload-json` for Slack).
-`--message` and inline JSON are not changed.
+Size, UTF-8 and character-length limits are unchanged. An oversize `--body-file`
+is now a usage error (exit code `2`). Missing or unreadable web body files retain
+their existing read-error classification (exit code `1`).

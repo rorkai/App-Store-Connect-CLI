@@ -1192,10 +1192,12 @@ asc web review drafts delete --app "123456789" --thread-id "THREAD_ID" --draft-i
 
 `create` and `update` require exactly one of `--message` or `--body-file`; the
 body is preserved verbatim, including surrounding whitespace and newlines,
-after blank-body validation. A `--body-file` must be a regular file inside the
-working directory: an absolute path outside it, a `..` path, a symlink that
-leads out, a directory, or a FIFO is refused with a usage error before anything
-is sent. Copy the file into the project directory or pass `--message`. Each mutation verifies that the thread belongs to
+after blank-body validation. A `--body-file` must be a regular file, and existing
+symlink restrictions still apply. Previously supported files outside the working
+directory remain accepted with a deprecation warning on stderr. Copy those files
+into the project directory or pass `--message` before a future release refuses
+the deprecated paths. This also applies to `asc web review reply --body-file`.
+Missing or unreadable files remain read errors (exit code `1`). Each mutation verifies that the thread belongs to
 the selected app and that the draft state matches the requested operation.
 These commands never send messages or upload attachments, and an uncertain
 mutation or verification failure is never retried automatically. Apple draft

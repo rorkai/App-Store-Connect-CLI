@@ -128,7 +128,7 @@ func newReviewsRespondBatchCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("respond-batch", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	filePath := fs.String("file", "", "Path to grouped JSON replies file inside the working directory (required)")
+	filePath := fs.String("file", "", "Path to grouped JSON replies file (required; outside the working directory or symlinks are deprecated)")
 	dryRun := fs.Bool("dry-run", false, "Preview responses without creating them")
 	confirm := fs.Bool("confirm", false, "Confirm publishing the responses (required unless --dry-run)")
 	skipExisting := fs.Bool("skip-existing", false, "Skip reviews that already have a published response")
@@ -141,9 +141,11 @@ func newReviewsRespondBatchCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Create responses for multiple customer reviews.",
 		LongHelp: fmt.Sprintf(`Create responses for multiple customer reviews from a grouped JSON file.
 
-The input file must be a regular file inside the working directory and contain
-a top-level replies array. Each reply has one response body and one or more
-reviewIds.
+The input file must resolve to a regular file and contain a top-level replies
+array. Each reply has one response body and one or more reviewIds. Files outside
+the working directory and symlink inputs remain supported with a deprecation
+warning; copy them into the project directory before a future release refuses
+them.
 
 A single run accepts at most %d bytes of input and %d review ids across
 all replies, and each response must not exceed %d bytes. Split larger
@@ -230,7 +232,7 @@ Examples:
 }
 
 func loadReviewBatchTargets(d *shared.Deps, path string) ([]reviewBatchTarget, error) {
-	file, err := d.OpenWorkingDirectoryFile("--file", "copy the file into the project directory", path)
+	file, err := d.OpenMessageFile("--file", "copy the file into the project directory", path, true)
 	if err != nil {
 		return nil, err
 	}
