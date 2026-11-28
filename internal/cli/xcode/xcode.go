@@ -123,6 +123,7 @@ func newXcodeArchiveCommand(d *shared.Deps) *ffcli.Command {
 	var xcodebuildFlags shared.MultiStringFlag
 	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass a raw argument through to xcodebuild (repeatable)")
 	output := d.BindOutputFlags(fs)
+	shared.DeclareCommandRuntimeRequirements(fs, shared.CommandRuntimeRequirements{Host: "darwin", Tools: []string{"xcrun", "xcodebuild"}, ToolCoverage: "partial"})
 
 	return &ffcli.Command{
 		Name:       "archive",
@@ -246,6 +247,7 @@ func newXcodeExportCommand(d *shared.Deps) *ffcli.Command {
 	var xcodebuildFlags shared.MultiStringFlag
 	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass an additional raw argument through to xcodebuild; asc-managed arguments are rejected (repeatable)")
 	output := d.BindOutputFlags(fs)
+	shared.DeclareCommandRuntimeRequirements(fs, shared.CommandRuntimeRequirements{Host: "darwin", Tools: []string{"xcrun", "xcodebuild"}, ToolCoverage: "partial"})
 
 	return &ffcli.Command{
 		Name:       "export",

@@ -49,6 +49,19 @@ means app selection may also come from the environment or config; discovery does
 not read or publish the selected app. These rules describe CLI validation, not
 an assurance that Apple will accept a request.
 
+`asc commands --family 'xcode signing plan'` includes `runtimeRequirements`
+where host and tool requirements have been declared. Omission means unknown.
+`host: "darwin"` requires macOS; `host: "portable"` has no OS-specific host
+restriction on supported CLI platforms. Discovery does not probe this machine,
+run tools, or verify signing credentials.
+
+`toolCoverage: "partial"` lists known required executables in `tools`; additional
+tools, build features, and input requirements may apply. Xcode build, archive,
+and export use the trusted system `xcrun` and the active Xcode's `xcodebuild`.
+Selecting the developer directory can also require `xcode-select`. Signing
+operations use macOS signing/keychain tools and may require a cgo-enabled CLI.
+`toolCoverage: "none"` means no external executables are required, as for
+`xcode signing plan`, including signed-profile parsing and writing plan files.
 
 ## Usage Pattern
 

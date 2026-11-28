@@ -32,6 +32,7 @@ type commandEntry struct {
 	Flags       []commandFlag             `json:"flags"`
 	Constraints shared.CommandConstraints `json:"constraints"`
 	commandBehavior
+	RuntimeRequirements *shared.CommandRuntimeRequirements `json:"runtimeRequirements,omitempty"`
 }
 
 type commandFlag struct {
@@ -60,6 +61,8 @@ an exact alias path can still be inspected with --family.
 An unknown write intent or human interaction marks an unclassified command.
 Constraints describe declared shared validation only; coverage is partial or
 unknown. Custom validation and runtime app-ID fallback may add requirements.
+Runtime requirements are included only where declared; omission means unknown.
+Discovery does not probe the host or check tool availability.
 Runtime validation and approval requirements still apply.
 
 Examples:
@@ -124,9 +127,10 @@ func appendCommandEntries(entries *[]commandEntry, command *ffcli.Command, path 
 		HasChildren: slices.ContainsFunc(command.Subcommands, func(child *ffcli.Command) bool {
 			return !shared.HiddenFromDiscovery(child)
 		}),
-		Flags:           []commandFlag{},
-		Constraints:     shared.CommandConstraintsFor(command.FlagSet),
-		commandBehavior: behaviorForCommand(strings.Join(path, " ")),
+		Flags:               []commandFlag{},
+		RuntimeRequirements: shared.CommandRuntimeRequirementsFor(command.FlagSet),
+		Constraints:         shared.CommandConstraintsFor(command.FlagSet),
+		commandBehavior:     behaviorForCommand(strings.Join(path, " ")),
 	}
 	for _, option := range shared.VisibleHelpFlags(command.FlagSet) {
 		boolean, isBoolean := option.Value.(interface{ IsBoolFlag() bool })
