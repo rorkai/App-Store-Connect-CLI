@@ -39,6 +39,22 @@ type MatrixCellResult struct {
 	FailureStage string                   `json:"failureStage,omitempty"`
 	FailureCode  string                   `json:"failureCode,omitempty"`
 	Error        *MatrixCellError         `json:"error,omitempty"`
+
+	FailureEvidence []ScreenshotFailureEvidence `json:"failureEvidence,omitempty"`
+}
+
+// ScreenshotFailureEvidence describes the current simulator display after a
+// failed step, not necessarily the target app. Path is relative to the run's
+// output directory or the matrix rawDir and is present only after capture.
+// StepError retains the failed step's error; matrix receipts sanitize it.
+type ScreenshotFailureEvidence struct {
+	Attempt   int    `json:"attempt"`
+	StepIndex int    `json:"stepIndex"`
+	Action    string `json:"action"`
+	StepError string `json:"stepError"`
+	Status    string `json:"status"`
+	Path      string `json:"path,omitempty"`
+	Error     string `json:"error,omitempty"`
 }
 
 // MatrixCellError is the sanitized, stable failure contract for one cell.

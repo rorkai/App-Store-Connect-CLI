@@ -94,6 +94,8 @@ type Plan struct {
 	App      PlanApp      `json:"app"`
 	Defaults PlanDefaults `json:"defaults,omitempty"`
 	Steps    []PlanStep   `json:"steps"`
+
+	failureTarget *failureScreenshotTarget
 }
 
 // PlanApp contains app/simulator defaults for a run.
@@ -113,6 +115,7 @@ type PlanApp struct {
 type PlanDefaults struct {
 	PostActionDelayMS int    `json:"post_action_delay_ms,omitempty"`
 	StatusBar         string `json:"status_bar,omitempty"`
+	FailureScreenshot bool   `json:"failure_screenshot,omitempty"`
 }
 
 // PlanStep is one executable action in the plan.

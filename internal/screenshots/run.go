@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -30,6 +31,8 @@ type RunResult struct {
 	UDID      string          `json:"udid"`
 	OutputDir string          `json:"output_dir"`
 	Steps     []RunStepResult `json:"steps"`
+
+	FailureEvidence *asc.ScreenshotFailureEvidence `json:"failureEvidence,omitempty"`
 }
 
 // DefaultPlanOutputDir is where a plan without app.output_dir writes its
@@ -88,6 +91,15 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (_ *Run
 	} else {
 		absOutputDir = rootedOutput.Path()
 	}
+	failureTarget := plan.failureTarget
+	if plan.Defaults.FailureScreenshot && failureTarget == nil {
+		failureRoot, err := rootfs.New(absOutputDir)
+		if err != nil {
+			return nil, fmt.Errorf("prepare failure screenshot output: %w", err)
+		}
+		defer func() { runErr = errors.Join(runErr, failureRoot.Close()) }()
+		failureTarget = &failureScreenshotTarget{root: failureRoot, outputDir: absOutputDir}
+	}
 
 	result := &RunResult{
 		BundleID:  plan.App.BundleID,
@@ -124,6 +136,9 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (_ *Run
 			stepResult.Error = err.Error()
 			stepResult.DurationMS = time.Since(start).Milliseconds()
 			result.Steps = append(result.Steps, stepResult)
+			if plan.Defaults.FailureScreenshot {
+				result.FailureEvidence = collectFailureScreenshot(ctx, *failureTarget, udid, stepResult)
+			}
 			return result, fmt.Errorf("step %d (%s): %w", i+1, string(action), err)
 		}
 		if action == ActionLaunch {

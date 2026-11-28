@@ -903,6 +903,10 @@ func matrixReviewCellOutput(cell MatrixCellResult) asc.MatrixCellResult {
 		FailureStage: "",
 		FailureCode:  "",
 	}
+	output.FailureEvidence = append([]asc.ScreenshotFailureEvidence(nil), cell.FailureEvidence...)
+	for i := range output.FailureEvidence {
+		output.FailureEvidence[i].StepError = "step execution failed"
+	}
 	output.Screenshots = make([]asc.MatrixScreenshotResult, len(cell.Screenshots))
 	for i, screenshot := range cell.Screenshots {
 		output.Screenshots[i] = asc.MatrixScreenshotResult{

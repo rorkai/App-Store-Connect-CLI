@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -199,6 +200,8 @@ type MatrixCellResult struct {
 	FailureStage string                   `json:"failureStage,omitempty"`
 	FailureCode  string                   `json:"failureCode,omitempty"`
 	Error        *MatrixCellError         `json:"error,omitempty"`
+
+	FailureEvidence []asc.ScreenshotFailureEvidence `json:"failureEvidence,omitempty"`
 
 	framedArtifacts map[string]matrixArtifactInfo
 	rawArtifacts    map[string]matrixArtifactInfo

@@ -43,6 +43,11 @@ and content-variant axes.
 Target simulators must already exist and be booted. This command is local-only:
 it does not upload screenshots or change App Store Connect state. Every run
 writes review/manifest.json and review/index.html, including failed cells.
+Set defaults.failure_screenshot in the base plan to true to retain the current
+simulator display after each failed step, including attempts followed by a
+successful retry. The five-second capture budget respects cancellation; the
+original failure remains. Evidence paths are relative to rawDir. A display
+capture may show another app or the home screen; it does not relaunch the app.
 
 A base plan's defaults.status_bar is applied once per cell and cleared after
 it (needs AXe 2.0+ and Xcode 27+).

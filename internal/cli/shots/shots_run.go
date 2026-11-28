@@ -39,7 +39,11 @@ scroll and swipe need AXe 2.0 or later.
 Set defaults.status_bar to screenshot, low-battery, no-service, or charging to
 override the simulator status bar during the run (needs AXe 2.0+ and Xcode 27+).
 When the run ends, every status bar override on that simulator is cleared,
-including any that were set before the run.`,
+including any that were set before the run.
+Set defaults.failure_screenshot to true to collect the current simulator display
+after a failed step, with a five-second capture budget that respects cancellation.
+It does not relaunch the app and may show another app or the home screen.
+The original failure is retained. Evidence paths are relative to output_dir.`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
