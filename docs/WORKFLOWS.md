@@ -320,6 +320,9 @@ After a failed wait or distribution step, use the run ID printed by
 asc workflow run testflight_external --resume RUN_ID
 ```
 
+Keep the original workflow name. If the run used `--file`, repeat that flag with
+the same path when resuming.
+
 The upload step is not executed again because its declared outputs were already
 persisted in the run-state file.
 
