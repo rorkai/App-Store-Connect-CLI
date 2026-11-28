@@ -92,12 +92,12 @@ Examples:
 			}
 			scope := reviewInformationSettingScope
 			scope.fileName = filepath.Base(path)
-			local, err := readMetadataSettingFile(d, filepath.Dir(path), scope, "--file does not exist:")
+			local, err := readMetadataSettingFile(d, filepath.Dir(path), scope, "--file", "--file does not exist:")
 			if err != nil {
 				return err
 			}
 			if len(local) == 0 {
-				return d.UsageError("--file must contain at least one field")
+				return shared.WithDiagnostic(d.UsageError("--file must contain at least one field"), shared.DiagnosticFileInvalidFormat, "--file")
 			}
 			client, err := d.Client()
 			if err != nil {

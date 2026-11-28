@@ -99,7 +99,7 @@ func ExecutePushWithWarnings(ctx context.Context, d *shared.Deps, opts PushExecu
 	settingScopes := selectedMetadataSettingScopes(includes)
 	localSettings := make([]map[string]string, len(settingScopes))
 	for i, scope := range settingScopes {
-		localSettings[i], err = readMetadataSettingFile(d, dirValue, scope, "--include "+scope.name+" requires")
+		localSettings[i], err = readMetadataSettingFile(d, dirValue, scope, "--include", "--include "+scope.name+" requires")
 		if err != nil {
 			return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
 		}

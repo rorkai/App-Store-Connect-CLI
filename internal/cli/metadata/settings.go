@@ -137,7 +137,7 @@ func metadataSettingsNeedAppInfo(scopes []metadataSettingScope) bool {
 	return false
 }
 
-func readMetadataSettingFile(d *shared.Deps, dir string, scope metadataSettingScope, missingFilePrefix string) (map[string]string, error) {
+func readMetadataSettingFile(d *shared.Deps, dir string, scope metadataSettingScope, parameter, missingFilePrefix string) (map[string]string, error) {
 	path := filepath.Join(dir, scope.fileName)
 	root, err := rootfs.New(dir)
 	if err != nil {
@@ -147,13 +147,17 @@ func readMetadataSettingFile(d *shared.Deps, dir string, scope metadataSettingSc
 	data, err := root.ReadFileLimited(scope.fileName, shared.MaxIndirectFileValueSize)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, d.UsageErrorf("%s %s", missingFilePrefix, path)
+			return nil, shared.WithDiagnostic(d.UsageErrorf("%s %s", missingFilePrefix, path), shared.DiagnosticFileNotFound, parameter)
 		}
 		return nil, fmt.Errorf("failed to read %s: %w", path, err)
 	}
+	invalidSchema := func(format string, args ...any) error {
+		err := d.UsageErrorf("invalid metadata schema in %s: %s", path, fmt.Sprintf(format, args...))
+		return shared.WithDiagnostic(err, shared.DiagnosticFileInvalidFormat, parameter)
+	}
 	var raw map[string]json.RawMessage
 	if err := decodeMetadataSettingFields(data, &raw); err != nil {
-		return nil, d.UsageErrorf("invalid metadata schema in %s: %v", path, err)
+		return nil, invalidSchema("%v", err)
 	}
 	values := make(map[string]string, len(raw))
 	for key, rawValue := range raw {
@@ -163,14 +167,14 @@ func readMetadataSettingFile(d *shared.Deps, dir string, scope metadataSettingSc
 			for _, known := range scope.fields {
 				names = append(names, known.name)
 			}
-			return nil, d.UsageErrorf("invalid metadata schema in %s: unknown field %q; %s fields: %s", path, key, scope.name, strings.Join(names, ", "))
+			return nil, invalidSchema("unknown field %q; %s fields: %s", key, scope.name, strings.Join(names, ", "))
 		}
 		if field.nullUnset && isJSONNull(rawValue) {
 			continue
 		}
 		value, err := decodeMetadataSettingValue(d, dir, field, rawValue)
 		if err != nil {
-			return nil, d.UsageErrorf("invalid metadata schema in %s: %v", path, err)
+			return nil, invalidSchema("%v", err)
 		}
 		values[field.name] = value
 		if field.secretEnv != "" {
@@ -181,7 +185,7 @@ func readMetadataSettingFile(d *shared.Deps, dir string, scope metadataSettingSc
 	}
 	if scope.validate != nil {
 		if err := scope.validate(values, false); err != nil {
-			return nil, d.UsageErrorf("invalid metadata schema in %s: %v", path, err)
+			return nil, invalidSchema("%v", err)
 		}
 	}
 	return values, nil
