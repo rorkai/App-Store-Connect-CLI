@@ -115,6 +115,21 @@ func RunMatrixWithDependencies(ctx context.Context, matrixPath string, matrixPla
 	for i, cell := range cells {
 		result.Cells[i] = newMatrixCellResult(cell)
 	}
+	if options.PrepareProgress != nil {
+		var paths []string
+		for _, name := range matrixReviewGeneratedFiles {
+			paths = append(paths, filepath.Join(reviewDir, name))
+		}
+		for _, cell := range cells {
+			paths = append(paths, cell.RawPaths...)
+			if matrixPlan.Output.Frame.Enabled {
+				paths = append(paths, cell.FramedPaths...)
+			}
+		}
+		if err := options.PrepareProgress(paths); err != nil {
+			return nil, err
+		}
+	}
 
 	deps := dependencies
 	if options.Progress != nil {

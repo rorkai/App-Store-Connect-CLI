@@ -77,7 +77,10 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	dir := t.TempDir()
-	progressPath := filepath.Join(dir, "progress.jsonl")
+	progressPath := filepath.Join(dir, "review", "progress.jsonl")
+	if err := os.MkdirAll(filepath.Dir(progressPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("MATRIX_PROGRESS_PATH", progressPath)
 	basePath := filepath.Join(dir, "base.json")
 	matrixPath := filepath.Join(dir, "matrix.json")

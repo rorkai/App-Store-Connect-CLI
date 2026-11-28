@@ -235,7 +235,12 @@ func TestShotsMatrixProgressFileRefusalDoesNotStartRun(t *testing.T) {
 			d, stdout, stderr := newShotsTestDeps()
 			command := shotsMatrixCommandWithDependencies(d, shotsMatrixCommandDependencies{
 				loadPlan: func(string) (*screenshots.MatrixPlan, error) { return &screenshots.MatrixPlan{}, nil },
-				runMatrix: func(context.Context, string, *screenshots.MatrixPlan, screenshots.MatrixOptions) (*screenshots.MatrixResult, error) {
+				runMatrix: func(_ context.Context, _ string, _ *screenshots.MatrixPlan, options screenshots.MatrixOptions) (*screenshots.MatrixResult, error) {
+					if options.PrepareProgress != nil {
+						if err := options.PrepareProgress(nil); err != nil {
+							return nil, err
+						}
+					}
 					runCalls++
 					return nil, nil
 				},
