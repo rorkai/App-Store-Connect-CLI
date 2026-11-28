@@ -1177,22 +1177,31 @@ func verifySubscriptionsSetupState(ctx context.Context, d *shared.Deps, client *
 			verification.Status = "failed"
 			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, err
 		}
-		summary, err := resolveSubscriptionPriceSummary(ctx, d, client, subWithGroup{Sub: subResp.Data}, opts.PriceTerritory)
+		priceDate, priceKind := "", "current"
+		if start := parseSubscriptionPricingDate(opts.StartDate); start != nil && start.After(shared.PricingDate(d.Now())) {
+			priceDate, priceKind = opts.StartDate, "scheduled"
+		}
+		summary, err := resolveSubscriptionPriceSummaryForStartDate(ctx, d, client, subWithGroup{Sub: subResp.Data}, opts.PriceTerritory, priceDate)
 		if err != nil {
 			verification.Status = "failed"
-			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, fmt.Errorf("resolve current pricing: %w", err)
+			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, fmt.Errorf("resolve %s pricing: %w", priceKind, err)
 		}
 		verification.PriceTerritory = opts.PriceTerritory
-		verification.CurrentPrice = summary.CurrentPrice
+		if priceDate == "" {
+			verification.CurrentPrice = summary.CurrentPrice
+		} else {
+			verification.ScheduledPrice = summary.CurrentPrice
+			verification.ScheduledStartDate = priceDate
+		}
 		if summary.CurrentPrice == nil {
 			verification.Status = "failed"
-			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: "current price missing after setup"}, fmt.Errorf("current price missing after setup")
+			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: priceKind + " price missing after setup"}, fmt.Errorf("%s price missing after setup", priceKind)
 		}
 		if expectedPrice != "" {
 			priceFilter := shared.PriceFilter{Price: expectedPrice}
 			if !priceFilter.MatchesPrice(summary.CurrentPrice.Amount) {
 				verification.Status = "failed"
-				return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: fmt.Sprintf("current price mismatch: got %q", summary.CurrentPrice.Amount)}, fmt.Errorf("current price mismatch: got %q want %q", summary.CurrentPrice.Amount, expectedPrice)
+				return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: fmt.Sprintf("%s price mismatch: got %q", priceKind, summary.CurrentPrice.Amount)}, fmt.Errorf("%s price mismatch: got %q want %q", priceKind, summary.CurrentPrice.Amount, expectedPrice)
 			}
 		}
 		value := true

@@ -303,6 +303,16 @@ func resolveSubscriptionPriceSummary(
 	sub subWithGroup,
 	territory string,
 ) (subscriptionPriceSummary, error) {
+	return resolveSubscriptionPriceSummaryForStartDate(ctx, d, client, sub, territory, "")
+}
+
+func resolveSubscriptionPriceSummaryForStartDate(
+	ctx context.Context,
+	d *shared.Deps,
+	client *asc.Client,
+	sub subWithGroup,
+	territory, startDate string,
+) (subscriptionPriceSummary, error) {
 	summary := subscriptionPriceSummary{
 		ID:                 sub.Sub.ID,
 		Name:               sub.Sub.Attributes.Name,
@@ -351,7 +361,16 @@ func resolveSubscriptionPriceSummary(
 		currency = territoryToCurrency(territory)
 	}
 
-	if value, ok := selectCurrentSubscriptionPriceValue(pricesResp.Data, pricePointValues, d.Now()); ok {
+	prices := pricesResp.Data
+	if startDate != "" {
+		prices = nil
+		for _, price := range pricesResp.Data {
+			if strings.TrimSpace(price.Attributes.StartDate) == startDate {
+				prices = append(prices, price)
+			}
+		}
+	}
+	if value, ok := selectCurrentSubscriptionPriceValue(prices, pricePointValues, d.Now()); ok {
 		if value.CustomerPrice != "" {
 			summary.CurrentPrice = &subMoney{Amount: value.CustomerPrice, Currency: currency}
 		}
