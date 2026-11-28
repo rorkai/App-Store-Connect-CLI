@@ -407,6 +407,7 @@ type validatedOutputValue struct {
 	defaultKind   string
 	staticDefault *string
 	constraints   *CommandConstraints
+	requirements  *CommandRuntimeRequirements
 }
 
 func (v *validatedOutputValue) String() string {

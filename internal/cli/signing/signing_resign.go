@@ -36,12 +36,15 @@ func newSigningResignCommand(d *shared.Deps) *ffcli.Command {
 	rebaseTeamClaims := fs.Bool("rebase-team-claims", false, "Rebase allowlisted team-prefix claims; changing KVS selects a different data namespace")
 	bundleID := fs.String("bundle-id", "", "New main app bundle identifier; nested identifiers move from OLD. to NEW.")
 	format := shared.BindOutputFlagsWith(fs, "format", d.DefaultOutputFormat(), "Output format: json, table, markdown")
+	shared.DeclareCommandRuntimeRequirements(fs, shared.CommandRuntimeRequirements{Host: "darwin", Tools: []string{"security", "codesign"}, ToolCoverage: "partial"})
 
 	return &ffcli.Command{
 		Name:       "resign",
 		ShortUsage: "asc signing resign --ipa PATH --output PATH --identity PATH --profiles-manifest PATH [--rebase-team-claims] [--bundle-id ID] [flags]",
 		ShortHelp:  "Re-sign an existing iOS IPA with complete nested-target profile mappings.",
 		LongHelp: `Re-sign an existing iOS IPA into a new destination.
+
+Supported on macOS only; uses the system signing and keychain tools.
 
 The command validates every app-like target and its exact provisioning-profile
 mapping before creating an isolated temporary signing keychain. It never

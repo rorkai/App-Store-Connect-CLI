@@ -95,6 +95,7 @@ func xcodeSigningPlanCommand(d *shared.Deps) *ffcli.Command {
 	allowExternalXCConfig := fs.Bool("allow-external-xcconfig", false, "Allow updating xcconfig files outside the project directory")
 	overwrite := fs.Bool("overwrite", false, "Replace an existing plan artifact and --export-options-out file")
 	output := d.BindOutputFlags(fs)
+	shared.DeclareCommandRuntimeRequirements(fs, shared.CommandRuntimeRequirements{Host: "portable", ToolCoverage: "none"})
 
 	return &ffcli.Command{
 		Name:       "plan",
