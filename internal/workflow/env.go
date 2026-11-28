@@ -138,7 +138,7 @@ func buildEnvSlice(env map[string]string) []string {
 		overrides[environmentKey(key)] = struct{}{}
 	}
 	inherited := os.Environ()
-	result := make([]string, 0, len(inherited)+len(env))
+	result := make([]string, 0, len(inherited))
 	for _, entry := range inherited {
 		key, _, _ := strings.Cut(entry, "=")
 		key = environmentKey(key)
