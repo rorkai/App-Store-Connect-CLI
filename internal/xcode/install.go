@@ -560,7 +560,7 @@ type installDevice struct {
 	VisibilityClass string
 }
 
-func discoverInstallDevice(ctx context.Context, runner installDeviceRunner, devicectlPath string, environment []string, jsonDir string, timeout time.Duration, requestedID string, provisioned []string) (installDevice, error) {
+func listInstallDevices(ctx context.Context, runner installDeviceRunner, devicectlPath string, environment []string, jsonDir string, timeout time.Duration) ([]installDeviceEntry, error) {
 	seconds := toolTimeoutSeconds(timeout)
 	jsonName := "devices.json"
 	payload, runErr := runInstallJSON(ctx, runner, devicectlPath, environment, jsonDir, jsonName, []string{
@@ -571,30 +571,38 @@ func discoverInstallDevice(ctx context.Context, runner installDeviceRunner, devi
 		"list", "devices",
 	})
 	if contextErr := ctx.Err(); contextErr != nil {
-		return installDevice{}, contextErr
+		return nil, contextErr
 	}
 	if runErr != nil && len(payload) == 0 {
-		return installDevice{}, &installCommandError{Stage: "devicectl device discovery", ExitCode: installExitCode(runErr)}
+		return nil, &installCommandError{Stage: "devicectl device discovery", ExitCode: installExitCode(runErr)}
 	}
 	envelope, err := parseDevicectlEnvelope(payload, "devicectl.list.devices")
 	if err != nil {
-		return installDevice{}, err
+		return nil, err
 	}
 	if envelope.Info.Outcome != "success" {
-		return installDevice{}, structuredInstallCommandError("devicectl device discovery", envelope, runErr)
+		return nil, structuredInstallCommandError("devicectl device discovery", envelope, runErr)
 	}
 	if runErr != nil {
-		return installDevice{}, &installCommandError{Stage: "devicectl device discovery", ExitCode: installExitCode(runErr)}
+		return nil, &installCommandError{Stage: "devicectl device discovery", ExitCode: installExitCode(runErr)}
 	}
 	var listed installDeviceListResult
 	if err := decodeStrictDevicectlResult(envelope.Result, envelope.Info.JSONVersion, &listed); err != nil {
-		return installDevice{}, fmt.Errorf("parse devicectl device discovery result: invalid schema")
+		return nil, fmt.Errorf("parse devicectl device discovery result: invalid schema")
 	}
 	if listed.Devices == nil {
-		return installDevice{}, fmt.Errorf("parse devicectl device discovery result: devices are required")
+		return nil, fmt.Errorf("parse devicectl device discovery result: devices are required")
+	}
+	return listed.Devices, nil
+}
+
+func discoverInstallDevice(ctx context.Context, runner installDeviceRunner, devicectlPath string, environment []string, jsonDir string, timeout time.Duration, requestedID string, provisioned []string) (installDevice, error) {
+	entries, err := listInstallDevices(ctx, runner, devicectlPath, environment, jsonDir, timeout)
+	if err != nil {
+		return installDevice{}, err
 	}
 	var matched *installDevice
-	for _, entry := range listed.Devices {
+	for _, entry := range entries {
 		if err := validateInstallDeviceEntry(entry); err != nil {
 			return installDevice{}, err
 		}
@@ -1096,7 +1104,7 @@ func normalizeInstallDevice(entry installDeviceEntry) (installDevice, error) {
 		}
 	}
 	if device.UDID == "" {
-		return installDevice{}, &installDeviceMembershipUnavailableError{}
+		return device, &installDeviceMembershipUnavailableError{}
 	}
 	if err := validateInstallText(device.UDID, "device UDID"); err != nil {
 		return installDevice{}, fmt.Errorf("parse devicectl device discovery result: %w", err)

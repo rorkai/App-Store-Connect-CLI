@@ -89,6 +89,7 @@ Examples:
 			newXcodeTestDestinationsCommand(d),
 			newXcodeArchiveCommand(d),
 			newXcodeExportCommand(d),
+			newXcodeDevicesCommand(d),
 			newXcodeInstallCommand(d),
 			newXcodeInstallSimulatorCommand(d),
 			newXcodeExportOptionsGroupCommand(d),
