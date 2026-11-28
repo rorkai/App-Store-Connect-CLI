@@ -152,6 +152,9 @@ Examples:
 				return d.UsageError(err.Error())
 			}
 			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
+			if flagSet(fs, "base-territory") && baseTerritoryValue == "" {
+				return d.UsageError("--base-territory cannot be empty")
+			}
 			if baseTerritoryValue != "" {
 				baseTerritoryValue, err = ascterritory.Normalize(baseTerritoryValue)
 				if err != nil {
@@ -196,7 +199,8 @@ Examples:
 				return d.UsageError("--review-note cannot be empty")
 			}
 
-			hasLocalization := opts.Locale != "" || opts.DisplayName != "" || opts.Description != ""
+			hasLocalization := opts.Locale != "" || opts.DisplayName != "" || opts.Description != "" ||
+				flagSet(fs, "locale") || flagSet(fs, "display-name") || flagSet(fs, "name")
 			if hasLocalization {
 				if opts.Locale == "" {
 					return d.UsageError("--locale is required when localization flags are provided")
@@ -207,10 +211,16 @@ Examples:
 				fmt.Fprintln(d.IO.ErrOut, "Warning: localization flags on `asc iap setup` use the deprecated v1 localization resource. After setup, create or resolve an IAP version, then use `asc iap versions localizations create --version-id \"IAP_VERSION_ID\" --name \"NAME\" --locale \"LOCALE\"`.")
 			}
 
+			if flagSet(fs, "price-point-id") && opts.PricePointID == "" {
+				return d.UsageError("--price-point-id cannot be empty")
+			}
+			if flagSet(fs, "price") && opts.Price == "" {
+				return d.UsageError("--price cannot be empty")
+			}
 			if err := shared.ValidateFinitePriceFlag("--price", opts.Price); err != nil {
 				return d.UsageError(err.Error())
 			}
-			if opts.Tier < 0 {
+			if flagSet(fs, "tier") && opts.Tier <= 0 {
 				return d.UsageError("--tier must be a positive integer")
 			}
 
