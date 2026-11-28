@@ -939,7 +939,9 @@ def assert_workload_cache_action(action: str) -> None:
     assert save is not None and "if: " + main_push in save.group(1), "only main pushes may save the workload cache"
     assert "uses: actions/cache@v6" in save.group(1)
     assert restore is not None, "other events must restore the workload cache"
-    assert "if: github.event_name != 'push' || github.ref != 'refs/heads/main'" in restore.group(1)
+    windows_build_exclusion = "(runner.os != 'Windows' || inputs.workload != 'build-Windows')"
+    assert "if: " + main_push + " && " + windows_build_exclusion in save.group(1), "Windows builds must not save the oversized workload cache"
+    assert "if: (github.event_name != 'push' || github.ref != 'refs/heads/main') && " + windows_build_exclusion in restore.group(1), "Windows builds must not restore the oversized workload cache"
     assert "uses: actions/cache/restore@v6" in restore.group(1), "PR runs must not save workload caches"
 
 

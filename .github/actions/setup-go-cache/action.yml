@@ -22,10 +22,12 @@ runs:
         printf 'module-cache=%s\n' "$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
 
     # A dependency-only key lets the fastest job freeze a partial build cache.
-    # Restore compatible work everywhere; only main pushes save, so PR entries
+    # Restore compatible work; only main pushes save, so PR entries
     # cannot evict main's warm set.
+    # The full Windows build cache can exhaust the runner's system disk during
+    # recompilation. Keep that workload uncached without changing its checks.
     - name: Cache Go compilation
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (runner.os != 'Windows' || inputs.workload != 'build-Windows')
       uses: actions/cache@v6
       with:
         path: |
@@ -36,7 +38,7 @@ runs:
           go-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.workload }}-${{ hashFiles('go.mod', 'go.sum') }}-
 
     - name: Restore Go compilation
-      if: github.event_name != 'push' || github.ref != 'refs/heads/main'
+      if: (github.event_name != 'push' || github.ref != 'refs/heads/main') && (runner.os != 'Windows' || inputs.workload != 'build-Windows')
       uses: actions/cache/restore@v6
       with:
         path: |
