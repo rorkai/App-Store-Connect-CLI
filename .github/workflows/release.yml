@@ -806,17 +806,17 @@ jobs:
         run: |
           test "$(cat "workflow-artifact/candidate-release-${VERSION}.commit")" = "$RELEASE_SHA"
           tar -xf "workflow-artifact/candidate-release-${VERSION}.tar"
-          python3 workflow-source/scripts/release_provenance.py predicate \
+          python3 workflow-source/scripts/release_provenance.py identity \
             --release-dir release --version "$VERSION" --source-sha "$RELEASE_SHA" \
-            --workflow-sha "$WORKFLOW_SHA" --repository "$GH_REPO" > predicate.json
+            --workflow-sha "$WORKFLOW_SHA" --repository "$GH_REPO" > release-identity.json
 
       - name: Attest binaries and checksum manifest
         id: provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: release/asc_*
-          predicate-type: https://slsa.dev/provenance/v1
-          predicate-path: predicate.json
+          subject-path: |
+            release/asc_*
+            release-identity.json
 
       - name: Verify attested candidate bytes
         env:
