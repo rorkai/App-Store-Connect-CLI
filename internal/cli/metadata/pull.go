@@ -562,21 +562,23 @@ func fetchAppInfoLocalizations(ctx context.Context, d *shared.Deps, client *asc.
 	if err != nil {
 		return nil, err
 	}
-	if firstPage == nil || firstPage.Links.Next == "" {
-		if firstPage == nil {
-			return nil, nil
-		}
-		return firstPage.Data, nil
+	if firstPage == nil {
+		return nil, nil
 	}
+	expectedTotal := asc.ParsePagingTotal(firstPage.Meta)
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		scopedURL, err := client.ValidateNoRedirectReadContinuation(pageCtx, nextURL, fmt.Sprintf("/v1/appInfos/%s/appInfoLocalizations", appInfoID))
 		if err != nil {
 			return nil, err
 		}
-		return shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppInfoLocalizationsResponse, error) {
+		page, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppInfoLocalizationsResponse, error) {
 			return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.NextURL[asc.AppInfoLocalizationsOption](scopedURL))
 		})
+		if page != nil {
+			expectedTotal = max(expectedTotal, asc.ParsePagingTotal(page.Meta))
+		}
+		return page, err
 	})
 	if err != nil {
 		return nil, err
@@ -585,7 +587,7 @@ func fetchAppInfoLocalizations(ctx context.Context, d *shared.Deps, client *asc.
 	if !ok {
 		return nil, fmt.Errorf("unexpected pagination response type")
 	}
-	return typed.Data, nil
+	return completeMetadataLocalizations("app-info", typed.Data, expectedTotal)
 }
 
 func fetchVersionLocalizations(ctx context.Context, d *shared.Deps, client *asc.Client, versionID string) ([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], error) {
@@ -596,21 +598,23 @@ func fetchVersionLocalizations(ctx context.Context, d *shared.Deps, client *asc.
 	if err != nil {
 		return nil, err
 	}
-	if firstPage == nil || firstPage.Links.Next == "" {
-		if firstPage == nil {
-			return nil, nil
-		}
-		return firstPage.Data, nil
+	if firstPage == nil {
+		return nil, nil
 	}
+	expectedTotal := asc.ParsePagingTotal(firstPage.Meta)
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		scopedURL, err := client.ValidateNoRedirectReadContinuation(pageCtx, nextURL, fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionID))
 		if err != nil {
 			return nil, err
 		}
-		return shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppStoreVersionLocalizationsResponse, error) {
+		page, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppStoreVersionLocalizationsResponse, error) {
 			return client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](scopedURL))
 		})
+		if page != nil {
+			expectedTotal = max(expectedTotal, asc.ParsePagingTotal(page.Meta))
+		}
+		return page, err
 	})
 	if err != nil {
 		return nil, err
@@ -619,7 +623,18 @@ func fetchVersionLocalizations(ctx context.Context, d *shared.Deps, client *asc.
 	if !ok {
 		return nil, fmt.Errorf("unexpected pagination response type")
 	}
-	return typed.Data, nil
+	return completeMetadataLocalizations("version", typed.Data, expectedTotal)
+}
+
+func completeMetadataLocalizations[T any](scope string, items []asc.Resource[T], expectedTotal int) ([]asc.Resource[T], error) {
+	ids := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		ids[item.ID] = struct{}{}
+	}
+	if len(ids) < expectedTotal {
+		return nil, fmt.Errorf("incomplete %s localizations: received %d of %d; retry after the remote collection stabilizes", scope, len(ids), expectedTotal)
+	}
+	return items, nil
 }
 
 func printPullResultTable(d *shared.Deps, result PullResult) error {
