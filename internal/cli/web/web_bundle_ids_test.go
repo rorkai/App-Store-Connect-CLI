@@ -423,7 +423,12 @@ func TestWebBundleIDCapabilitiesEnableValidationErrors(t *testing.T) {
 		{name: "missing bundle id", args: []string{"--capability", "PRIVATE_CLOUD_COMPUTE", "--confirm"}, wantErr: "--bundle-id is required"},
 		{name: "missing capability", args: []string{"--bundle-id", "bundle-1", "--confirm"}, wantErr: "--capability is required"},
 		{name: "missing confirm", args: []string{"--bundle-id", "bundle-1", "--capability", "PRIVATE_CLOUD_COMPUTE"}, wantErr: "--confirm is required"},
-		{name: "unsupported capability", args: []string{"--bundle-id", "bundle-1", "--capability", "ICLOUD", "--confirm"}, wantErr: "unsupported Developer Portal capability"},
+		{name: "invalid settings", args: []string{"--bundle-id", "bundle-1", "--capability", "DATA_PROTECTION", "--settings-json", `null`, "--confirm"}, wantErr: "--settings-json must be a JSON array"},
+		{name: "blank settings", args: []string{"--bundle-id", "bundle-1", "--capability", "DATA_PROTECTION", "--settings-json", "", "--confirm"}, wantErr: "--settings-json must be a JSON array, got empty input"},
+		{name: "unknown settings field", args: []string{"--bundle-id", "bundle-1", "--capability", "DATA_PROTECTION", "--settings-json", `[{"key":"LEVEL","ignored":true}]`, "--confirm"}, wantErr: `unknown field "ignored"`},
+		{name: "null associations", args: []string{"--bundle-id", "bundle-1", "--capability", "DATA_CONTAINER_ACCESS", "--associations-json", `null`, "--confirm"}, wantErr: "--associations-json must be a JSON object of resource ID arrays"},
+		{name: "blank associations", args: []string{"--bundle-id", "bundle-1", "--capability", "DATA_CONTAINER_ACCESS", "--associations-json", "", "--confirm"}, wantErr: "--associations-json must be a JSON object of resource ID arrays"},
+		{name: "invalid output", args: []string{"--bundle-id", "bundle-1", "--capability", "CARPLAY_PLAYABLE_CONTENT", "--output", "invalid", "--confirm"}, wantErr: "--output must be one of: json, table, markdown"},
 	}
 
 	for _, tc := range tests {
@@ -484,7 +489,7 @@ func TestWebBundleIDCapabilitiesDisableValidatesBeforeSession(t *testing.T) {
 		{name: "missing bundle id", args: []string{"--capability", "PRIVATE_CLOUD_COMPUTE", "--confirm"}, want: "--bundle-id is required"},
 		{name: "missing capability", args: []string{"--bundle-id", "bundle-1", "--confirm"}, want: "--capability is required"},
 		{name: "missing confirm", args: []string{"--bundle-id", "bundle-1", "--capability", "PRIVATE_CLOUD_COMPUTE"}, want: "--confirm is required"},
-		{name: "unsupported capability", args: []string{"--bundle-id", "bundle-1", "--capability", "ICLOUD", "--confirm"}, want: "unsupported Developer Portal capability"},
+		{name: "invalid output", args: []string{"--bundle-id", "bundle-1", "--capability", "CARPLAY_PLAYABLE_CONTENT", "--confirm", "--output", "invalid"}, want: "--output must be one of: json, table, markdown"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -637,62 +642,75 @@ func TestWebBundleIDCapabilitiesEnablePersistsTeamWhenPortalResponseIsAmbiguous(
 }
 
 func TestWebBundleIDCapabilitiesEnableCallsDeveloperPortalClient(t *testing.T) {
-	origResolveSession := resolveSessionFn
-	origNewWebClient := newWebClientFn
-	origEnable := enableDeveloperBundleIDCapabilityFn
-	origPersist := persistWebSessionFn
-	t.Cleanup(func() {
-		resolveSessionFn = origResolveSession
-		newWebClientFn = origNewWebClient
-		enableDeveloperBundleIDCapabilityFn = origEnable
-		persistWebSessionFn = origPersist
-	})
+	for _, capability := range []string{"PRIVATE_CLOUD_COMPUTE", "CARPLAY_PLAYABLE_CONTENT", "FUTURE_SIMPLE_CAPABILITY"} {
+		t.Run(capability, func(t *testing.T) {
+			origResolveSession := resolveSessionFn
+			origNewWebClient := newWebClientFn
+			origEnable := enableDeveloperBundleIDCapabilityFn
+			origPersist := persistWebSessionFn
+			t.Cleanup(func() {
+				resolveSessionFn = origResolveSession
+				newWebClientFn = origNewWebClient
+				enableDeveloperBundleIDCapabilityFn = origEnable
+				persistWebSessionFn = origPersist
+			})
 
-	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		return &webcore.AuthSession{}, "cache", nil
-	}
-	newWebClientFn = func(session *webcore.AuthSession) *webcore.Client {
-		return &webcore.Client{}
-	}
-	persistWebSessionFn = func(session *webcore.AuthSession) error {
-		return nil
-	}
+			resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+				return &webcore.AuthSession{}, "cache", nil
+			}
+			newWebClientFn = func(session *webcore.AuthSession) *webcore.Client {
+				return &webcore.Client{}
+			}
+			persistWebSessionFn = func(session *webcore.AuthSession) error {
+				return nil
+			}
 
-	var gotReq webcore.DeveloperBundleIDCapabilityEnableRequest
-	enableDeveloperBundleIDCapabilityFn = func(ctx context.Context, client *webcore.Client, req webcore.DeveloperBundleIDCapabilityEnableRequest) (*webcore.DeveloperBundleIDCapabilityEnableResult, error) {
-		gotReq = req
-		return &webcore.DeveloperBundleIDCapabilityEnableResult{
-			BundleID:   req.BundleID,
-			Capability: req.Capability,
-			Enabled:    true,
-			Changed:    true,
-			Status:     "enabled",
-		}, nil
-	}
+			var gotReq webcore.DeveloperBundleIDCapabilityEnableRequest
+			enableDeveloperBundleIDCapabilityFn = func(ctx context.Context, client *webcore.Client, req webcore.DeveloperBundleIDCapabilityEnableRequest) (*webcore.DeveloperBundleIDCapabilityEnableResult, error) {
+				gotReq = req
+				return &webcore.DeveloperBundleIDCapabilityEnableResult{
+					BundleID:   req.BundleID,
+					Capability: req.Capability,
+					Enabled:    true,
+					Changed:    true,
+					Status:     "enabled",
+				}, nil
+			}
 
-	d, depsStdout, depsStderr := newWebTestDeps()
-	cmd := newWebBundleIDCapabilitiesEnableCommand(d)
-	if err := cmd.FlagSet.Parse([]string{
-		"--bundle-id", "bundle-1",
-		"--capability", "private_cloud_compute",
-		"--confirm",
-		"--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebBundleIDCapabilitiesEnableCommand(d)
+			if err := cmd.FlagSet.Parse([]string{
+				"--bundle-id", "bundle-1",
+				"--capability", strings.ToLower(capability),
+				"--confirm",
+				"--output", "json",
+				"--settings-json", `[{"key":"LEVEL","options":[{"key":"ONE","enabled":true}]}]`,
+				"--associations-json", `{"associatedBundleIds":["related-1"]}`,
+			}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
 
-	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
-		if err := cmd.Exec(context.Background(), nil); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"capability":"PRIVATE_CLOUD_COMPUTE"`) || !strings.Contains(stdout, `"status":"enabled"`) {
-		t.Fatalf("unexpected stdout: %q", stdout)
-	}
-	if gotReq.BundleID != "bundle-1" || gotReq.Capability != "PRIVATE_CLOUD_COMPUTE" {
-		t.Fatalf("unexpected enable request: %+v", gotReq)
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+				if err := cmd.Exec(context.Background(), nil); err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			var result webcore.DeveloperBundleIDCapabilityEnableResult
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("decode output: %v", err)
+			}
+			if result.Capability != capability || result.Status != "enabled" {
+				t.Fatalf("unexpected stdout: %q", stdout)
+			}
+			if gotReq.BundleID != "bundle-1" || gotReq.Capability != capability {
+				t.Fatalf("unexpected enable request: %+v", gotReq)
+			}
+			if len(gotReq.Settings) != 1 || gotReq.Settings[0].Key != "LEVEL" || len(gotReq.Associations["associatedBundleIds"]) != 1 || gotReq.Associations["associatedBundleIds"][0] != "related-1" {
+				t.Fatalf("settings or associations were not passed to client: %+v", gotReq)
+			}
+		})
 	}
 }

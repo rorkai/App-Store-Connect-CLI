@@ -222,6 +222,7 @@ Portal web-session endpoints.
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			newWebBundleIDCapabilitiesListCommand(d),
 			newWebBundleIDCapabilitiesEnableCommand(d),
 			newWebBundleIDCapabilitiesDisableCommand(d),
 			newWebBundleIDCapabilitiesSyncAppClipCommand(d),
@@ -238,7 +239,7 @@ func newWebBundleIDCapabilitiesDisableCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("web bundle-ids capabilities disable", flag.ExitOnError)
 
 	bundleID := fs.String("bundle-id", "", "Opaque Developer Portal Bundle ID resource ID")
-	capability := fs.String("capability", "", "Developer Portal capability ID (supported: PRIVATE_CLOUD_COMPUTE)")
+	capability := fs.String("capability", "", "Capability ID returned by web bundle-ids capabilities list")
 	confirm := fs.Bool("confirm", false, "Confirm disabling this Bundle ID capability")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
@@ -246,12 +247,11 @@ func newWebBundleIDCapabilitiesDisableCommand(d *shared.Deps) *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "disable",
-		ShortUsage: "asc web bundle-ids capabilities disable --bundle-id BUNDLE_RESOURCE_ID --capability PRIVATE_CLOUD_COMPUTE --confirm [flags]",
-		ShortHelp:  "Disable a Developer Portal-only Bundle ID capability.",
+		ShortUsage: "asc web bundle-ids capabilities disable --bundle-id BUNDLE_RESOURCE_ID --capability CAPABILITY_ID --confirm [flags]",
+		ShortHelp:  "Disable a Bundle ID capability through Developer Portal.",
 		LongHelp: `WEB SESSION WORKFLOWS
 
-Disable a Bundle ID capability that is exposed by Apple Developer Portal but is
-absent from the public App Store Connect capability enum.
+Disable a Bundle ID capability that is available through Apple Developer Portal.
 
 The command loads capability metadata and the complete current Bundle ID
 capability graph before saving. Existing settings and relationships are
@@ -263,8 +263,9 @@ receipt. Missing or partial target graphs remain unverified. If the capability
 is already disabled, the command returns an already-disabled result without a
 PATCH.
 
-Currently supported capability IDs:
-  PRIVATE_CLOUD_COMPUTE
+Use "asc web bundle-ids capabilities list --bundle-id BUNDLE_RESOURCE_ID" to
+inspect capability IDs available to the selected team and App ID. Apple approval
+and account permissions still apply.
 
 Example:
   asc web bundle-ids capabilities disable --bundle-id "BUNDLE_RESOURCE_ID" --capability "PRIVATE_CLOUD_COMPUTE" --confirm
@@ -289,11 +290,12 @@ Authentication:
 				return d.UsageError("--capability is required")
 			case !*confirm:
 				return d.RequireConfirm(*confirm)
-			case resolvedCapability != "PRIVATE_CLOUD_COMPUTE":
-				return d.UsageErrorf("unsupported Developer Portal capability %q (supported: PRIVATE_CLOUD_COMPUTE)", resolvedCapability)
 			}
 			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
+			}
+			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
+				return d.UsageError(err.Error())
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
@@ -340,7 +342,9 @@ func newWebBundleIDCapabilitiesEnableCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("web bundle-ids capabilities enable", flag.ExitOnError)
 
 	bundleID := fs.String("bundle-id", "", "Opaque Developer Portal Bundle ID resource ID")
-	capability := fs.String("capability", "", "Developer Portal capability ID (supported: PRIVATE_CLOUD_COMPUTE)")
+	capability := fs.String("capability", "", "Capability ID returned by web bundle-ids capabilities list")
+	associationsJSON := fs.String("associations-json", "", "Optional JSON object mapping metadata association names to resource ID arrays")
+	settingsJSON := fs.String("settings-json", "", "Optional JSON array of capability settings; omitted settings preserve current values")
 	confirm := fs.Bool("confirm", false, "Confirm enabling this Bundle ID capability")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
@@ -348,22 +352,28 @@ func newWebBundleIDCapabilitiesEnableCommand(d *shared.Deps) *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "enable",
-		ShortUsage: "asc web bundle-ids capabilities enable --bundle-id BUNDLE_RESOURCE_ID --capability PRIVATE_CLOUD_COMPUTE --confirm [flags]",
-		ShortHelp:  "Enable a Developer Portal-only Bundle ID capability.",
+		ShortUsage: "asc web bundle-ids capabilities enable --bundle-id BUNDLE_RESOURCE_ID --capability CAPABILITY_ID --confirm [flags]",
+		ShortHelp:  "Enable a Bundle ID capability through Developer Portal.",
 		LongHelp: `WEB SESSION WORKFLOWS
 
-Enable a Bundle ID capability that is exposed by Apple Developer Portal but is
-absent from the public App Store Connect capability enum.
+Enable a Bundle ID capability that is available through Apple Developer Portal.
 
 The command loads Developer Portal capability metadata and the complete current
 Bundle ID capability graph before saving. Existing settings and relationships
 are preserved. If the requested capability is already enabled, the command
-returns an already-enabled result without sending a PATCH.
+returns an already-enabled result when the supplied settings and associations
+already match, without sending a PATCH. Required settings must be supplied with
+--settings-json and are checked against Apple's metadata. Use --associations-json
+for metadata-declared linked identifiers. Assignments with dedicated App Groups,
+Apple Pay, or iCloud workflows use those commands or Developer Portal.
+Capabilities that require an opt-in must be configured in Developer Portal first.
 
-Currently supported capability IDs:
-  PRIVATE_CLOUD_COMPUTE
+Use "asc web bundle-ids capabilities list --bundle-id BUNDLE_RESOURCE_ID" to
+inspect capability IDs available to the selected team and App ID. Apple approval
+and account permissions still apply.
 
-Example:
+Examples:
+  asc web bundle-ids capabilities enable --bundle-id "BUNDLE_RESOURCE_ID" --capability "CARPLAY_PLAYABLE_CONTENT" --confirm
   asc web bundle-ids capabilities enable --bundle-id "BUNDLE_RESOURCE_ID" --capability "PRIVATE_CLOUD_COMPUTE" --confirm
 
 Authentication:
@@ -386,11 +396,33 @@ Authentication:
 				return d.UsageError("--capability is required")
 			case !*confirm:
 				return d.RequireConfirm(*confirm)
-			case resolvedCapability != "PRIVATE_CLOUD_COMPUTE":
-				return d.UsageErrorf("unsupported Developer Portal capability %q (supported: PRIVATE_CLOUD_COMPUTE)", resolvedCapability)
+			}
+			provided := make(map[string]bool)
+			fs.Visit(func(value *flag.Flag) { provided[value.Name] = true })
+			var settings []webcore.BundleIDCapabilitySetting
+			if provided["settings-json"] {
+				if strings.TrimSpace(*settingsJSON) == "" {
+					return d.UsageError("--settings-json must be a JSON array, got empty input")
+				}
+				var err error
+				settings, err = parseWebBundleIDCapabilitySettings(*settingsJSON)
+				if err != nil {
+					return d.UsageErrorf("--settings-json must be a JSON array: %v", err)
+				}
+			}
+			var associations map[string][]string
+			if provided["associations-json"] {
+				var err error
+				associations, err = parseWebBundleIDCapabilityAssociations(*associationsJSON)
+				if err != nil {
+					return d.UsageErrorf("--associations-json must be a JSON object of resource ID arrays: %v", err)
+				}
 			}
 			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
+			}
+			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
+				return d.UsageError(err.Error())
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
@@ -404,8 +436,10 @@ Authentication:
 			err = withWebSpinnerWith(d, "Enabling Developer Portal Bundle ID capability", func() error {
 				var enableErr error
 				result, enableErr = enableDeveloperBundleIDCapabilityFn(requestCtx, client, webcore.DeveloperBundleIDCapabilityEnableRequest{
-					BundleID:   resolvedBundleID,
-					Capability: resolvedCapability,
+					BundleID:     resolvedBundleID,
+					Capability:   resolvedCapability,
+					Settings:     settings,
+					Associations: associations,
 				})
 				return enableErr
 			})
@@ -414,6 +448,10 @@ Authentication:
 			// the capability even when Apple's response body is unreadable.
 			persistDeveloperPortalSessionWith(d, session)
 			if err != nil {
+				var unverified *webcore.DeveloperBundleIDCapabilityUnverifiedError
+				if errors.As(err, &unverified) {
+					fmt.Fprintf(d.IO.ErrOut, "Warning: enabling %s on Bundle ID %s may have changed the App ID. Inspect the Bundle ID before retrying.\n", resolvedCapability, resolvedBundleID)
+				}
 				return withWebAuthHint(err, "web bundle-ids capabilities enable")
 			}
 			if result == nil {
@@ -552,6 +590,7 @@ func parseWebBundleIDCapabilitySettings(value string) ([]webcore.BundleIDCapabil
 	}
 	var settings []webcore.BundleIDCapabilitySetting
 	decoder := json.NewDecoder(strings.NewReader(value))
+	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&settings); err != nil {
 		return nil, err
 	}
@@ -760,4 +799,25 @@ func developerBundleIDBoolAttribute(attributes map[string]any, key string) strin
 		return strconv.FormatBool(boolValue)
 	}
 	return developerBundleIDStringAttribute(attributes, key)
+}
+
+func parseWebBundleIDCapabilityAssociations(value string) (map[string][]string, error) {
+	var associations map[string][]string
+	decoder := json.NewDecoder(strings.NewReader(value))
+	if err := decoder.Decode(&associations); err != nil {
+		return nil, err
+	}
+	if associations == nil {
+		return nil, fmt.Errorf("expected JSON object, got null")
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, fmt.Errorf("multiple JSON values are not supported")
+	}
+	for name, ids := range associations {
+		if strings.TrimSpace(name) == "" || ids == nil {
+			return nil, fmt.Errorf("association %q requires a resource ID array", name)
+		}
+	}
+	return associations, nil
 }
