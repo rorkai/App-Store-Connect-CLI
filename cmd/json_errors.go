@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleads"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
@@ -107,6 +108,9 @@ func safeJSONErrorDetails(exitCode int, failureType string, status int, err erro
 		kind, message, hint = "usage_error", "The command input is incomplete or invalid.", "Check the command's --help for required inputs."
 	case ExitAuth:
 		kind, message, hint = "authentication_required", "Authentication or authorization failed.", "Check the active credentials with asc auth status and verify access to the selected resource."
+		if errors.Is(err, appleads.ErrMissingCredentials) || errors.Is(err, appleads.ErrOAuthCredentialsRejected) {
+			hint = "Check Apple Ads credentials with asc ads auth status. Verify the ASC_ADS_* settings or configure a profile with asc ads auth login."
+		}
 	case ExitNotFound:
 		kind, message, hint = "resource_not_found", "The requested resource was not found.", "Verify the app and resource selectors."
 	case ExitConflict:
