@@ -551,9 +551,16 @@ from:
 asc workflow run beta --resume beta-20260312T120000Z-c31f1daf
 ```
 
-Resume reuses the original workflow file, saved parameters, and persisted step
-outputs, so it rejects extra `KEY:VALUE` arguments and cannot be combined with
-`--dry-run`. A run ID belongs to exactly one workflow: passing it to a different
+The workflow name is required and must match the original run. Use the original
+workflow file; if the run used `--file`, repeat that flag with the same path:
+
+```bash
+asc workflow run --file ./release-workflow.json beta --resume beta-20260312T120000Z-c31f1daf
+```
+
+Resume reuses saved parameters and persisted step outputs, so it rejects extra
+`KEY:VALUE` arguments and cannot be combined with `--dry-run`. A run ID belongs
+to exactly one workflow: passing it to a different
 name fails with `resume run "..." belongs to workflow "beta", not "release"`.
 Runs marked `terminal` are refused rather than replayed.
 
