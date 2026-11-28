@@ -470,7 +470,9 @@ func verifyIAPSetupState(ctx context.Context, d *shared.Deps, client *asc.Client
 	now := d.Now()
 
 	iapCtx, iapCancel := d.Timeout(ctx)
-	iapResp, err := client.GetInAppPurchaseV2(iapCtx, result.IAPID)
+	iapResp, err := client.GetInAppPurchaseV2(iapCtx, result.IAPID, asc.WithIAPGetFields([]string{
+		"name", "productId", "inAppPurchaseType", "familySharable", "reviewNote",
+	}))
 	iapCancel()
 	if err != nil {
 		verification.Status = "failed"
@@ -514,6 +516,22 @@ func verifyIAPSetupState(ctx context.Context, d *shared.Deps, client *asc.Client
 		}, fmt.Errorf("type mismatch: got %q want %q", iapResp.Data.Attributes.InAppPurchaseType, opts.Type)
 	}
 	verification.IAPExists = true
+
+	unconfirmedAttribute := ""
+	if opts.FamilySharable && !iapResp.Data.Attributes.FamilySharable {
+		unconfirmedAttribute = "Family Sharing"
+	} else if opts.ReviewNote != "" && iapResp.Data.Attributes.ReviewNote != opts.ReviewNote {
+		unconfirmedAttribute = "review note"
+	}
+	if unconfirmedAttribute != "" {
+		verification.Status = "failed"
+		err := fmt.Errorf("readback did not confirm requested %s after creation. Inspect the returned iapId with asc iap get and repair with asc iap update", unconfirmedAttribute)
+		return verification, iapSetupStepResult{
+			Name:    iapSetupStepVerifyState,
+			Status:  "failed",
+			Message: err.Error(),
+		}, err
+	}
 
 	hasLocalization := opts.Locale != "" || opts.DisplayName != "" || opts.Description != ""
 	if hasLocalization {
