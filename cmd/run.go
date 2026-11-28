@@ -193,6 +193,9 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) (exitCode in
 			case commandName == "asc metadata init" && flagName == "app":
 				diagnosticHint = "Omit --app to scaffold local metadata. To fetch metadata for an existing app, run asc metadata pull --app APP_ID --dir DIR."
 				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n%s\nFor help:\n  %s --help\n", unknownFlagError(analysis, commandName), diagnosticHint, commandName)
+			case commandName == "asc web privacy catalog" && flagName == "app":
+				diagnosticHint = "Omit --app to list privacy declaration tokens. To read an app's current declarations, run asc web privacy pull --app APP_ID."
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n%s\nFor help:\n  %s --help\n", unknownFlagError(analysis, commandName), diagnosticHint, commandName)
 			default:
 				printConciseUnknownFlag(d.IO.ErrOut, root, analysis, commandName, args)
 			}

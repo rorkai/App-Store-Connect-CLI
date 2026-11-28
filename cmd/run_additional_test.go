@@ -1432,6 +1432,41 @@ func TestRun_MetadataInitAppGuidance(t *testing.T) {
 	}
 }
 
+func TestRun_PrivacyCatalogAppGuidance(t *testing.T) {
+	resetReportFlags(t)
+	t.Setenv("DO_NOT_TRACK", "1")
+
+	for _, format := range []string{"text", "json"} {
+		t.Run(format, func(t *testing.T) {
+			stdout, stderr := captureCommandOutput(t, func() {
+				args := []string{"--error-format", format, "web", "privacy", "catalog", "--app", "DO_NOT_PRINT"}
+				if code := Run(args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+			if stdout != "" || strings.Contains(stderr, "DO_NOT_PRINT") || strings.Contains(stderr, "--apple-id") {
+				t.Fatalf("unexpected stdout or prompt: stdout=%q stderr=%q", stdout, stderr)
+			}
+			guidance := stderr
+			if format == "json" {
+				var envelope struct {
+					Error jsonError `json:"error"`
+				}
+				if err := json.Unmarshal([]byte(stderr), &envelope); err != nil {
+					t.Fatalf("invalid JSON error: %v", err)
+				}
+				if envelope.Error.Type != "invalid_flag" || envelope.Error.ExitCode != ExitUsage {
+					t.Fatalf("unexpected JSON error: %s", stderr)
+				}
+				guidance = envelope.Error.Hint
+			}
+			if !strings.Contains(guidance, "Omit --app") || !strings.Contains(guidance, "asc web privacy pull --app APP_ID") {
+				t.Fatalf("missing privacy catalog guidance: %q", guidance)
+			}
+		})
+	}
+}
+
 func TestRun_GroupsBuildsListRecoversGroupsListFlags(t *testing.T) {
 	resetReportFlags(t)
 	t.Setenv("ASC_APP_ID", "")
