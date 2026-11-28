@@ -254,6 +254,9 @@ Examples:
 			}
 
 			priceTerritoryValue := strings.TrimSpace(*priceTerritory)
+			if subscriptionGroupFlagSet(fs, "price-territory") && priceTerritoryValue == "" {
+				return d.UsageError("--price-territory cannot be empty")
+			}
 			if priceTerritoryValue != "" {
 				priceTerritoryValue, err = ascterritory.Normalize(priceTerritoryValue)
 				if err != nil {
@@ -324,7 +327,8 @@ Examples:
 				return d.UsageError("--enable-monthly-commitment is not supported by setup yet; create the ONE_YEAR subscription first, then run `asc subscriptions pricing monthly-commitment enable`")
 			}
 
-			if opts.hasLocalization() {
+			if opts.hasLocalization() ||
+				subscriptionGroupFlagSet(fs, "locale") || subscriptionGroupFlagSet(fs, "display-name") || subscriptionGroupFlagSet(fs, "name") {
 				if opts.Locale == "" {
 					return d.UsageError("--locale is required when localization flags are provided")
 				}
@@ -335,7 +339,8 @@ Examples:
 					return d.UsageErrorf("--description must be at most %d characters", subscriptionsSetupDescriptionMaxLength)
 				}
 			}
-			if opts.hasGroupLocalization() {
+			if opts.hasGroupLocalization() ||
+				subscriptionGroupFlagSet(fs, "group-locale") || subscriptionGroupFlagSet(fs, "group-display-name") {
 				if opts.GroupLocale == "" {
 					return d.UsageError("--group-locale is required when group localization flags are provided")
 				}
@@ -362,10 +367,16 @@ Examples:
 				}
 			}
 
+			if subscriptionGroupFlagSet(fs, "price-point-id") && opts.PricePointID == "" {
+				return d.UsageError("--price-point-id cannot be empty")
+			}
+			if subscriptionGroupFlagSet(fs, "price") && opts.Price == "" {
+				return d.UsageError("--price cannot be empty")
+			}
 			if err := shared.ValidateFinitePriceFlag("--price", opts.Price); err != nil {
 				return d.UsageError(err.Error())
 			}
-			if opts.Tier < 0 {
+			if subscriptionGroupFlagSet(fs, "tier") && opts.Tier <= 0 {
 				return d.UsageError("--tier must be a positive integer")
 			}
 			hasPricing := opts.hasPricing(*startDate)
