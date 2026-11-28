@@ -368,6 +368,7 @@ jobs:
           - name: Windows
             runner: windows-latest
             command: |
+              ASC_BYPASS_KEYCHAIN=1 GOMAXPROCS=1 go test -v -p=1 -parallel=1 -count=1 ./internal/workflow -run '^TestWorkflowEnv(Subprocess|CaseAmbiguity|OrderedInputs|LegacyResume)$'
               ASC_BYPASS_KEYCHAIN=1 go test -count=1 ./internal/screenshots
               ASC_BYPASS_KEYCHAIN=1 go test -short -count=1 ./internal/secureopen
               ASC_BYPASS_KEYCHAIN=1 go test -short -count=1 -v ./internal/cli/shared -run '^(TestSafeWriteFileNoSymlink|TestPublishStagedFileNoReplace|TestWriteNewFileNoSymlink|TestCleanupIncompleteFile|TestDefaultDepsAbsIsFilepathAbsOnWindows|TestDepsAbsResolvesAgainstInjectedDirectoryOnWindows)'

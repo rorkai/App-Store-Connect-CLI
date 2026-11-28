@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -33,12 +34,29 @@ var (
 // mergeEnv merges environment maps in order. Later values override earlier.
 func mergeEnv(maps ...map[string]string) map[string]string {
 	result := make(map[string]string)
+	names := make(map[string]string)
 	for _, m := range maps {
 		for k, v := range m {
-			result[k] = v
+			setEnvironmentValue(result, names, k, v)
 		}
 	}
 	return result
+}
+
+func environmentKey(key string) string {
+	if runtime.GOOS == "windows" {
+		return strings.ToUpper(key)
+	}
+	return key
+}
+
+func setEnvironmentValue(values, names map[string]string, key, value string) {
+	identity := environmentKey(key)
+	if previous, exists := names[identity]; exists && previous != key {
+		delete(values, previous)
+	}
+	values[key] = value
+	names[identity] = key
 }
 
 // isTruthy returns true if a value is explicitly truthy.
@@ -62,9 +80,16 @@ var (
 // variable for a truthy value; NAME == VALUE and NAME != VALUE compare its
 // value, or "" when unset, with a literal. Step env wins over process env.
 func evalStepIf(expr string, env map[string]string) (bool, error) {
+	values := env
+	if runtime.GOOS == "windows" {
+		values = make(map[string]string, len(env))
+		for key, value := range env {
+			values[environmentKey(key)] = value
+		}
+	}
 	lookup := func(operand string) (string, error) {
 		name := strings.TrimSpace(operand)
-		if val, ok := env[name]; ok {
+		if val, ok := values[environmentKey(name)]; ok {
 			return val, nil
 		}
 		if val, ok := os.LookupEnv(name); ok {
@@ -74,7 +99,7 @@ func evalStepIf(expr string, env map[string]string) (bool, error) {
 		if !stepIfName.MatchString(name) {
 			return "", errUnsupportedStepIf
 		}
-		if val, ok := env[name]; ok {
+		if val, ok := values[environmentKey(name)]; ok {
 			return val, nil
 		}
 		return os.Getenv(name), nil
@@ -108,61 +133,28 @@ func evalStepIf(expr string, env map[string]string) (bool, error) {
 // buildEnvSlice creates a []string for exec.Cmd.Env by overlaying the
 // tracks env map onto os.Environ().
 func buildEnvSlice(env map[string]string) []string {
-	base := os.Environ()
-
-	sanitized := make([]string, 0, len(base))
-	for _, entry := range base {
-		if strings.HasPrefix(entry, bashEnvKey+"=") {
-			continue
-		}
-		sanitized = append(sanitized, entry)
+	overrides := make(map[string]struct{}, len(env))
+	for key := range env {
+		overrides[environmentKey(key)] = struct{}{}
 	}
-	base = sanitized
-
-	if len(env) == 0 {
-		return forceReadOnlyEnv(base)
-	}
-
-	// Build an index once so each override is O(1) instead of scanning base.
-	// Only track keys that we may override to avoid indexing unrelated env vars.
-	indexByKey := make(map[string]int, len(env))
-	remaining := len(env)
-	if _, hasBashEnvOverride := env[bashEnvKey]; hasBashEnvOverride {
-		remaining--
-	}
-	for i, entry := range base {
-		key, _, ok := strings.Cut(entry, "=")
-		if !ok {
-			continue
-		}
+	inherited := os.Environ()
+	result := make([]string, 0, len(inherited))
+	for _, entry := range inherited {
+		key, _, _ := strings.Cut(entry, "=")
+		key = environmentKey(key)
 		if key == bashEnvKey {
 			continue
 		}
-		if _, needsOverride := env[key]; !needsOverride {
-			continue
-		}
-		if _, exists := indexByKey[key]; !exists {
-			indexByKey[key] = i
-			remaining--
-			if remaining == 0 {
-				break
-			}
+		if _, replaced := overrides[key]; !replaced {
+			result = append(result, entry)
 		}
 	}
-
-	for k, v := range env {
-		if k == bashEnvKey {
-			continue
+	for key, value := range env {
+		if environmentKey(key) != bashEnvKey {
+			result = append(result, key+"="+value)
 		}
-		entry := k + "=" + v
-		if i, ok := indexByKey[k]; ok {
-			base[i] = entry
-			continue
-		}
-		indexByKey[k] = len(base)
-		base = append(base, entry)
 	}
-	return forceReadOnlyEnv(base)
+	return forceReadOnlyEnv(result)
 }
 
 // forceReadOnlyEnv propagates read-only mode into workflow steps. A step runs
@@ -284,6 +276,7 @@ func resetShellCacheForTest() {
 // because values are often secrets.
 func LoadEnvFiles(paths []string) (map[string]string, error) {
 	env := make(map[string]string)
+	names := make(map[string]string)
 	for _, path := range paths {
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -305,14 +298,14 @@ func LoadEnvFiles(paths []string) (map[string]string, error) {
 			if !stepIfName.MatchString(key) {
 				return nil, fmt.Errorf("env file %s:%d: invalid variable name", path, i+1)
 			}
-			if key == bashEnvKey {
+			if environmentKey(key) == bashEnvKey {
 				return nil, fmt.Errorf("env file %s:%d: %s cannot be set from an env file", path, i+1, bashEnvKey)
 			}
 			value = strings.TrimSpace(value)
 			if n := len(value); n >= 2 && (value[0] == '"' || value[0] == '\'') && value[n-1] == value[0] {
 				value = value[1 : n-1]
 			}
-			env[key] = value
+			setEnvironmentValue(env, names, key, value)
 		}
 	}
 	return env, nil
@@ -321,6 +314,7 @@ func LoadEnvFiles(paths []string) (map[string]string, error) {
 // ParseParams converts CLI arguments in KEY:VALUE or KEY=VALUE format to a map.
 func ParseParams(args []string) (map[string]string, error) {
 	params := make(map[string]string, len(args))
+	names := make(map[string]string)
 	for _, arg := range args {
 		colonIdx := strings.Index(arg, ":")
 		equalsIdx := strings.Index(arg, "=")
@@ -348,7 +342,7 @@ func ParseParams(args []string) (map[string]string, error) {
 		if key == "" {
 			return nil, fmt.Errorf("invalid parameter %q (key must not be empty or whitespace)", arg)
 		}
-		params[key] = value
+		setEnvironmentValue(params, names, key, value)
 	}
 	return params, nil
 }
