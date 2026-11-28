@@ -6,11 +6,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,12 +20,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
 )
 
 const (
-	assetDownloadMaxAttempts  = 4
-	assetDownloadInitialDelay = 200 * time.Millisecond
-	assetDownloadMaxDelay     = 2 * time.Second
 	assetDownloadUserAgent    = "curl/8.7.1 App-Store-Connect-CLI/asset-download"
 	pngEquivalenceMaxBytes    = 32 << 20
 	pngEquivalenceMaxInflated = 256 << 20
@@ -55,22 +51,6 @@ type pngImageHeader struct {
 	colorType byte
 	interlace byte
 	palette   uint32
-}
-
-type downloadHTTPStatusError struct {
-	StatusCode int
-	Message    string
-}
-
-func (e *downloadHTTPStatusError) Error() string {
-	return fmt.Sprintf("unexpected status %d (%s)", e.StatusCode, e.Message)
-}
-
-func (e *downloadHTTPStatusError) HTTPStatusCode() int {
-	if e == nil {
-		return 0
-	}
-	return e.StatusCode
 }
 
 func sanitizeBaseFileName(value string) string {
@@ -170,64 +150,44 @@ func downloadURLToFileWithEquivalence(ctx context.Context, d *shared.Deps, rawUR
 		return 0, "", false, fmt.Errorf("output path is required")
 	}
 
-	delay := assetDownloadInitialDelay
-	var lastErr error
-	lastContentType := ""
-
-	for attempt := 1; attempt <= assetDownloadMaxAttempts; attempt++ {
-		written, contentType, unchanged, err := downloadURLToFileOnce(ctx, d, rawURL, outputPath, overwrite, preserveEquivalentPNG)
-		if err == nil {
-			return written, contentType, unchanged, nil
-		}
-
-		lastErr = err
-		lastContentType = contentType
-
-		if !isRetryableDownloadError(err) || attempt == assetDownloadMaxAttempts {
-			return 0, lastContentType, false, lastErr
-		}
-
-		if err := sleepWithContext(ctx, d, delay); err != nil {
-			return 0, lastContentType, false, err
-		}
-
-		delay *= 2
-		if delay > assetDownloadMaxDelay {
-			delay = assetDownloadMaxDelay
-		}
+	type result struct {
+		written     int64
+		contentType string
+		unchanged   bool
 	}
-
-	return 0, lastContentType, false, lastErr
+	lastContentType := ""
+	value, err := asc.RetryDownload(ctx, rawURL, func() (result, error) {
+		written, contentType, unchanged, err := downloadURLToFileOnce(ctx, d, rawURL, outputPath, overwrite, preserveEquivalentPNG)
+		lastContentType = contentType
+		return result{written, contentType, unchanged}, err
+	}, asc.ResolveRetryOptions())
+	if err != nil {
+		return 0, lastContentType, false, err
+	}
+	return value.written, value.contentType, value.unchanged, nil
 }
 
 func downloadURLToFileOnce(ctx context.Context, d *shared.Deps, rawURL string, resolveOutputPath func(contentType string) string, overwrite, preserveEquivalentPNG bool) (int64, string, bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return 0, "", false, err
+		return 0, "", false, urlsanitize.NewTransportError("download", urlsanitize.RedactURLForError(rawURL), err)
 	}
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("User-Agent", assetDownloadUserAgent)
 
 	resp, err := (&http.Client{Transport: d.HTTPTransport()}).Do(req)
 	if err != nil {
-		return 0, "", false, err
+		return 0, "", false, urlsanitize.NewTransportError("download", urlsanitize.RedactURLForError(rawURL), err)
 	}
 	defer resp.Body.Close()
 
 	contentType := strings.TrimSpace(resp.Header.Get("Content-Type"))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		msg := strings.TrimSpace(string(body))
-		if msg != "" {
-			msg = strings.Join(strings.Fields(msg), " ")
+		downloadErr := asc.DownloadResponseError(resp.StatusCode, resp.Header.Get("Retry-After"))
+		if resp.StatusCode == http.StatusForbidden {
+			downloadErr = &asc.RetryableError{Err: downloadErr, RetryAfter: asc.ParseRetryAfter(resp.Header.Get("Retry-After"))}
 		}
-		if msg == "" {
-			msg = strings.TrimSpace(resp.Status)
-		}
-		return 0, contentType, false, &downloadHTTPStatusError{
-			StatusCode: resp.StatusCode,
-			Message:    msg,
-		}
+		return 0, contentType, false, downloadErr
 	}
 
 	outputPath := d.OSPath(strings.TrimSpace(resolveOutputPath(contentType)))
@@ -770,43 +730,6 @@ func pngPassDimension(size, start, step uint32) uint32 {
 		return 0
 	}
 	return (size - start + step - 1) / step
-}
-
-func isRetryableDownloadError(err error) bool {
-	var statusErr *downloadHTTPStatusError
-	if errors.As(err, &statusErr) {
-		switch statusErr.StatusCode {
-		case http.StatusForbidden,
-			http.StatusRequestTimeout,
-			http.StatusTooManyRequests,
-			http.StatusBadGateway,
-			http.StatusServiceUnavailable,
-			http.StatusGatewayTimeout:
-			return true
-		default:
-			return false
-		}
-	}
-
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		return false
-	}
-
-	var netErr net.Error
-	return errors.As(err, &netErr)
-}
-
-func sleepWithContext(ctx context.Context, d *shared.Deps, delay time.Duration) error {
-	if delay <= 0 {
-		return nil
-	}
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-d.After(delay):
-		return nil
-	}
 }
 
 func writeDownloadedFile(path string, reader io.Reader, overwrite bool) (int64, error) {

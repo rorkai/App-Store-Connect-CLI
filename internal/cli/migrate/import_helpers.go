@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -341,8 +342,12 @@ func uploadVersionLocalizations(ctx context.Context, d *shared.Deps, client *asc
 	return results, shared.NormalizeSubmitReadinessCreateWarnings(warnings), nil
 }
 
-func prepareAppInfoLocalizations(ctx context.Context, d *shared.Deps, client *asc.Client, appID string, localizations []preparedAppInfoLocalization) (appInfoLocalizationPlan, error) {
-	if len(localizations) == 0 {
+func prepareAppInfoLocalizations(ctx context.Context, d *shared.Deps, client *asc.Client, appID string, localizations []preparedAppInfoLocalization, defaults *ImportMetadataDefaults) (appInfoLocalizationPlan, error) {
+	var template *preparedAppInfoLocalization
+	if defaults != nil && defaults.AppInfo != nil {
+		template = &defaults.appInfo
+	}
+	if len(localizations) == 0 && template == nil {
 		return appInfoLocalizationPlan{}, nil
 	}
 	appInfos, err := client.GetAppInfos(ctx, appID)
@@ -371,6 +376,20 @@ func prepareAppInfoLocalizations(ctx context.Context, d *shared.Deps, client *as
 	appInfoLocaleToID := make(map[string]string)
 	for _, loc := range existingAppInfoLocs {
 		appInfoLocaleToID[loc.Attributes.Locale] = loc.ID
+	}
+
+	if template != nil {
+		for _, remote := range existingAppInfoLocs {
+			locale := remote.Attributes.Locale
+			if locale == "" || slices.ContainsFunc(localizations, func(item preparedAppInfoLocalization) bool { return item.localization.Locale == locale }) {
+				continue
+			}
+			value := *template
+			value.localization.Locale = locale
+			value.localization.defaultFiles = appInfoLocalizationFiles(template.localization)
+			value.attributes.Locale = locale
+			localizations = append(localizations, value)
+		}
 	}
 
 	plan := appInfoLocalizationPlan{

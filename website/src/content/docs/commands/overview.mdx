@@ -27,6 +27,29 @@ later environment or account fallbacks. Unknown metadata is incomplete; runtime
 validation still applies. Discovery does not yet describe every constraint or
 host/tool requirement.
 
+`asc commands --family 'app-events localizations create'` also exposes declared
+validation in each command's `constraints` object. `coverage` is `partial` when
+rules are declared and `unknown` otherwise; neither means all runtime checks are
+known. Custom validators and provider requirements still apply.
+
+Each rule names canonical flags, including the `--` prefix:
+
+| `kind` | Meaning |
+| --- | --- |
+| `required` | Every flag must have a nonblank trimmed value. |
+| `anyOf` | At least one `flags` value must be nonblank, or one `providedFlags` flag must be explicitly supplied, even with an empty value. |
+| `conflicts` | When `whenNonEmpty` is nonblank, none of `flags` may be explicitly supplied, including an explicit zero or false. |
+| `integerRange` | The value must be between inclusive `minimum` and `maximum`; pagination accepts zero as unset. |
+| `maxLength` | The trimmed value must fit `maximum`, measured in `unit` (`unicodeCodePoints`). |
+| `values` | The value must be in `values` after the declared trimming, case folding, `aliases`, and `emptyValue` normalization. |
+| `requiresValue` | When `whenTrue` is true, the normalized flag value must be in `values`. |
+
+Aliases can satisfy canonical flag values. `dynamicRules: ["appIdFallback"]`
+means app selection may also come from the environment or config; discovery does
+not read or publish the selected app. These rules describe CLI validation, not
+an assurance that Apple will accept a request.
+
+
 ## Usage Pattern
 
 All commands follow this structure:

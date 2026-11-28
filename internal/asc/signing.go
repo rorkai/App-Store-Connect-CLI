@@ -332,6 +332,7 @@ type ProfileAttributes struct {
 	UUID                string       `json:"uuid,omitempty"`
 	CreatedDate         string       `json:"createdDate,omitempty"`
 	ExpirationDate      string       `json:"expirationDate,omitempty"`
+	ProfileVersion      string       `json:"profileVersion,omitempty"`
 	attributesPresent   bool
 	attributesNull      bool
 	nameJSON            json.RawMessage
@@ -342,6 +343,7 @@ type ProfileAttributes struct {
 	uuidJSON            json.RawMessage
 	createdDateJSON     json.RawMessage
 	expirationDateJSON  json.RawMessage
+	profileVersionJSON  json.RawMessage
 	nameValue           string
 	platformValue       Platform
 	profileTypeValue    string
@@ -350,6 +352,7 @@ type ProfileAttributes struct {
 	uuidValue           string
 	createdDateValue    string
 	expirationDateValue string
+	profileVersionValue string
 }
 
 // ProfileCreateAttributes describes attributes for creating a profile.

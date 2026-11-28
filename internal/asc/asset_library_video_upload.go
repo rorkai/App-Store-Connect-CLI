@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,16 +11,26 @@ import (
 	"strings"
 )
 
+type creativeVideoPlacementReadinessKey struct{}
+
+// WithCreativeVideoPlacementReadiness permits an explicitly null download URI
+// for creative assignment after media validation and complete, observable poster
+// processing. Standalone uploads retain their URI-based readiness contract.
+func WithCreativeVideoPlacementReadiness(ctx context.Context) context.Context {
+	return context.WithValue(ctx, creativeVideoPlacementReadinessKey{}, true)
+}
+
 type assetLibraryVideoUploadResponse struct {
 	Data struct {
 		ID         string `json:"id"`
 		Type       string `json:"type"`
 		Attributes struct {
-			State             string            `json:"state"`
-			SpecID            string            `json:"specId"`
-			UploadOperations  []UploadOperation `json:"uploadOperations"`
-			VideoAsset        string            `json:"videoAsset"`
-			PreviewFrameImage *struct {
+			State                string            `json:"state"`
+			SpecID               string            `json:"specId"`
+			UploadOperations     []UploadOperation `json:"uploadOperations"`
+			VideoAsset           json.RawMessage   `json:"videoAsset"`
+			PreviewFrameTimeCode string            `json:"previewFrameTimeCode"`
+			PreviewFrameImage    *struct {
 				Image *struct {
 					Width  int `json:"width"`
 					Height int `json:"height"`
@@ -39,6 +50,8 @@ type assetLibraryVideoUploadResponse struct {
 // means the process stderr.
 func (c *Client) UploadAssetLibraryVideoWithCategory(ctx context.Context, stderr io.Writer, libraryID, fileName string, file *os.File, fileSize int64, category, referenceName, previewFrameTimeCode string, requestContext RequestContextFunc) (result AssetLibraryVideoUploadResult, err error) {
 	defer func() { result.FailedPhase = string(UploadPhaseOf(err)) }()
+	placementReadiness, _ := ctx.Value(creativeVideoPlacementReadinessKey{}).(bool)
+	placementReadiness = placementReadiness && category == "CREATIVE_ASSETS"
 	result = AssetLibraryVideoUploadResult{LibraryID: libraryID, FileName: fileName, FileSize: fileSize, ReferenceName: referenceName, PreviewFrameTimeCode: previewFrameTimeCode, Category: category}
 	if category != "CREATIVE_ASSETS" && category != "APP_SCREENSHOTS_AND_PREVIEWS" {
 		return result, fmt.Errorf("unsupported asset category %q", category)
@@ -90,8 +103,14 @@ func (c *Client) UploadAssetLibraryVideoWithCategory(ctx context.Context, stderr
 	if result.VideoID == "" || reserved.Data.Type != "appAssetLibraryVideos" {
 		return result, WithUploadPhase(UploadPhaseReserve, fmt.Errorf("video reservation missing video resource identity"))
 	}
+	if err := recordAssetLibraryCheckpoint(ctx, AssetLibraryCheckpointReserved, result.VideoID, reserved.Data.Type); err != nil {
+		return result, WithUploadPhase(UploadPhaseReserve, err)
+	}
 	if err := UploadAssetFromFile(ctx, file, fileSize, reserved.Data.Attributes.UploadOperations); err != nil {
 		return result, WithUploadPhase(UploadPhaseTransfer, fmt.Errorf("transfer video %s: %w", result.VideoID, err))
+	}
+	if err := recordAssetLibraryCheckpoint(ctx, AssetLibraryCheckpointTransferred, result.VideoID, reserved.Data.Type); err != nil {
+		return result, WithUploadPhase(UploadPhaseTransfer, err)
 	}
 	path := "/v1/appAssetLibraryVideos/" + url.PathEscape(result.VideoID)
 	commit := struct {
@@ -136,12 +155,31 @@ func (c *Client) UploadAssetLibraryVideoWithCategory(ctx context.Context, stderr
 		if attrs.PreviewFrameImage != nil && attrs.PreviewFrameImage.State != nil {
 			frameState = attrs.PreviewFrameImage.State.State
 		}
-		if previewFrameTimeCode != "" && frameState == "FAILED" {
+		if (previewFrameTimeCode != "" || placementReadiness) && frameState == "FAILED" {
 			return struct{}{}, false, fmt.Errorf("video preview frame reached FAILED")
 		}
-		videoURL, parseErr := url.Parse(attrs.VideoAsset)
+		var mediaURL string
+		explicitNull := bytes.Equal(bytes.TrimSpace(attrs.VideoAsset), []byte("null"))
+		if len(attrs.VideoAsset) > 0 && !explicitNull {
+			if err := json.Unmarshal(attrs.VideoAsset, &mediaURL); err != nil {
+				return struct{}{}, false, fmt.Errorf("parse processed video URI: %w", err)
+			}
+		}
+		videoURL, parseErr := url.Parse(mediaURL)
 		videoAvailable := parseErr == nil && videoURL.Host != "" && (videoURL.Scheme == "https" || videoURL.Scheme == "http")
 		frameReady := previewFrameTimeCode == "" || frameState == "COMPLETE"
+		if placementReadiness {
+			if attrs.State == "PREPARE_FOR_SUBMISSION" && attrs.SpecID != "" && frameState == "COMPLETE" {
+				if attrs.PreviewFrameTimeCode == "" {
+					return struct{}{}, false, fmt.Errorf("processed video poster identity is unavailable")
+				}
+				if previewFrameTimeCode != "" && attrs.PreviewFrameTimeCode != previewFrameTimeCode {
+					return struct{}{}, false, fmt.Errorf("processed video poster differs from requested time code")
+				}
+			}
+			frameReady = frameState == "COMPLETE" && result.Width > 0 && result.Height > 0 && attrs.PreviewFrameTimeCode != ""
+			videoAvailable = videoAvailable || explicitNull
+		}
 		result.Ready = attrs.State == "PREPARE_FOR_SUBMISSION" && attrs.SpecID != "" && videoAvailable && frameReady
 		return struct{}{}, result.Ready, nil
 	}, PollOptions{Tolerate: IsTransientWaitError, Stderr: stderr})

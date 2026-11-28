@@ -1,0 +1,46 @@
+name: Test order smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: Nonnegative integer seed to replay
+        type: string
+        default: '1'
+        required: true
+  schedule:
+    - cron: '17 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ASC_BYPASS_KEYCHAIN: '1'
+      DO_NOT_TRACK: '1'
+      GOMAXPROCS: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Shuffle and isolate selected tests
+        env:
+          SEED: ${{ inputs.seed || github.run_id }}
+        run: python3 scripts/go_test_order.py --seed "$SEED" --output-dir "$RUNNER_TEMP/test-order"
+      - name: Retain replay plan and logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-order-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/test-order/*.json
+            ${{ runner.temp }}/test-order/*.log
+          if-no-files-found: error
+          retention-days: 7

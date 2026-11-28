@@ -60,6 +60,8 @@ type ScreenshotSetUploadOptions[T any] struct {
 	Path           string
 	DeviceType     string
 	Replace        bool
+	Incremental    bool
+	DryRun         bool
 	// RequireConfirm checks --confirm, which Replace requires. It runs after
 	// the required flags and before any file is read.
 	RequireConfirm func() error
@@ -280,7 +282,10 @@ func ExecuteScreenshotSetUpload[T any](ctx context.Context, d *shared.Deps, opts
 	if trimmedDeviceType == "" {
 		return zero, d.RequiredFlag("--device-type")
 	}
-	if opts.Replace {
+	if opts.Incremental && screenshotNoWaitFromContext(ctx) {
+		return zero, d.UsageError("--incremental cannot be used with --no-wait")
+	}
+	if (opts.Replace || opts.Incremental) && !opts.DryRun {
 		if err := opts.RequireConfirm(); err != nil {
 			return zero, err
 		}
@@ -313,13 +318,14 @@ func ExecuteScreenshotSetUpload[T any](ctx context.Context, d *shared.Deps, opts
 		return zero, err
 	}
 
-	return uploadScreenshotsWithConfig(ctx, screenshotUploadConfig[T]{
+	cfg := screenshotUploadConfig[T]{
 		Deps:           d,
 		Client:         client,
 		LocalizationID: trimmedLocalizationID,
 		DisplayType:    apiDisplayType,
 		Files:          files,
 		Replace:        opts.Replace,
+		DryRun:         opts.DryRun,
 		InspectCommand: opts.InspectCommand,
 		ReplaceCommand: opts.ReplaceCommand,
 		RequestContext: opts.RequestContext,
@@ -328,7 +334,11 @@ func ExecuteScreenshotSetUpload[T any](ctx context.Context, d *shared.Deps, opts
 		BuildResult: func(localizationID string, set asc.Resource[asc.AppScreenshotSetAttributes], _ bool, results []asc.AssetUploadResultItem) T {
 			return opts.BuildResult(localizationID, set, results)
 		},
-	})
+	}
+	if opts.Incremental {
+		return syncScreenshotSetIncrementally(ctx, cfg)
+	}
+	return uploadScreenshotsWithConfig(ctx, cfg)
 }
 
 // NewAssetsScreenshotsListCommand returns the screenshots list subcommand.

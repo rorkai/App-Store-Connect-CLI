@@ -1794,6 +1794,9 @@ func runCommandWithBoundedOutputEnvironmentMode(ctx context.Context, name string
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if name == "xcodebuild" && (len(args) != 1 || args[0] != "-version") {
+		args = append([]string{"-hideShellScriptEnvironment"}, args...)
+	}
 	cmd, err := trustedXcodeCommand(ctx, name, args, environment)
 	if err != nil {
 		return err

@@ -249,6 +249,50 @@ asc pricing schedule create --app "123456789" --price-point "SALE_PRICE_POINT_ID
 
 ***
 
+### `asc pricing schedule edit`
+
+Edit an interval in the app's existing base territory. The command reads every
+manual-price page and rebuilds current and future manual intervals, including
+other territories' prices. The base territory stays fixed. Resource IDs may
+change; current intervals are resubmitted with an unbounded start date.
+
+<ParamField path="--app" type="string" required>
+  App Store Connect app ID (or `ASC_APP_ID`)
+</ParamField>
+
+<ParamField path="--price-point" type="string" required>
+  A price point from this app's base-territory price-point collection
+</ParamField>
+
+<ParamField path="--start-date" type="string" required>
+  Inclusive start date (YYYY-MM-DD), today or later in US Pacific time
+</ParamField>
+
+<ParamField path="--end-date" type="string">
+  Exclusive end date (YYYY-MM-DD). Defaults to the end of the existing interval
+  containing the start date. An open interval remains open.
+</ParamField>
+
+<ParamField path="--confirm" type="boolean" required>
+  Confirm the interval edit
+</ParamField>
+
+The existing schedule resumes at an explicit end date. The command rejects
+incomplete reads, missing linkage, ended manual prices, unknown price attributes
+or relationships, and gaps or overlaps in the base-territory timeline. A matching price skips the write and returns the existing schedule.
+Successful output uses Apple's schedule response.
+
+Coordinate schedule changes with other operators: App Store Connect replaces the
+schedule when the edit is submitted. `pricing schedule create` remains available
+for a full replacement.
+
+```bash
+asc pricing schedule edit --app "APP_ID" --price-point "PRICE_POINT_ID" --start-date "YYYY-MM-DD" --confirm
+asc pricing schedule edit --app "APP_ID" --price-point "PRICE_POINT_ID" --start-date "YYYY-MM-DD" --end-date "YYYY-MM-DD" --confirm
+```
+
+***
+
 ### `asc pricing schedule manual-prices`
 
 List manual prices for a schedule.

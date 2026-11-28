@@ -323,3 +323,88 @@ func shotsRootWithDeps(t *testing.T) (*ffcli.Command, *bytes.Buffer, *bytes.Buff
 	d, stdout, stderr := newTestDeps(t, nil)
 	return rootcmd.RootCommandWithDeps("1.2.3", d), stdout, stderr
 }
+
+type screenshotLocationReceipt struct {
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
+	Status    string   `json:"status"`
+}
+
+type screenshotLocationOutput struct {
+	Location *screenshotLocationReceipt `json:"location"`
+}
+
+func TestShotsRunLocationSetup(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell executable fixtures require a Unix PATH")
+	}
+	for _, test := range []struct {
+		name       string
+		location   string
+		coordinate string
+		latitude   float64
+		longitude  float64
+		failSet    bool
+		wantError  string
+	}{
+		{name: "zero coordinates", location: `{"latitude":0,"longitude":0}`, coordinate: "0,0"},
+		{name: "signed coordinates", location: `{"latitude":-33.8688,"longitude":151.2093}`, coordinate: "-33.8688,151.2093", latitude: -33.8688, longitude: 151.2093},
+		{name: "latitude out of range", location: `{"latitude":91,"longitude":0}`, wantError: "defaults.location.latitude"},
+		{name: "missing longitude", location: `{"latitude":0}`, wantError: "defaults.location.longitude"},
+		{name: "setup rejected", location: `{"latitude":0,"longitude":0}`, coordinate: "0,0", failSet: true, wantError: "apply simulated location: xcrun: exit status 7 (output: location fixture rejected)"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			binDir := t.TempDir()
+			callLog := filepath.Join(t.TempDir(), "calls")
+			writeFile(t, callLog, "")
+			writeShotsMatrixExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","state":"Booted","isAvailable":true}]}}'
+  exit 0
+fi
+printf '%s\n' "$*" >> "$LOCATION_CALL_LOG"
+if [ "$2" = "location" ] && [ "$LOCATION_FAIL_SET" = "1" ]; then
+  echo 'location fixture rejected' >&2
+  exit 7
+fi
+`)
+			t.Setenv("PATH", binDir)
+			t.Setenv("LOCATION_CALL_LOG", callLog)
+			failSet := "0"
+			if test.failSet {
+				failSet = "1"
+			}
+			t.Setenv("LOCATION_FAIL_SET", failSet)
+			planPath := filepath.Join(t.TempDir(), "plan.json")
+			writeFile(t, planPath, `{"version":1,"app":{"bundle_id":"com.example.app","udid":"SIM-UDID"},"defaults":{"location":`+test.location+`},"steps":[{"action":"launch"}]}`)
+			stdout, stderr, code := runWithDeps(t, nil, "screenshots", "run", "--plan", planPath,
+				"--output-dir", filepath.Join(t.TempDir(), "output"), "--output", "json")
+			wantCalls := ""
+			if test.coordinate != "" {
+				wantCalls = "simctl location SIM-UDID set " + test.coordinate + "\n"
+			}
+			if test.wantError != "" {
+				if code != rootcmd.ExitError || stdout != "" || !strings.Contains(stderr, test.wantError) {
+					t.Fatalf("exit = %d, stdout = %q, stderr = %q; want setup rejection with %q", code, stdout, stderr, test.wantError)
+				}
+			} else {
+				if code != rootcmd.ExitSuccess || stderr != "" {
+					t.Fatalf("exit = %d, stderr = %q; want successful setup", code, stderr)
+				}
+				wantCalls += "simctl launch SIM-UDID com.example.app\n"
+				var output screenshotLocationOutput
+				if err := json.Unmarshal([]byte(stdout), &output); err != nil {
+					t.Fatalf("decode receipt: %v; stdout = %q", err, stdout)
+				}
+				location := output.Location
+				if location == nil || location.Latitude == nil || location.Longitude == nil || location.Status != "applied" || *location.Latitude != test.latitude || *location.Longitude != test.longitude {
+					t.Fatalf("location receipt = %+v; want acknowledged coordinates %s", location, test.coordinate)
+				}
+			}
+			calls, err := os.ReadFile(callLog)
+			if err != nil || string(calls) != wantCalls {
+				t.Fatalf("calls = %q, error = %v; want %q with no implicit location clear", calls, err, wantCalls)
+			}
+		})
+	}
+}

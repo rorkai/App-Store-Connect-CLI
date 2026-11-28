@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	cmdpkg "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
@@ -357,6 +358,7 @@ func TestScreenshotsDownload_ByLocalization_WritesFiles(t *testing.T) {
 
 func TestScreenshotsDownload_ByLocalization_RetriesTransientForbidden(t *testing.T) {
 	setupAuth(t)
+	t.Setenv("ASC_MAX_RETRIES", "1")
 
 	assetAttempts := 0
 	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -425,7 +427,11 @@ func TestScreenshotsDownload_ByLocalization_RetriesTransientForbidden(t *testing
 		Failed     int `json:"failed"`
 	}
 
-	stdout, stderr, err := runRootWithHTTPTransport(t, stubClient(t, rt), rt, "screenshots", "download", "--version-localization", "loc-1", "--output-dir", outDir)
+	var stdout, stderr string
+	var err error
+	synctest.Test(t, func(t *testing.T) {
+		stdout, stderr, err = runRootWithHTTPTransport(t, stubClient(t, rt), rt, "screenshots", "download", "--version-localization", "loc-1", "--output-dir", outDir)
+	})
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

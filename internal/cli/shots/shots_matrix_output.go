@@ -50,6 +50,7 @@ func matrixCellOutput(cell screenshots.MatrixCellResult) asc.MatrixCellResult {
 		Status:       cell.Status,
 		Attempts:     cell.Attempts,
 		DurationMS:   cell.DurationMS,
+		Location:     cell.Location,
 		RawPaths:     append([]string(nil), cell.RawPaths...),
 		FramedPaths:  append([]string(nil), cell.FramedPaths...),
 		Screenshots:  make([]asc.MatrixScreenshotResult, len(cell.Screenshots)),

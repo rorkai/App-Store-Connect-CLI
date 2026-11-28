@@ -85,6 +85,7 @@ func (r *runner) executeRunStep(
 		if policy.timeout > 0 {
 			attemptCtx, cancel = context.WithTimeout(ctx, policy.timeout)
 		}
+		r.emitProgress(ProgressEvent{Event: "attempt_started", StepID: stepKey, Invocation: invocation, Attempt: attempt, Status: "running"})
 		attemptStart := time.Now()
 		runErr := runShellCommand(attemptCtx, command, env, stdout, r.opts.Stderr)
 		attemptDuration := time.Since(attemptStart).Milliseconds()
@@ -106,6 +107,7 @@ func (r *runner) executeRunStep(
 					sr.Status = "error"
 					sr.FailureReason = "output_error"
 					sr.Error = extractErr.Error()
+					r.emitProgress(ProgressEvent{Event: "attempt_finished", StepID: stepKey, Invocation: invocation, Attempt: attempt, Status: "error", FailureReason: "output_error"})
 					if persistErr := r.persistStep(stepKey, *sr, step.Retry != nil); persistErr != nil {
 						return persistErr
 					}
@@ -129,10 +131,12 @@ func (r *runner) executeRunStep(
 			sr.Status = "ok"
 			sr.FailureReason = ""
 			sr.Error = ""
+			r.emitProgress(ProgressEvent{Event: "attempt_finished", StepID: stepKey, Invocation: invocation, Attempt: attempt, Status: "ok"})
 			return r.persistStep(stepKey, *sr, step.Retry != nil)
 		}
 
 		failureReason, attemptError := classifyAttemptFailure(ctx, attemptContextErr, runErr, policy.timeout)
+		r.emitProgress(ProgressEvent{Event: "attempt_finished", StepID: stepKey, Invocation: invocation, Attempt: attempt, Status: attemptStatus(failureReason), FailureReason: failureReason})
 		if recordAttempts {
 			sr.Attempts = append(sr.Attempts, AttemptResult{
 				Invocation:    invocation,

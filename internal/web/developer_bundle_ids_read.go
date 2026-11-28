@@ -209,6 +209,9 @@ func (c *Client) GetDeveloperBundleID(ctx context.Context, bundleID string) (*De
 	if err != nil {
 		return nil, err
 	}
+	if result.Data.ID != bundleID {
+		return nil, fmt.Errorf("developer portal returned Bundle ID %q, requested %q", result.Data.ID, bundleID)
+	}
 	return result, nil
 }
 

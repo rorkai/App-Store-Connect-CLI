@@ -47,14 +47,16 @@ func CaptureWithProvider(ctx context.Context, req CaptureRequest, p Provider) (*
 	if err != nil {
 		return nil, err
 	}
+	capture := p.Capture
 	if _, ok := p.(*AXeProvider); ok {
 		req.UDID, err = resolveSimulatorUDID(ctx, req.UDID)
 		if err != nil {
 			return nil, err
 		}
+		capture = captureAXe
 	}
 
-	pngPath, err := p.Capture(ctx, req)
+	pngPath, err := capture(ctx, req)
 	if err != nil {
 		return nil, err
 	}

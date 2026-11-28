@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"slices"
 	"strings"
@@ -47,6 +48,7 @@ const (
 	PlanErrMissingSteps       PlanValidationCode = "missing_steps"
 	PlanErrNegativeDelay      PlanValidationCode = "negative_post_action_delay"
 	PlanErrInvalidStatusBar   PlanValidationCode = "invalid_status_bar"
+	PlanErrInvalidLocation    PlanValidationCode = "invalid_location"
 	PlanErrMissingAction      PlanValidationCode = "missing_action"
 	PlanErrTapMissingTarget   PlanValidationCode = "tap_missing_target"
 	PlanErrTypeMissingText    PlanValidationCode = "type_missing_text"
@@ -111,11 +113,18 @@ type PlanApp struct {
 	terminateRunningProcess bool
 }
 
-// PlanDefaults defines default timing behavior.
+// PlanDefaults defines timing and simulator preparation for a run.
 type PlanDefaults struct {
-	PostActionDelayMS int    `json:"post_action_delay_ms,omitempty"`
-	StatusBar         string `json:"status_bar,omitempty"`
-	FailureScreenshot bool   `json:"failure_screenshot,omitempty"`
+	PostActionDelayMS int           `json:"post_action_delay_ms,omitempty"`
+	StatusBar         string        `json:"status_bar,omitempty"`
+	Location          *PlanLocation `json:"location,omitempty"`
+	FailureScreenshot bool          `json:"failure_screenshot,omitempty"`
+}
+
+// PlanLocation requests a fixed simulated coordinate before the plan steps.
+type PlanLocation struct {
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
 }
 
 // PlanStep is one executable action in the plan.
@@ -193,6 +202,14 @@ func validatePlan(plan *Plan) error {
 	}
 	if plan.Defaults.PostActionDelayMS < 0 {
 		return newPlanValidationError(PlanErrNegativeDelay, 0, "defaults.post_action_delay_ms must be >= 0")
+	}
+	if location := plan.Defaults.Location; location != nil {
+		if location.Latitude == nil || math.IsNaN(*location.Latitude) || math.Abs(*location.Latitude) > 90 {
+			return newPlanValidationError(PlanErrInvalidLocation, 0, "defaults.location.latitude must be a finite number from -90 to 90")
+		}
+		if location.Longitude == nil || math.IsNaN(*location.Longitude) || math.Abs(*location.Longitude) > 180 {
+			return newPlanValidationError(PlanErrInvalidLocation, 0, "defaults.location.longitude must be a finite number from -180 to 180")
+		}
 	}
 	plan.Defaults.StatusBar = strings.TrimSpace(strings.ToLower(plan.Defaults.StatusBar))
 	switch plan.Defaults.StatusBar {

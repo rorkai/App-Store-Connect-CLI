@@ -233,6 +233,7 @@ func stageAnalyticsSegment(ctx context.Context, d *shared.Deps, client *asc.Clie
 	}
 	size, err := streamAnalyticsReport(ctx, d, client, strings.TrimSpace(segment.Attributes.URL), func(reader io.Reader) (int64, error) {
 		if checksum != nil {
+			checksum.Reset()
 			reader = io.TeeReader(reader, checksum)
 		}
 		return writeStagedAnalyticsFile(staging, compressed, reader)
@@ -277,5 +278,9 @@ func writeStagedAnalyticsFile(staging *os.Root, name string, reader io.Reader) (
 	if err == nil {
 		err = file.Sync()
 	}
-	return size, errors.Join(err, file.Close())
+	err = errors.Join(err, file.Close())
+	if err != nil {
+		err = errors.Join(err, staging.Remove(name))
+	}
+	return size, err
 }

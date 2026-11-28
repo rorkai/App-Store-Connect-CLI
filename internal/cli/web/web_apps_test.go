@@ -127,6 +127,71 @@ func TestRunAppsCreateAutoRenamePreservesUnicode(t *testing.T) {
 	}
 }
 
+func TestWebAppsCreateNameConflictWithoutAutoRename(t *testing.T) {
+	const nameHint = "Apple reports that the app name is already in use. Choose a different --name before retrying."
+	for _, test := range []struct {
+		name, body  string
+		ordinaryErr error
+		wantHint    bool
+		ifExists    bool
+	}{
+		{name: "name conflict", body: `{"errors":[{"code":"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE.DIFFERENT_ACCOUNT","detail":"The app name you entered is already being used.","secret":"response-secret-sentinel"}]}`, wantHint: true},
+		{name: "captured duplicate codes without name evidence", body: capturedDuplicateAppCreate409},
+		{name: "ordinary API refusal", body: `{"errors":[{"code":"ENTITY_ERROR.ATTRIBUTE.INVALID","detail":"The value is invalid."}]}`},
+		{name: "ordinary error mentions name", ordinaryErr: errors.New("The app name you entered is already being used.")},
+		{name: "existing app identity conflict", body: syntheticDuplicateAppCreate409WithNameDetail, ifExists: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			h := setupIfExistsCreate(t, test.body, appsListResponse("existing", "Other", "com.example.demo", "DEMO"), emptyAppsResponse)
+			originalCreate := createWebAppFn
+			t.Cleanup(func() { createWebAppFn = originalCreate })
+			var originalErr error
+			createCalls := 0
+			createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
+				createCalls++
+				if test.ordinaryErr != nil {
+					originalErr = test.ordinaryErr
+					return nil, originalErr
+				}
+				app, err := originalCreate(ctx, client, attrs)
+				originalErr = err
+				return app, err
+			}
+			d, depsStdout, depsStderr := newWebTestDeps()
+			d.Client = h.client
+			cmd := newWebAppsCreateCommand(d)
+			cmd.FlagSet.SetOutput(io.Discard)
+			args := []string{"--name", "Demo", "--bundle-id", "com.example.demo", "--sku", "DEMO", "--auto-rename=false", "--output", "json"}
+			wantReads := 0
+			if test.ifExists {
+				args = append(args, "--if-exists", "skip")
+				wantReads = 1
+			}
+			if err := cmd.FlagSet.Parse(args); err != nil {
+				t.Fatal(err)
+			}
+			var err error
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { err = cmd.Exec(context.Background(), nil) })
+			if originalErr == nil || !errors.Is(err, originalErr) || !strings.HasPrefix(err.Error(), "web apps create failed: "+originalErr.Error()) {
+				t.Fatalf("original error was changed or lost: got %v, original %v", err, originalErr)
+			}
+			if !test.ifExists && err.Error() != "web apps create failed: "+originalErr.Error() {
+				t.Fatalf("original error text changed: %v", err)
+			}
+			formatted := errfmt.FormatStderr(err)
+			if strings.Contains(formatted, "Hint: "+nameHint) != test.wantHint {
+				t.Fatalf("stderr=%q, want name hint=%v", formatted, test.wantHint)
+			}
+			if strings.Contains(formatted, "response-secret-sentinel") || stdout != "" || strings.Contains(stderr, "retrying with") || createCalls != 1 || len(h.reads()) != wantReads {
+				t.Fatalf("unexpected output or request: stdout=%q stderr=%q formatted=%q creates=%d reads=%v", stdout, stderr, formatted, createCalls, h.reads())
+			}
+			if requests := h.creates(); test.ordinaryErr == nil && (len(requests) != 1 || requests[0] != "POST /iris/v1/apps Demo") {
+				t.Fatalf("unexpected web requests: %v", requests)
+			}
+		})
+	}
+}
+
 func TestAppCreateCanPromptInteractivelyUsesControllingTTYWhenStdinIsNotTerminal(t *testing.T) {
 	origOpenTTY := openTTYFn
 	origIsTerminal := termIsTerminalFn

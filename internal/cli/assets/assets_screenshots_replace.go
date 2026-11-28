@@ -83,7 +83,7 @@ func verifyScreenshotLocalizationApp(ctx context.Context, client *asc.Client, ap
 
 var errScreenshotInventoryChanged = errors.New("screenshot membership changed while reading the replacement set")
 
-func replacementInventory(ctx context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult], setID string) ([]asc.Resource[asc.AppScreenshotAttributes], []string, error) {
+func replacementInventory[T any](ctx context.Context, cfg screenshotUploadConfig[T], setID string) ([]asc.Resource[asc.AppScreenshotAttributes], []string, error) {
 	if cfg.AppID != "" {
 		requestCtx, cancel := cfg.RequestContext(ctx)
 		err := verifyScreenshotLocalizationApp(requestCtx, cfg.Client, cfg.AppID, cfg.LocalizationID)
