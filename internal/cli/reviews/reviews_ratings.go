@@ -187,7 +187,7 @@ func executeSingleRatings(ctx context.Context, d *shared.Deps, client *itunes.Cl
 		}
 		fmt.Fprint(d.IO.ErrOut, errfmt.FormatStderr(err))
 		fmt.Fprintf(d.IO.ErrOut, "Hint: the app must be released in the %s storefront; pass --country with another storefront or use --all to check every storefront.\n", strings.ToUpper(strings.TrimSpace(country)))
-		return shared.NewStderrReportedError(err)
+		return shared.WithDiagnostic(shared.NewStderrReportedError(err), shared.DiagnosticResourceNotFound, "--country")
 	}
 	return d.PrintOutputWithRenderers(
 		ratings,
