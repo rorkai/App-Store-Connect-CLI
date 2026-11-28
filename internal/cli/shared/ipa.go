@@ -241,26 +241,12 @@ func appStorePlatformForIPA(value string) (asc.Platform, bool) {
 
 // ResolveBundleInfoForIPA reads IPA metadata and fills missing version/build-number
 // values while preserving explicit overrides and CLI-facing error messages.
-// The boolean reports whether metadata was successfully extracted.
-func ResolveBundleInfoForIPA(ipaPath, version, buildNumber string) (IPABundleInfo, bool, error) {
+func ResolveBundleInfoForIPA(ipaPath, version, buildNumber string) (IPABundleInfo, error) {
 	versionValue := strings.TrimSpace(version)
 	buildNumberValue := strings.TrimSpace(buildNumber)
 	info, err := ExtractBundleInfoFromIPA(ipaPath)
 	if err != nil {
-		if errors.Is(err, ErrInvalidIPAMetadata) {
-			return IPABundleInfo{}, false, err
-		}
-		missingFlags := make([]string, 0, 2)
-		if versionValue == "" {
-			missingFlags = append(missingFlags, "--version")
-		}
-		if buildNumberValue == "" {
-			missingFlags = append(missingFlags, "--build-number")
-		}
-		if len(missingFlags) > 0 {
-			return IPABundleInfo{}, false, fmt.Errorf("%s required (failed to extract from IPA: %w)", strings.Join(missingFlags, " and "), err)
-		}
-		return IPABundleInfo{Version: versionValue, BuildNumber: buildNumberValue}, false, nil
+		return IPABundleInfo{}, WithDiagnostic(NewValidationError(fmt.Errorf("inspect IPA metadata: %w", err)), DiagnosticInvalidInput, "--ipa")
 	}
 	if versionValue == "" {
 		versionValue = info.Version
@@ -279,10 +265,10 @@ func ResolveBundleInfoForIPA(ipaPath, version, buildNumber string) (IPABundleInf
 			missingFields = append(missingFields, "CFBundleVersion")
 			missingFlags = append(missingFlags, "--build-number")
 		}
-		return IPABundleInfo{}, true, fmt.Errorf("missing Info.plist keys %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and "))
+		return IPABundleInfo{}, fmt.Errorf("missing Info.plist keys %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and "))
 	}
 	info.Version, info.BuildNumber = versionValue, buildNumberValue
-	return info, true, nil
+	return info, nil
 }
 
 func coercePlistValueToString(value any) string {
