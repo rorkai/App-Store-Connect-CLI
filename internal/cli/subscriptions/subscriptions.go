@@ -1365,6 +1365,9 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 			tierValue := *tier
 			priceValue := strings.TrimSpace(*price)
 
+			if flagWasProvided(fs, "tier") && tierValue <= 0 {
+				return d.UsageError("--tier must be a positive integer")
+			}
 			if err := shared.ValidatePriceSelectionFlags(pricePoint, tierValue, priceValue); err != nil {
 				fmt.Fprintln(d.IO.ErrOut, "Error:", err)
 				return flag.ErrHelp

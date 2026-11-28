@@ -70,6 +70,11 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 			priceValue := strings.TrimSpace(*price)
 			freeValue := *free
 
+			tierProvided := false
+			fs.Visit(func(f *flag.Flag) { tierProvided = tierProvided || f.Name == "tier" })
+			if tierProvided && tierValue <= 0 {
+				return WithDiagnostic(d.UsageError("--tier must be a positive integer"), DiagnosticInvalidInput, "--tier")
+			}
 			if err := ValidatePriceSelectionFlags(pricePointValue, tierValue, priceValue, freeValue); err != nil {
 				fmt.Fprintln(d.IO.ErrOut, "Error:", err)
 				return reportedUsageErrHelp(err)

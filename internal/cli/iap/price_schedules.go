@@ -262,7 +262,7 @@ Examples:
 			priceValue := strings.TrimSpace(*price)
 			pricesValue := strings.TrimSpace(*prices)
 
-			if tierValue < 0 {
+			if flagSet(fs, "tier") && tierValue <= 0 {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --tier must be a positive integer")
 				return flag.ErrHelp
 			}
