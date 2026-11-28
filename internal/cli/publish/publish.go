@@ -1171,7 +1171,7 @@ func uploadBuildArtifactAndWaitForID(ctx context.Context, d *shared.Deps, client
 	}
 	if fileUTI == asc.UTIIPA {
 		info, inspectErr := shared.ExtractBundleInfoFromIPAFile(artifactFile)
-		if inspectErr != nil && !allowUnreadableMetadata {
+		if inspectErr != nil && (!allowUnreadableMetadata || errors.Is(inspectErr, shared.ErrAmbiguousIPAMetadata)) {
 			return nil, fmt.Errorf("inspect IPA metadata before upload: %w", inspectErr)
 		}
 		if inspectErr == nil {
