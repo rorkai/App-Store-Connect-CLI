@@ -34,20 +34,23 @@ func TestAnalyticsRequestsUsesAccessTypeFilter(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server),
-		"analytics", "requests",
-		"--app", "app-1",
-		"--access-type", "ongoing",
-		"--output", "json",
-	)
+	flags := []string{"--app", "app-1", "--access-type", "ongoing", "--output", "json"}
+	stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server), append([]string{"analytics", "requests"}, flags...)...)
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requestCount != 1 {
-		t.Fatalf("request count = %d, want 1", requestCount)
+	listOutput, listStderr, listErr := runRootWithDeps(t, stubServerClient(t, server), append([]string{"analytics", "requests", "list"}, flags...)...)
+	if listErr != nil {
+		t.Fatalf("explicit list error: %v, stderr: %s", listErr, listStderr)
+	}
+	if listOutput != stdout || listStderr != stderr {
+		t.Fatalf("explicit list output differs from the default: stdout %q, stderr %q", listOutput, listStderr)
+	}
+	if requestCount != 2 {
+		t.Fatalf("request count = %d, want one GET for each invocation", requestCount)
 	}
 	var response struct {
 		Data []struct {

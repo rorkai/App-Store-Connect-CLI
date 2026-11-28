@@ -86,7 +86,18 @@ Examples:
 
 // newAnalyticsRequestsCommand lists analytics report requests.
 func newAnalyticsRequestsCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("requests", flag.ExitOnError)
+	requests := newAnalyticsRequestsListCommand(d, "requests", "analytics requests")
+	requests.ShortHelp = "List and manage analytics report requests."
+	requests.LongHelp += "\n  asc analytics requests delete --request-id \"REQUEST_ID\" --confirm"
+	requests.Subcommands = []*ffcli.Command{
+		newAnalyticsRequestsListCommand(d, "list", "analytics requests list"),
+		newAnalyticsRequestsDeleteCommand(d),
+	}
+	return requests
+}
+
+func newAnalyticsRequestsListCommand(d *shared.Deps, name, commandPath string) *ffcli.Command {
+	fs := d.NewFlagSet(name, flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	requestID := shared.BindResourceIDFlag(fs, "request-id", "analyticsReportRequests", "Filter by request ID")
@@ -97,23 +108,19 @@ func newAnalyticsRequestsCommand(d *shared.Deps) *ffcli.Command {
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "requests",
-		ShortUsage: "asc analytics requests [flags]",
-		ShortHelp:  "List and manage analytics report requests.",
-		LongHelp: `List analytics report requests.
+		Name:       name,
+		ShortUsage: "asc " + commandPath + " [flags]",
+		ShortHelp:  "List analytics report requests.",
+		LongHelp: fmt.Sprintf(`List analytics report requests.
 
 Examples:
-  asc analytics requests --app "123456789"
-  asc analytics requests --app "123456789" --access-type ONGOING
-  asc analytics requests --app "123456789" --request-id "REQUEST_ID"
-  asc analytics requests --next "<links.next>"
-  asc analytics requests --app "123456789" --paginate
-  asc analytics requests delete --request-id "REQUEST_ID" --confirm`,
+  asc %[1]s --app "123456789"
+  asc %[1]s --app "123456789" --access-type ONGOING
+  asc %[1]s --app "123456789" --request-id "REQUEST_ID"
+  asc %[1]s --next "<links.next>"
+  asc %[1]s --app "123456789" --paginate`, commandPath),
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{
-			newAnalyticsRequestsDeleteCommand(d),
-		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
 				return flag.ErrHelp
