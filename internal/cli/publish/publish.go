@@ -1171,10 +1171,13 @@ func uploadBuildArtifactAndWaitForID(ctx context.Context, d *shared.Deps, client
 	}
 	if fileUTI == asc.UTIIPA {
 		info, inspectErr := shared.ExtractBundleInfoFromIPAFile(artifactFile)
-		if inspectErr != nil && (!allowUnreadableMetadata || errors.Is(inspectErr, shared.ErrAmbiguousIPAMetadata)) {
+		if inspectErr != nil && (!allowUnreadableMetadata || errors.Is(inspectErr, shared.ErrInvalidIPAMetadata)) {
 			return nil, fmt.Errorf("inspect IPA metadata before upload: %w", inspectErr)
 		}
 		if inspectErr == nil {
+			if info.Platform != "" && info.Platform != platform {
+				return nil, fmt.Errorf("IPA platform %s does not match upload platform %s", info.Platform, platform)
+			}
 			if info.BundleID == "" {
 				return nil, shared.WithDiagnostic(shared.NewValidationError(errors.New("IPA top-level app Info.plist is missing CFBundleIdentifier")), shared.DiagnosticInvalidInput, "--ipa")
 			}

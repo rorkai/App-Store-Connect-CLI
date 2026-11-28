@@ -23,6 +23,9 @@ type IPABundleInfo struct {
 	Platform    asc.Platform
 }
 
+// ErrInvalidIPAMetadata identifies metadata failures that explicit overrides cannot bypass.
+var ErrInvalidIPAMetadata = errors.New("invalid IPA metadata")
+
 // ErrAmbiguousIPAMetadata identifies an archive with multiple top-level app plists.
 var ErrAmbiguousIPAMetadata = errors.New("IPA has multiple top-level app Info.plist entries")
 
@@ -112,7 +115,7 @@ func extractBundleInfoFromIPAFiles(files []*zip.File) (IPABundleInfo, error) {
 			continue
 		}
 		if main != nil {
-			return IPABundleInfo{}, ErrAmbiguousIPAMetadata
+			return IPABundleInfo{}, NewErrorWithCause(ErrAmbiguousIPAMetadata, ErrInvalidIPAMetadata)
 		}
 		main = file
 	}
@@ -192,10 +195,10 @@ func detectIPAPlatform(info map[string]any) (asc.Platform, error) {
 	for _, marker := range markers {
 		platform, ok := appStorePlatformForIPA(marker.value)
 		if !ok {
-			return "", fmt.Errorf("unsupported IPA platform metadata %s=%q", marker.key, marker.value)
+			return "", NewErrorWithCause(fmt.Errorf("unsupported IPA platform metadata %s=%q", marker.key, marker.value), ErrInvalidIPAMetadata)
 		}
 		if detected != "" && detected != platform {
-			return "", fmt.Errorf("conflicting IPA platform metadata: %s and %s", detected, platform)
+			return "", NewErrorWithCause(fmt.Errorf("conflicting IPA platform metadata: %s and %s", detected, platform), ErrInvalidIPAMetadata)
 		}
 		detected = platform
 	}
@@ -244,7 +247,7 @@ func ResolveBundleInfoForIPA(ipaPath, version, buildNumber string) (IPABundleInf
 	buildNumberValue := strings.TrimSpace(buildNumber)
 	info, err := ExtractBundleInfoFromIPA(ipaPath)
 	if err != nil {
-		if errors.Is(err, ErrAmbiguousIPAMetadata) {
+		if errors.Is(err, ErrInvalidIPAMetadata) {
 			return IPABundleInfo{}, false, err
 		}
 		missingFlags := make([]string, 0, 2)
