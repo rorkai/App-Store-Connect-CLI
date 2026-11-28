@@ -863,7 +863,7 @@ func newBuildsInfoCommand(d *shared.Deps) *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "info",
-		ShortUsage: "asc builds info [--build-id BUILD_ID | --app APP --latest | --app APP --build-number BUILD_NUMBER] [flags]",
+		ShortUsage: "asc builds info (--build-id BUILD_ID | --app APP --latest | --app APP --build-number BUILD_NUMBER --platform PLATFORM) [flags]",
 		ShortHelp:  "Show details for a specific build.",
 		LongHelp: `Show details for a specific build.
 
