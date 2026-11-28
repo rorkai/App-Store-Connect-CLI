@@ -2,6 +2,7 @@
 """Create and verify provenance for qualified ASC release assets."""
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -12,21 +13,34 @@ from release_rehearsal import expected_artifact_names
 
 PREDICATE_TYPE = 'https://slsa.dev/provenance/v1'
 WORKFLOW_PATH = '.github/workflows/release.yml'
+BUILD_TYPE = 'https://actions.github.io/buildtypes/workflow/v1'
+IDENTITY_NAME = 'release-identity.json'
 
 
-def predicate(repository, version, source_sha, workflow_sha):
-    origin = f'https://github.com/{repository}'
-    return {
-        'buildDefinition': {
-            'buildType': f'{origin}/blob/main/docs/RELEASE_PROVENANCE.md#release-candidate-v1',
-            'externalParameters': {'version': version},
-            'resolvedDependencies': [{
-                'uri': f'git+{origin}@refs/tags/{version}',
-                'digest': {'gitCommit': source_sha},
-            }],
-        },
-        'runDetails': {'builder': {'id': f'{origin}/{WORKFLOW_PATH}@{workflow_sha}'}},
+def release_identity(repository, version, source_sha, workflow_sha):
+    identity = {
+        'repository': repository,
+        'version': version,
+        'sourceCommit': source_sha,
+        'workflowCommit': workflow_sha,
     }
+    return (json.dumps(identity, sort_keys=True, separators=(',', ':')) + '\n').encode()
+
+
+def release_subjects_match(statement, expected):
+    subjects = statement.get('subject')
+    if not isinstance(subjects, list) or len(subjects) != len(expected):
+        return False
+    remaining = expected.copy()
+    for subject in subjects:
+        if not isinstance(subject, dict):
+            return False
+        name = subject.get('name')
+        if not isinstance(name, str) or name not in remaining:
+            return False
+        if subject.get('digest') != remaining.pop(name):
+            return False
+    return not remaining
 
 
 def run(args):
@@ -42,12 +56,17 @@ def run(args):
     ], text=True, capture_output=True)
     if validation.returncode:
         raise ValueError(validation.stderr.strip())
-    expected = predicate(args.repository, args.version, args.source_sha, args.workflow_sha)
-    if args.mode == 'predicate':
-        print(json.dumps(expected, indent=2))
+    identity = release_identity(args.repository, args.version, args.source_sha, args.workflow_sha)
+    if args.mode == 'identity':
+        sys.stdout.buffer.write(identity)
         return
 
     names = sorted([*expected_artifact_names(args.version), f'asc_{args.version}_checksums.txt'])
+    expected_subjects = {
+        name: {'sha256': hashlib.sha256((args.release_dir / name).read_bytes()).hexdigest()}
+        for name in names
+    }
+    expected_subjects[IDENTITY_NAME] = {'sha256': hashlib.sha256(identity).hexdigest()}
     for name in names:
         command = [
             'gh', 'attestation', 'verify', str(args.release_dir / name),
@@ -69,8 +88,8 @@ def run(args):
                 statement = result.get('verificationResult', {}).get('statement', {})
                 actual = statement.get('predicate', {})
                 if (statement.get('predicateType') == PREDICATE_TYPE
-                        and actual.get('buildDefinition') == expected['buildDefinition']
-                        and actual.get('runDetails', {}).get('builder') == expected['runDetails']['builder']):
+                        and actual.get('buildDefinition', {}).get('buildType') == BUILD_TYPE
+                        and release_subjects_match(statement, expected_subjects)):
                     matched = True
                     break
         if not matched:
@@ -80,7 +99,7 @@ def run(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=('predicate', 'verify'))
+    parser.add_argument('mode', choices=('identity', 'verify'))
     parser.add_argument('--release-dir', required=True, type=Path)
     parser.add_argument('--version', required=True)
     parser.add_argument('--source-sha', required=True)

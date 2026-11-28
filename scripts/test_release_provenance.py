@@ -71,13 +71,18 @@ class ReleaseProvenanceTests(unittest.TestCase):
     def verifier_fixture(self, source=SOURCE):
         predicate = {
             'buildDefinition': {
-                'buildType': f'https://github.com/{REPO}/blob/main/docs/RELEASE_PROVENANCE.md#release-candidate-v1',
-                'externalParameters': {'version': VERSION},
-                'resolvedDependencies': [{'uri': f'git+https://github.com/{REPO}@refs/tags/{VERSION}', 'digest': {'gitCommit': source}}],
+                'buildType': 'https://actions.github.io/buildtypes/workflow/v1',
+                'externalParameters': {'workflow': {'ref': 'refs/heads/main', 'repository': f'https://github.com/{REPO}', 'path': '.github/workflows/release.yml'}},
+                'internalParameters': {'github': {'event_name': 'workflow_dispatch', 'repository_id': '1', 'repository_owner_id': '2', 'runner_environment': 'github-hosted'}},
+                'resolvedDependencies': [{'uri': f'git+https://github.com/{REPO}@refs/heads/main', 'digest': {'gitCommit': WORKFLOW}}],
             },
-            'runDetails': {'builder': {'id': f'https://github.com/{REPO}/.github/workflows/release.yml@{WORKFLOW}'}},
+            'runDetails': {'builder': {'id': f'https://github.com/{REPO}/.github/workflows/release.yml@refs/heads/main'}},
         }
-        statement = {'predicateType': 'https://slsa.dev/provenance/v1', 'predicate': predicate, 'subject': [{'name': p.name, 'digest': {'sha256': hashlib.sha256(p.read_bytes()).hexdigest()}} for p in self.release.iterdir()]}
+        identity = {'repository': REPO, 'version': VERSION, 'sourceCommit': source, 'workflowCommit': WORKFLOW}
+        identity_bytes = (json.dumps(identity, sort_keys=True, separators=(',', ':')) + '\n').encode()
+        subjects = [{'name': p.name, 'digest': {'sha256': hashlib.sha256(p.read_bytes()).hexdigest()}} for p in self.release.iterdir()]
+        subjects.append({'name': 'release-identity.json', 'digest': {'sha256': hashlib.sha256(identity_bytes).hexdigest()}})
+        statement = {'predicateType': 'https://slsa.dev/provenance/v1', 'predicate': predicate, 'subject': subjects}
         (self.root / 'verification.json').write_text(json.dumps([{'verificationResult': {'statement': statement}}]))
         gh = self.root / 'gh'
         gh.write_text('''#!/usr/bin/env python3
@@ -112,16 +117,38 @@ print(json.dumps(results))
         gh.chmod(0o755)
 
     def test_tag_source_is_distinct_from_workflow_source(self):
-        result = self.run_script('predicate')
-        self.assertEqual(result.returncode, 0, result.stderr)
-        predicate = json.loads(result.stdout)
-        self.assertEqual(predicate['buildDefinition']['resolvedDependencies'][0]['digest']['gitCommit'], SOURCE)
-        self.assertEqual(predicate['runDetails']['builder']['id'], f'https://github.com/{REPO}/.github/workflows/release.yml@{WORKFLOW}')
         self.verifier_fixture()
         result = self.run_publication()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(set((self.root / 'verified-names').read_text().splitlines()), set(self.names + [f'asc_{VERSION}_checksums.txt']))
         self.assertTrue((self.root / 'published').exists())
+        result = self.run_script('identity')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        identity = {'repository': REPO, 'version': VERSION, 'sourceCommit': SOURCE, 'workflowCommit': WORKFLOW}
+        self.assertEqual(result.stdout, json.dumps(identity, sort_keys=True, separators=(',', ':')) + '\n')
+
+    def test_workflow_attests_release_identity_with_standard_provenance(self):
+        workflow = (ROOT / '.github/workflows/release.yml').read_text()
+        attest = workflow.split('  attest:\n', 1)[1].split('\n  publish:', 1)[0]
+        self.assertIn('release_provenance.py identity', attest)
+        self.assertIn('> release-identity.json', attest)
+        self.assertIn('subject-path: |\n            release/asc_*\n            release-identity.json', attest)
+        self.assertNotIn('predicate-type:', attest)
+        self.assertNotIn('predicate-path:', attest)
+
+    def test_split_release_identity_and_binary_statements_are_rejected(self):
+        self.verifier_fixture()
+        path = self.root / 'verification.json'
+        results = json.loads(path.read_text())
+        statement = results[0]['verificationResult']['statement']
+        identity_statement = dict(statement, subject=statement['subject'][-1:])
+        statement['subject'] = statement['subject'][:-1]
+        results.append({'verificationResult': {'statement': identity_statement}})
+        path.write_text(json.dumps(results))
+        result = self.run_publication()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('source commit, version, or release workflow', result.stderr)
+        self.assertFalse((self.root / 'published').exists())
 
     def test_wrong_commit_is_rejected_after_signature_verification(self):
         self.verifier_fixture(source='c' * 40)
