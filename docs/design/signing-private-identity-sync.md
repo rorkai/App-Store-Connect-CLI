@@ -57,6 +57,20 @@ result reports `identityPresent: false`. Pull results list decrypted identity
 artifacts separately in `sensitiveFiles`. Sensitive identities are new-only and
 mode `0600`; new ordinary outputs also use `0600`, while existing ordinary
 certificate/profile outputs retain their prior mode during atomic replacement.
+
+Full pulls also restore active standalone installer identities. Their output
+defaults to `--p12-encoding legacy` (3DES with a SHA-1 MAC), preserving native
+macOS `SecItemImport` compatibility. Use `--p12-encoding modern` for
+AES-256-CBC with HMAC-SHA-256 when the importer supports it, such as
+`SecPKCS12Import`. A synthetic RSA identity on macOS 27.3 imported with both
+encodings through `SecPKCS12Import`; `SecItemImport` accepted legacy and
+rejected modern with status `-25264`. This is why the default remains legacy.
+The option applies only to installer output, for both signing sync stores and
+`--source-format openssl`. Explicit encoding requires an active installer in a
+full pull; bundle-selected pulls and pulls without installers reject it before
+writing output. Conversion stays in memory. App identity output and encrypted
+storage retain their existing encoding.
+
 Private identity sync also accepts `MAC_APP_DIRECT` and
 `MAC_CATALYST_APP_DIRECT`. Their signed distribution claims overlap with store
 profiles in some fields, but direct profiles carry the all-device claim. The
