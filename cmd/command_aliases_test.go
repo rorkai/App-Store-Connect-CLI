@@ -42,6 +42,8 @@ func TestResolveCommandAliasesRewritesOnlyUnknownReadVerbs(t *testing.T) {
 		{name: "group given its view's flags", args: "apps info --app A --output json", want: "apps info view --app A --output json"},
 		{name: "prerelease version given its view's build selector", args: "builds pre-release-version --build-id B --output json", want: "builds pre-release-version view --build-id B --output json"},
 		{name: "beta review given its view's build selector", args: "builds beta-app-review-submission --build-id=B", want: "builds beta-app-review-submission view --build-id=B"},
+		{name: "build beta detail given its view's build alias", args: "builds build-beta-detail --build B", want: "builds build-beta-detail view --build B"},
+		{name: "build groups given its list's build alias", args: "builds groups --build=B", want: "builds groups list --build=B"},
 		{name: "build relationship given an unsupported flag", args: "builds pre-release-version --build-id B --bogus X", want: "builds pre-release-version --build-id B --bogus X"},
 		{name: "relationships group given its view's flags", args: "apps info relationships --app A --output json", want: "apps info relationships view --app A --output json"},
 		{name: "app-setup availability given its view's flags", args: "app-setup availability --app A", want: "app-setup availability view --app A"},
