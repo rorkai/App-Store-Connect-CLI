@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -140,9 +141,6 @@ func (c *Client) EnableDeveloperBundleIDCapability(ctx context.Context, req Deve
 
 	current, err := c.loadDeveloperBundleIDExact(ctx, req.BundleID)
 	if err != nil {
-		return nil, err
-	}
-	if err := validateDeveloperBundleIDEnableSettings(current, capabilityMetadata, req); err != nil {
 		return nil, err
 	}
 	payload, alreadyEnabled, err := buildDeveloperBundleIDCapabilityPatchRequest(current, req, capabilityMetadata)
@@ -502,6 +500,9 @@ func buildDeveloperBundleIDCapabilityPatchRequestForState(current developerBundl
 				return developerBundleIDPatchRequest{}, false, err
 			}
 		}
+		if err := validateDeveloperBundleIDEnableSettings(desiredTarget, *metadata, req.Settings); err != nil {
+			return developerBundleIDPatchRequest{}, false, err
+		}
 		if req.Settings != nil {
 			desiredTarget.Attributes, err = setDeveloperCapabilitySettings(desiredTarget.Attributes, req.Settings)
 			if err != nil {
@@ -669,6 +670,9 @@ func developerBundleIDCapabilities(current developerBundleIDResponse) ([]develop
 		if _, err := developerBundleIDCapabilityID(resource); err != nil {
 			return nil, fmt.Errorf("cannot safely preserve Bundle ID capability %q: relationship resource is incomplete: %w", resource.ID, err)
 		}
+		if err := validateDeveloperCapabilityRelationshipCompleteness(resource); err != nil {
+			return nil, err
+		}
 		capabilities = append(capabilities, resource)
 	}
 	return capabilities, nil
@@ -783,4 +787,31 @@ func cloneRawMessageMap(source map[string]json.RawMessage) map[string]json.RawMe
 		cloned[key] = append(json.RawMessage(nil), value...)
 	}
 	return cloned
+}
+
+func validateDeveloperCapabilityRelationshipCompleteness(capability developerResource) error {
+	for name, raw := range capability.Relationships {
+		var relationship struct {
+			Data json.RawMessage `json:"data"`
+		}
+		if err := json.Unmarshal(raw, &relationship); err != nil {
+			return fmt.Errorf("cannot safely preserve capability %q relationship %q: %w", capability.ID, name, err)
+		}
+		returned := 0
+		data := bytes.TrimSpace(relationship.Data)
+		if len(data) > 0 && data[0] == '[' {
+			var references []json.RawMessage
+			if err := json.Unmarshal(data, &references); err != nil {
+				return fmt.Errorf("cannot safely preserve capability %q relationship %q: %w", capability.ID, name, err)
+			}
+			returned = len(references)
+		} else if len(data) > 0 && string(data) != "null" {
+			returned = 1
+		}
+		label := fmt.Sprintf("capability %q relationship %q", capability.ID, name)
+		if err := validateDeveloperRelationshipCompleteness(raw, returned, 0, label); err != nil {
+			return err
+		}
+	}
+	return nil
 }

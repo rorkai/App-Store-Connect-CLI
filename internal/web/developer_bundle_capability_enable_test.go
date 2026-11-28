@@ -14,6 +14,8 @@ func TestEnableDeveloperBundleIDCapabilityUsesMetadataAndVerifiesSave(t *testing
 	enabled := true
 	settings := []BundleIDCapabilitySetting{{Key: "DATA_PROTECTION_PERMISSION_LEVEL", Options: []BundleIDCapabilityOption{{Key: "COMPLETE_PROTECTION", Enabled: &enabled}}}}
 	settingMetadata := `,"settings":[{"key":"DATA_PROTECTION_PERMISSION_LEVEL","minInstances":1,"allowedInstances":"SINGLE","options":[{"key":"COMPLETE_PROTECTION","enabledByDefault":true,"enabled":true}]}]`
+	configuredDuplicate := strings.ReplaceAll(developerBundleResponseWithTwoPCCStates(false, true), "PRIVATE_CLOUD_COMPUTE", "DATA_PROTECTION")
+	configuredDuplicate = strings.Replace(configuredDuplicate, `"enabled":true,"settings":[]`, `"enabled":true,"settings":[{"key":"DATA_PROTECTION_PERMISSION_LEVEL","options":[{"key":"COMPLETE_PROTECTION","enabled":true}]}]`, 1)
 	associationMetadata := `,"associations":[{"relationshipName":"associatedBundleIds","relationshipType":"bundleIds","minInstances":1,"maxLimit":2,"allowedInstances":"MULTIPLE"}]`
 	reorderedCurrent := `{"data":{"id":"bundle-1","type":"bundleIds","attributes":{"name":"Example","identifier":"com.example.app"},"relationships":{"bundleIdCapabilities":{"data":[{"type":"bundleIdCapabilities","id":"icloud-1"},{"type":"bundleIdCapabilities","id":"target-1"}]}}},"included":[{"type":"bundleIdCapabilities","id":"icloud-1","attributes":{"enabled":true,"settings":[{"key":"ICLOUD_VERSION"}]},"relationships":{"capability":{"data":{"type":"capabilities","id":"ICLOUD"}}}},{"type":"bundleIdCapabilities","id":"target-1","attributes":{"enabled":true,"settings":[]},"relationships":{"capability":{"data":{"type":"capabilities","id":"CARPLAY_PLAYABLE_CONTENT"}},"associatedBundleIds":{"data":[{"type":"bundleIds","id":"related-1"},{"type":"bundleIds","id":"related-2"}]}}}]}`
 	tests := []struct {
@@ -33,10 +35,13 @@ func TestEnableDeveloperBundleIDCapabilityUsesMetadataAndVerifiesSave(t *testing
 		{name: "association order no-op", capability: "CARPLAY_PLAYABLE_CONTENT", metadata: associationMetadata, currentBody: reorderedCurrent, associations: map[string][]string{"associatedBundleIds": {"related-2", "related-1"}}},
 		{name: "association order readback", capability: "CARPLAY_PLAYABLE_CONTENT", metadata: associationMetadata, reverseLinks: true, associations: map[string][]string{"associatedBundleIds": {"related-1", "related-2"}}, wantPatch: true},
 		{name: "future capability", capability: "Future_Simple_Capability", wantPatch: true},
+		{name: "links-only unrelated relationship preserved", capability: "CARPLAY_PLAYABLE_CONTENT", currentBody: strings.ReplaceAll(developerBundleResponseWithICloudOnly(), `"cloudContainers":{"data":[{"type":"cloudContainers","id":"cloud-1"}]}`, `"cloudContainers":{"links":{"related":"/cloudContainers"}}`), wantPatch: true},
+		{name: "unbounded zero-total nested placeholder preserved", capability: "CARPLAY_PLAYABLE_CONTENT", currentBody: strings.ReplaceAll(developerBundleResponseWithICloudOnly(), `"cloudContainers":{"data":[{"type":"cloudContainers","id":"cloud-1"}]}`, `"cloudContainers":{"data":[{"type":"cloudContainers","id":"cloud-1"}],"meta":{"paging":{"total":0,"limit":2147483647}}}`), wantPatch: true},
 		{name: "unrelated linkage duplicate", capability: "CARPLAY_PLAYABLE_CONTENT", currentBody: strings.ReplaceAll(developerBundleResponseWithICloudOnly(), `{"type":"cloudContainers","id":"cloud-1"}`, `{"type":"cloudContainers","id":"cloud-1"},{"type":"cloudContainers","id":"cloud-1"}`), wantErr: "invalid or duplicate relationship linkage"},
 		{name: "unknown unrelated linkage preserved", capability: "CARPLAY_PLAYABLE_CONTENT", currentBody: strings.ReplaceAll(developerBundleResponseWithICloudOnly(), `{"type":"cloudContainers","id":"cloud-1"}`, `{"type":"cloudContainers","id":"cloud-1"},{"unknown":"kept"}`), wantPatch: true},
 		{name: "required settings supplied", capability: "DATA_PROTECTION", metadata: settingMetadata, settings: settings, wantPatch: true},
 		{name: "required settings missing", capability: "DATA_PROTECTION", metadata: settingMetadata, wantErr: "DATA_PROTECTION_PERMISSION_LEVEL"},
+		{name: "configured enabled duplicate selected", capability: "DATA_PROTECTION", metadata: settingMetadata, currentBody: configuredDuplicate},
 		{name: "required association missing", capability: "DATA_CONTAINER_ACCESS", metadata: `,"associations":[{"relationshipName":"associatedBundleIds","relationshipType":"bundleIds","minInstances":1,"maxLimit":1,"allowedInstances":"SINGLE"}]`, wantErr: "associatedBundleIds"},
 		{name: "required association supplied", capability: "DATA_CONTAINER_ACCESS", metadata: `,"associations":[{"relationshipName":"associatedBundleIds","relationshipType":"bundleIds","minInstances":1,"maxLimit":1,"allowedInstances":"SINGLE"}]`, associations: map[string][]string{"associatedBundleIds": {"related-1"}}, wantPatch: true},
 		{name: "opt-in required", capability: "APPROVED_BUT_OPT_IN_REQUIRED", metadata: `,"optInRequired":true`, wantErr: "opt-in"},
@@ -146,5 +151,73 @@ func TestEnableDeveloperBundleIDCapabilityUsesMetadataAndVerifiesSave(t *testing
 				t.Fatalf("target capability = %q, error = %v", id, err)
 			}
 		})
+	}
+}
+
+func TestDeveloperBundleIDCapabilityRejectsPartialNestedRelationships(t *testing.T) {
+	partialSignals := map[string]string{
+		"next link":   `"links":{"next":"/cloudContainers?page=2"}`,
+		"short total": `"meta":{"paging":{"total":2,"limit":1}}`,
+	}
+	for _, enable := range []bool{true, false} {
+		operation := "disable"
+		if enable {
+			operation = "enable"
+		}
+		for _, preflight := range []bool{true, false} {
+			stage := "readback"
+			if preflight {
+				stage = "preflight"
+			}
+			for signal, partial := range partialSignals {
+				t.Run(operation+"/"+stage+"/"+signal, func(t *testing.T) {
+					patches := 0
+					client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
+						switch {
+						case r.URL.Path == developerPortalTeamsPath:
+							return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
+						case r.URL.Path == "/services-account/v1/capabilities":
+							return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": {"token"}, "csrf_ts": {"time"}}), nil
+						case r.URL.Path == "/services-account/v1/bundleIds/bundle-1" && r.Method == http.MethodPatch:
+							patches++
+							return developerPortalTestResponse(http.StatusOK, `{}`, nil), nil
+						case r.URL.Path == "/services-account/v1/bundleIds/bundle-1" && r.Header.Get("X-HTTP-Method-Override") == http.MethodGet:
+							enabled := !enable
+							if patches > 0 {
+								enabled = enable
+							}
+							body := developerBundleResponseWithPCCAndICloud(enabled)
+							if preflight || patches > 0 {
+								body = strings.Replace(body, `"cloudContainers":{"data":[{"type":"cloudContainers","id":"cloud-1"}]}`, `"cloudContainers":{"data":[{"type":"cloudContainers","id":"cloud-1"}],`+partial+`}`, 1)
+							}
+							return developerPortalTestResponse(http.StatusOK, body, nil), nil
+						default:
+							t.Fatalf("unexpected offline request %s %s", r.Method, r.URL.String())
+							return nil, nil
+						}
+					})
+					var err error
+					if enable {
+						_, err = client.EnableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityEnableRequest{BundleID: "bundle-1", Capability: "PRIVATE_CLOUD_COMPUTE"})
+					} else {
+						_, err = client.DisableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityDisableRequest{BundleID: "bundle-1", Capability: "PRIVATE_CLOUD_COMPUTE"})
+					}
+					if err == nil || !strings.Contains(err.Error(), "cloudContainers") {
+						t.Fatalf("partial nested relationship was accepted: %v", err)
+					}
+					expectedPatches := 0
+					if !preflight {
+						expectedPatches = 1
+						var unverified *DeveloperBundleIDCapabilityUnverifiedError
+						if !errors.As(err, &unverified) {
+							t.Fatalf("readback did not return an unverified result: %T %v", err, err)
+						}
+					}
+					if patches != expectedPatches {
+						t.Fatalf("PATCH count = %d, want %d", patches, expectedPatches)
+					}
+				})
+			}
+		}
 	}
 }

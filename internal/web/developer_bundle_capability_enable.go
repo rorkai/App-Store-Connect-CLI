@@ -8,40 +8,23 @@ import (
 	"strings"
 )
 
-func validateDeveloperBundleIDEnableSettings(current developerBundleIDResponse, metadata developerCapabilityMetadataAttributes, req DeveloperBundleIDCapabilityEnableRequest) error {
-	if req.Settings != nil {
-		return validateDeveloperCapabilitySettings(metadata, req.Settings)
+func validateDeveloperBundleIDEnableSettings(target developerResource, metadata developerCapabilityMetadataAttributes, requested []BundleIDCapabilitySetting) error {
+	if requested != nil {
+		return validateDeveloperCapabilitySettings(metadata, requested)
 	}
-	capabilities, err := developerBundleIDCapabilities(current)
-	if err != nil {
-		return err
+	if len(metadata.Settings) == 0 || string(metadata.Settings) == "null" {
+		return nil
 	}
-	for _, capability := range capabilities {
-		id, err := developerBundleIDCapabilityID(capability)
-		if err != nil {
-			return err
-		}
-		if strings.EqualFold(id, req.Capability) {
-			enabled, err := developerBundleIDCapabilityEnabled(capability)
-			if err != nil {
-				return err
-			}
-			if enabled || len(metadata.Settings) == 0 || string(metadata.Settings) == "null" {
-				return nil
-			}
-			var attributes struct {
-				Settings []BundleIDCapabilitySetting `json:"settings"`
-			}
-			if err := json.Unmarshal(capability.Attributes, &attributes); err != nil {
-				return fmt.Errorf("parse current capability settings: %w", err)
-			}
-			if attributes.Settings == nil {
-				attributes.Settings = []BundleIDCapabilitySetting{}
-			}
-			return validateDeveloperCapabilitySettings(metadata, attributes.Settings)
-		}
+	var attributes struct {
+		Settings []BundleIDCapabilitySetting `json:"settings"`
 	}
-	return validateDeveloperCapabilitySettings(metadata, []BundleIDCapabilitySetting{})
+	if err := json.Unmarshal(target.Attributes, &attributes); err != nil {
+		return fmt.Errorf("parse current capability settings: %w", err)
+	}
+	if attributes.Settings == nil {
+		attributes.Settings = []BundleIDCapabilitySetting{}
+	}
+	return validateDeveloperCapabilitySettings(metadata, attributes.Settings)
 }
 
 func setDeveloperCapabilitySettings(attributes json.RawMessage, settings []BundleIDCapabilitySetting) (json.RawMessage, error) {
