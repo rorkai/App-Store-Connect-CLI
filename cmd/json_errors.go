@@ -128,7 +128,10 @@ func safeJSONErrorDetails(exitCode int, failureType string, status int, err erro
 	}
 	if diagnostic, ok := shared.DiagnosticFromError(err); ok {
 		kind = string(diagnostic.Code)
-		if exitCode == ExitNotFound && status == 0 && diagnostic.Code == shared.DiagnosticResourceNotFound && diagnostic.Parameter == "--country" {
+		switch {
+		case diagnostic.Code == shared.DiagnosticFilePermissionsInsecure && diagnostic.Parameter == "--private-key":
+			hint = "Set the private key file to owner-only access with chmod 600, then retry."
+		case exitCode == ExitNotFound && status == 0 && diagnostic.Code == shared.DiagnosticResourceNotFound && diagnostic.Parameter == "--country":
 			hint = "Choose a storefront where the app is released with --country, or use --all with a numeric App Store app ID."
 		}
 	}
