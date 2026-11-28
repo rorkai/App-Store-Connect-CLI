@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -54,5 +55,21 @@ func TestRunAdsRejectedOAuthClientIsAuthError(t *testing.T) {
 	}
 	if gotContext.OutcomeKind != telemetry.OutcomeAuthError {
 		t.Fatalf("telemetry outcome = %q, want %q", gotContext.OutcomeKind, telemetry.OutcomeAuthError)
+	}
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"--error-format", "json", "ads", "campaigns", "find", "--ad-account", "987654"}, "4.0.0"); code != ExitAuth {
+			t.Fatalf("JSON Run() exit code = %d, want %d", code, ExitAuth)
+		}
+	})
+	var envelope struct {
+		Error jsonError `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(stderr), &envelope); err != nil {
+		t.Fatalf("JSON stderr = %q: %v", stderr, err)
+	}
+	if stdout != "" || envelope.Error.Type != "authentication_required" || envelope.Error.ExitCode != ExitAuth ||
+		!strings.Contains(envelope.Error.Hint, "asc ads auth status") || strings.Contains(stderr, "invalid_client") {
+		t.Fatalf("unexpected JSON auth result: stdout=%q stderr=%q", stdout, stderr)
 	}
 }
