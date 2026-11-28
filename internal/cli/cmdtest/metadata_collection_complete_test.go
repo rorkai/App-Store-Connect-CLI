@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -37,10 +38,11 @@ func TestMetadataPushRequiresCompleteLocalizationCollections(t *testing.T) {
 				if err := os.WriteFile(target, []byte(fmt.Sprintf(`{%q:"fresh"}`, scope.field)), 0o600); err != nil {
 					t.Fatal(err)
 				}
-				writes, pages := 0, 0
+				var writes atomic.Int32
+				pages := 0
 				client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 					if req.Method == http.MethodPatch {
-						writes++
+						writes.Add(1)
 						var body struct {
 							Data struct {
 								ID         string
@@ -99,8 +101,8 @@ func TestMetadataPushRequiresCompleteLocalizationCollections(t *testing.T) {
 						t.Errorf("exit=%d receipt=%+v stderr=%s", code, result, stderr)
 					}
 				}
-				if writes != sample.wantWrites || pages != map[bool]int{false: 1, true: 2}[sample.paginated] {
-					t.Errorf("writes=%d pages=%d", writes, pages)
+				if int(writes.Load()) != sample.wantWrites || pages != map[bool]int{false: 1, true: 2}[sample.paginated] {
+					t.Errorf("writes=%d pages=%d", writes.Load(), pages)
 				}
 			})
 		}
