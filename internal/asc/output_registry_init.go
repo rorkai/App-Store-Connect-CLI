@@ -8,6 +8,7 @@ package asc
 func registerAllOutputRenderers() {
 	registerDirectTo(catalogResultTables)
 	registerRows(creativeManifestPlanRows)
+	registerRows(creativeManifestApplyRows)
 	registerRows(storeKitAccountTokenRows)
 	registerRows(storeKitConsumptionRows)
 	registerRows(storeKitFinishRows)
