@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -211,6 +212,40 @@ func TestShotsMatrixStillRejectsNegativeAndOutOfRangeOverrides(t *testing.T) {
 			}
 			if runCalls != 0 {
 				t.Fatalf("runCalls = %d, want no run for an invalid override", runCalls)
+			}
+		})
+	}
+}
+
+func TestShotsMatrixProgressFileRefusalDoesNotStartRun(t *testing.T) {
+	for _, name := range []string{"existing", "missing parent", "empty"} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "existing")
+			if err := os.WriteFile(path, []byte("preserved"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			switch name {
+			case "missing parent":
+				path = filepath.Join(dir, "missing", "progress.jsonl")
+			case "empty":
+				path = ""
+			}
+			runCalls := 0
+			d, stdout, stderr := newShotsTestDeps()
+			command := shotsMatrixCommandWithDependencies(d, shotsMatrixCommandDependencies{
+				loadPlan: func(string) (*screenshots.MatrixPlan, error) { return &screenshots.MatrixPlan{}, nil },
+				runMatrix: func(context.Context, string, *screenshots.MatrixPlan, screenshots.MatrixOptions) (*screenshots.MatrixResult, error) {
+					runCalls++
+					return nil, nil
+				},
+			})
+			err := command.ParseAndRun(context.Background(), []string{"--progress-file", path})
+			if !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr.String(), "--progress-file") || stdout.Len() != 0 || runCalls != 0 {
+				t.Fatalf("error=%v stdout=%q stderr=%q runs=%d", err, stdout.String(), stderr.String(), runCalls)
+			}
+			if data, err := os.ReadFile(filepath.Join(dir, "existing")); err != nil || string(data) != "preserved" {
+				t.Fatalf("destination changed: %q, %v", data, err)
 			}
 		})
 	}

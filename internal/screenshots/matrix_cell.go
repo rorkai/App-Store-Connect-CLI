@@ -94,6 +94,7 @@ func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, ba
 			result.Error = newMatrixCellError(result.FailureStage, result.FailureCode, "cell canceled")
 			break
 		}
+		deps.emitProgress(MatrixProgressEvent{Event: "attempt_started", CellID: cell.ID, Attempt: attempt})
 		attemptResult, attemptErr := executeMatrixCellAttempt(ctx, cell, base, matrixPlan, deps, outputRoots)
 		result.Steps = attemptResult.Steps
 		mergeMatrixAttemptResult(&result, cell, attemptResult)
@@ -102,6 +103,7 @@ func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, ba
 			result.FailureStage = ""
 			result.FailureCode = ""
 			result.Error = nil
+			deps.finishAttemptProgress(result)
 			break
 		}
 		if ctx.Err() != nil && !attemptResult.CleanupFailed {
@@ -113,6 +115,7 @@ func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, ba
 			}
 			result.FailureCode = "canceled"
 			result.Error = newMatrixCellError(result.FailureStage, result.FailureCode, "cell canceled")
+			deps.finishAttemptProgress(result)
 			break
 		}
 		if attemptResult.CleanupFailed {
@@ -121,6 +124,7 @@ func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, ba
 		result.FailureStage = attemptResult.FailureStage
 		result.FailureCode = attemptResult.FailureCode
 		result.Error = newMatrixCellError(attemptResult.FailureStage, attemptResult.FailureCode, attemptResult.Error)
+		deps.finishAttemptProgress(result)
 		if attempt == maxAttempts || attemptResult.CleanupFailed || (attemptResult.FailureStage != "execution" && attemptResult.FailureStage != "framing") {
 			break
 		}

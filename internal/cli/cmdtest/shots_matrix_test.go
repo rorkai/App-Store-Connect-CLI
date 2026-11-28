@@ -50,6 +50,7 @@ func TestShotsMatrix_LocalFakeRunProducesResultAndReview(t *testing.T) {
 	writeShotsMatrixPNG(t, templatePNG)
 	writeShotsMatrixExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
 set -eu
+test -s "$MATRIX_PROGRESS_PATH"
 if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
   printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","state":"Booted","isAvailable":true}]}}'
   exit 0
@@ -73,6 +74,8 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	dir := t.TempDir()
+	progressPath := filepath.Join(dir, "progress.jsonl")
+	t.Setenv("MATRIX_PROGRESS_PATH", progressPath)
 	basePath := filepath.Join(dir, "base.json")
 	matrixPath := filepath.Join(dir, "matrix.json")
 	rawDir := filepath.Join(dir, "raw")
@@ -81,7 +84,7 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 	writeShotsMatrixFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"default"}],"output":{"raw_dir":"`+rawDir+`","review_dir":"`+reviewDir+`"}}`)
 
 	root, rootStdout, rootStderr := shotsRootWithDeps(t)
-	if err := root.Parse([]string{"screenshots", "matrix", "--plan", matrixPath, "--output", "json"}); err != nil {
+	if err := root.Parse([]string{"screenshots", "matrix", "--plan", matrixPath, "--output", "json", "--progress-file", progressPath}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	if err := root.Run(context.Background()); err != nil {
@@ -92,8 +95,9 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 		t.Fatalf("unexpected stderr: %q", stderr)
 	}
 	var result struct {
-		Status     string `json:"status"`
-		TotalCells int    `json:"totalCells"`
+		Status     string                        `json:"status"`
+		TotalCells int                           `json:"totalCells"`
+		Cells      []struct{ ID, Status string } `json:"cells"`
 		Review     struct {
 			ManifestPath string `json:"manifestPath"`
 			HTMLPath     string `json:"htmlPath"`
@@ -112,6 +116,36 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("expected artifact %q: %v", path, err)
 		}
+	}
+	data, err := os.ReadFile(progressPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	wantEvents := []string{"run_started", "attempt_started", "attempt_finished", "cell_finished", "run_finished"}
+	if len(lines) != len(wantEvents) {
+		t.Fatalf("progress events = %s", data)
+	}
+	for i, line := range lines {
+		var event struct {
+			Event, CellID, Status string
+			Attempt               int
+		}
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			t.Fatal(err)
+		}
+		if event.Event != wantEvents[i] {
+			t.Fatalf("event %d = %+v", i, event)
+		}
+		if i > 0 && i < len(lines)-1 && event.CellID != result.Cells[0].ID {
+			t.Fatalf("event ID = %q, cell = %q", event.CellID, result.Cells[0].ID)
+		}
+		if i == len(lines)-1 && event.Status != result.Status {
+			t.Fatalf("final event = %+v, result = %+v", event, result)
+		}
+	}
+	if strings.Contains(string(data), "SIM-UDID") || strings.Contains(string(data), "AppleLocale") {
+		t.Fatalf("progress leaked execution details: %s", data)
 	}
 	manifest, err := os.ReadFile(result.Review.ManifestPath)
 	if err != nil {
