@@ -1,7 +1,9 @@
 package main
 
 import (
+	"archive/tar"
 	"archive/zip"
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"os"
@@ -405,9 +407,9 @@ func TestReleaseWorkflowReusesArtifactsAcrossRerunAttempts(t *testing.T) {
 		`case "$run_event" in`,
 		`push) [ "$run_head_sha" = "$release_commit" ] || continue ;;`,
 		`workflow_dispatch) [ "$run_head_branch" = "$default_branch" ] || continue ;;`,
-		`test "$(cat "$provenance")" = "$release_commit"`,
+		`--mode candidate-zip --version "$VERSION" --source-sha "$release_commit"`,
 		`gh release download "${VERSION}" --dir "$draft_dir"`,
-		`cmp -s "$draft_asset" "$candidate_dir/release/$name"`,
+		`cmp -s "$draft_asset" "$archive_dir/release/$name"`,
 		`No retained candidate artifact matches the existing draft assets`,
 		`cross_run=true`,
 		`if: steps.candidate_artifact.outputs.cross_run == 'true'`,
@@ -471,14 +473,22 @@ func TestReleaseWorkflowPublishesPackageManagersWhenBuildIsSkipped(t *testing.T)
 func TestVerifyReleaseAssetsRequiresExactChecksumCoverage(t *testing.T) {
 	workflow := readReleaseWorkflow(t)
 	for _, boundary := range []struct {
-		name  string
-		count int
+		name            string
+		direct, archive int
 	}{
-		{"repair-notarization", 1}, {"build", 1}, {"publish", 3}, {"homebrew", 1}, {"winget", 1},
+		{"repair-notarization", 1, 0},
+		{"build", 1, 0},
+		{"publish", 2, 1},
+		{"resolve", 0, 2},
+		{"attest", 0, 1},
+		{"homebrew", 0, 1},
+		{"winget", 0, 1},
 	} {
 		job := releaseWorkflowJobBlock(t, workflow, boundary.name)
-		if got := strings.Count(job, "verify_release_assets.py"); got != boundary.count {
-			t.Fatalf("%s must verify exact coverage at every consumer boundary: want %d, got %d", boundary.name, boundary.count, got)
+		for script, count := range map[string]int{"verify_release_assets.py": boundary.direct, "unpack_release_archive.py": boundary.archive} {
+			if got := strings.Count(job, script); got != count {
+				t.Fatalf("%s must verify exact coverage at every consumer boundary through %s: want %d, got %d", boundary.name, script, count, got)
+			}
 		}
 	}
 	if _, err := exec.LookPath("python3"); err != nil {
@@ -819,6 +829,21 @@ func TestReleaseProvenance(t *testing.T) {
 	}
 }
 
+func TestReleaseArchiveConsumption(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("release archive consumers run in a Unix shell")
+	}
+	for _, tool := range []string{"bash", "jq", "python3"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s is required for release archive tests: %v", tool, err)
+		}
+	}
+	command := exec.Command("python3", "scripts/test_unpack_release_archive.py")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("archive consumption tests: %v\n%s", err, output)
+	}
+}
+
 func TestReleaseWorkflowNativeNotaryUsesReleaseBinary(t *testing.T) {
 	workflow := readReleaseWorkflow(t)
 	job := releaseWorkflowJobBlock(t, workflow, "macos")
@@ -874,41 +899,74 @@ func releaseWorkflowStepRun(t *testing.T, job, name string) string {
 	return ""
 }
 
-func TestReleaseWorkflowMacOSIntermediateOmitsAppleDouble(t *testing.T) {
+func TestReleaseWorkflowMacOSArchivesOmitAppleDouble(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("requires native macOS tar and extended attributes")
 	}
-	script := releaseWorkflowStepRun(t, "macos", "Pack macos intermediate")
-	dir := t.TempDir()
-	release := filepath.Join(dir, "release")
-	if err := os.Mkdir(release, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	names := []string{"asc_1.2.3_macOS_amd64", "asc_1.2.3_macOS_arm64"}
-	for _, name := range names {
-		if err := os.WriteFile(filepath.Join(release, name), []byte("release fixture"), 0o755); err != nil {
-			t.Fatal(err)
+	var environment []string
+	for _, value := range os.Environ() {
+		if !strings.HasPrefix(value, "COPYFILE_DISABLE=") {
+			environment = append(environment, value)
 		}
 	}
-	// Native tar otherwise serializes this attribute into an extra ._release member.
-	if output, err := exec.Command("xattr", "-w", "com.asc.release-test", "fixture", release).CombinedOutput(); err != nil {
-		t.Fatalf("set macOS archive attribute: %v %s", err, output)
-	}
-	stub := "#!/bin/sh\nprintf '%s\\n' " + strings.Repeat("a", 40) + "\n"
-	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(stub), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	command := exec.Command("bash", "-e", "-o", "pipefail", "-c", script)
-	command.Dir = dir
-	command.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	if output, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("pack native macOS intermediate: %v %s", err, output)
-	}
-	// Feed the actual producer's archive into the production validator.
-	args := []string{"-c", "import sys; sys.path.insert(0, 'scripts'); from assemble_release_candidate import read_lane; read_lane(sys.argv[1], sys.argv[2:], 'a' * 40)", filepath.Join(dir, "workflow-artifact", "macos.tar")}
-	args = append(args, names...)
-	if output, err := exec.Command("python3", args...).CombinedOutput(); err != nil {
-		t.Fatalf("native intermediate rejected by assembler: %v %s", err, output)
+	for _, fixture := range []struct {
+		job, step, directory, archive string
+		platforms                     []string
+	}{
+		{"macos", "Pack macos intermediate", "release", "macos.tar", []string{"macOS_amd64", "macOS_arm64"}},
+		{"publish", "Pack immutable published artifact", "published-release", "published-release-1.2.3.tar", []string{"macOS_amd64", "macOS_arm64", "linux_amd64", "linux_arm64", "windows_amd64.exe"}},
+	} {
+		t.Run(fixture.job, func(t *testing.T) {
+			script := releaseWorkflowStepRun(t, fixture.job, fixture.step)
+			dir := t.TempDir()
+			release := filepath.Join(dir, fixture.directory)
+			if err := os.Mkdir(release, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			var names []string
+			var manifest strings.Builder
+			for _, platform := range fixture.platforms {
+				name := "asc_1.2.3_" + platform
+				names = append(names, name)
+				data := []byte("release fixture " + platform)
+				mode := os.FileMode(0o755)
+				if fixture.job == "publish" {
+					mode = 0o644
+				}
+				if err := os.WriteFile(filepath.Join(release, name), data, mode); err != nil {
+					t.Fatal(err)
+				}
+				fmt.Fprintf(&manifest, "%x  %s\n", sha256.Sum256(data), name)
+			}
+			if fixture.job == "publish" {
+				if err := os.WriteFile(filepath.Join(release, "asc_1.2.3_checksums.txt"), []byte(manifest.String()), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// Set ordinary directory metadata explicitly; do not depend on host temp-directory attributes.
+			if output, err := exec.Command("xattr", "-w", "com.asc.release-test", "fixture", release).CombinedOutput(); err != nil {
+				t.Fatalf("set macOS archive attribute: %v %s", err, output)
+			}
+			stub := "#!/bin/sh\nprintf '%s\\n' " + strings.Repeat("a", 40) + "\n"
+			if err := os.WriteFile(filepath.Join(dir, "git"), []byte(stub), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			command := exec.Command("bash", "-e", "-o", "pipefail", "-c", script)
+			command.Dir = dir
+			command.Env = append(environment, "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"), "VERSION=1.2.3")
+			if output, err := command.CombinedOutput(); err != nil {
+				t.Fatalf("pack native macOS archive: %v %s", err, output)
+			}
+			archive := filepath.Join(dir, "workflow-artifact", fixture.archive)
+			args := []string{"-c", "import sys; sys.path.insert(0, 'scripts'); from assemble_release_candidate import read_lane; read_lane(sys.argv[1], sys.argv[2:], 'a' * 40)", archive}
+			args = append(args, names...)
+			if fixture.job == "publish" {
+				args = []string{"scripts/unpack_release_archive.py", "--archive", archive, "--output", filepath.Join(dir, "verified"), "--version", "1.2.3", "--mode", "published"}
+			}
+			if output, err := exec.Command("python3", args...).CombinedOutput(); err != nil {
+				t.Fatalf("native archive rejected by its production validator: %v %s", err, output)
+			}
+		})
 	}
 }
 
@@ -989,39 +1047,76 @@ func TestReleaseWorkflowSameRunCandidateProvenance(t *testing.T) {
 	}
 	script := releaseWorkflowStepRun(t, "resolve", "Check for existing immutable build artifact")
 	sha := strings.Repeat("a", 40)
+	repositoryDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, fixture := range []struct {
 		name, commit, failure string
 		missingTar, corrupt   bool
 		downloadFailure       bool
+		wrongChecksum         bool
 	}{
 		{name: "same source", commit: sha},
-		{name: "moved tag", commit: strings.Repeat("b", 40), failure: "does not match release source"},
-		{name: "missing provenance", failure: "does not match release source"},
-		{name: "missing archive", commit: sha, missingTar: true, failure: "does not match release source"},
-		{name: "damaged ZIP", corrupt: true, failure: "BadZipFile"},
+		{name: "moved tag", commit: strings.Repeat("b", 40), failure: "source marker does not match expected source"},
+		{name: "missing provenance", failure: "unexpected archive member set in candidate ZIP"},
+		{name: "missing archive", commit: sha, missingTar: true, failure: "unexpected archive member set in candidate ZIP"},
+		{name: "damaged ZIP", corrupt: true, failure: "File is not a zip file"},
 		{name: "download fails", downloadFailure: true, failure: "download failed"},
+		{name: "wrong checksum", commit: sha, wrongChecksum: true, failure: "checksum mismatch: asc_1.2.3_linux_amd64"},
 	} {
 		t.Run(fixture.name, func(t *testing.T) {
 			dir := t.TempDir()
+			if err := os.Symlink(repositoryDir, filepath.Join(dir, "workflow-source")); err != nil {
+				t.Fatal(err)
+			}
 			zipPath, outputPath := filepath.Join(dir, "fixture.zip"), filepath.Join(dir, "output")
 			archive, err := os.Create(zipPath)
 			if err != nil {
 				t.Fatal(err)
 			}
 			writer := zip.NewWriter(archive)
-			entries := map[string]string{}
+			entries := map[string][]byte{}
 			if !fixture.missingTar {
-				entries["candidate-release-1.2.3.tar"] = "retained candidate"
+				var contents bytes.Buffer
+				tarWriter := tar.NewWriter(&contents)
+				if err := tarWriter.WriteHeader(&tar.Header{Name: "release", Typeflag: tar.TypeDir, Mode: 0o755}); err != nil {
+					t.Fatal(err)
+				}
+				writeAsset := func(name string, data []byte, mode int64) {
+					if err := tarWriter.WriteHeader(&tar.Header{Name: "release/" + name, Mode: mode, Size: int64(len(data))}); err != nil {
+						t.Fatal(err)
+					}
+					if _, err := tarWriter.Write(data); err != nil {
+						t.Fatal(err)
+					}
+				}
+				var manifest strings.Builder
+				for index, platform := range []string{"linux_amd64", "linux_arm64", "macOS_amd64", "macOS_arm64", "windows_amd64.exe"} {
+					name := "asc_1.2.3_" + platform
+					data := []byte("retained candidate " + platform)
+					writeAsset(name, data, 0o755)
+					digest := fmt.Sprintf("%x", sha256.Sum256(data))
+					if fixture.wrongChecksum && index == 0 {
+						digest = strings.Repeat("0", 64)
+					}
+					fmt.Fprintf(&manifest, "%s  %s\n", digest, name)
+				}
+				writeAsset("asc_1.2.3_checksums.txt", []byte(manifest.String()), 0o644)
+				if err := tarWriter.Close(); err != nil {
+					t.Fatal(err)
+				}
+				entries["candidate-release-1.2.3.tar"] = contents.Bytes()
 			}
 			if fixture.commit != "" {
-				entries["candidate-release-1.2.3.commit"] = fixture.commit + "\n"
+				entries["candidate-release-1.2.3.commit"] = []byte(fixture.commit + "\n")
 			}
 			for name, contents := range entries {
 				entry, err := writer.Create(name)
 				if err != nil {
 					t.Fatal(err)
 				}
-				if _, err := entry.Write([]byte(contents)); err != nil {
+				if _, err := entry.Write(contents); err != nil {
 					t.Fatal(err)
 				}
 			}
