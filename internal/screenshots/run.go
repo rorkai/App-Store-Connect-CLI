@@ -119,7 +119,11 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (_ *Run
 
 	if preset := plan.Defaults.StatusBar; preset != "" {
 		if err := runExternal(ctx, "axe", "settings", "status-bar", "preset", preset, "--udid", udid); err != nil {
-			return nil, fmt.Errorf("apply status bar preset %q: %w", preset, err)
+			err = fmt.Errorf("apply status bar preset %q: %w", preset, err)
+			if result.Location != nil {
+				return result, err
+			}
+			return nil, err
 		}
 		defer func() {
 			clearCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), matrixSubprocessTimeout)
