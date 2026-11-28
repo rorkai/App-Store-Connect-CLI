@@ -97,7 +97,9 @@ func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, ba
 		deps.emitProgress(MatrixProgressEvent{Event: "attempt_started", CellID: cell.ID, Attempt: attempt})
 		attemptResult, attemptErr := executeMatrixCellAttempt(ctx, cell, base, matrixPlan, deps, outputRoots)
 		result.Steps = attemptResult.Steps
-		result.Location = attemptResult.Location
+		if attemptResult.Location != nil {
+			result.Location = attemptResult.Location
+		}
 		if attemptResult.FailureEvidence != nil {
 			evidence := *attemptResult.FailureEvidence
 			evidence.Attempt = attempt
