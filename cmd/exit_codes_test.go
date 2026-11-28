@@ -7,6 +7,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"encoding/xml"
 	"errors"
@@ -1153,8 +1154,11 @@ func TestAuthLoginPermissiveKeyPrintsFixWithoutUsagePage(t *testing.T) {
 		t.Fatalf("Chmod() error: %v", err)
 	}
 
-	runCmd := exec.Command(binaryPath, "auth", "login", "--name", "demo", "--key-id", "ABC123DEF4", "--issuer-id", "00000000-0000-0000-0000-000000000000",
-		"--private-key", keyPath, "--bypass-keychain", "--local", "--skip-validation")
+	args := []string{
+		"auth", "login", "--name", "demo", "--key-id", "ABC123DEF4", "--issuer-id", "00000000-0000-0000-0000-000000000000",
+		"--private-key", keyPath, "--bypass-keychain", "--local", "--skip-validation",
+	}
+	runCmd := exec.Command(binaryPath, args...)
 	runCmd.Env = isolatedCLITestEnv(filepath.Join(tmpDir, "config.json"))
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -1180,6 +1184,25 @@ func TestAuthLoginPermissiveKeyPrintsFixWithoutUsagePage(t *testing.T) {
 	}
 	if stdout.Len() != 0 {
 		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+
+	jsonCmd := exec.Command(binaryPath, append([]string{"--error-format", "json"}, args...)...)
+	jsonCmd.Env = runCmd.Env
+	stdout.Reset()
+	stderr.Reset()
+	jsonCmd.Stdout, jsonCmd.Stderr = &stdout, &stderr
+	if err := jsonCmd.Run(); !errors.As(err, &exitErr) || exitErr.ExitCode() != ExitUsage {
+		t.Fatalf("JSON command: err=%v stderr=%q", err, stderr.String())
+	}
+	var envelope struct {
+		Error jsonError `json:"error"`
+	}
+	if err := json.Unmarshal(stderr.Bytes(), &envelope); err != nil {
+		t.Fatalf("JSON stderr = %q: %v", stderr.String(), err)
+	}
+	if stdout.Len() != 0 || envelope.Error.Type != "file_permissions_insecure" || envelope.Error.ExitCode != ExitUsage ||
+		!strings.Contains(envelope.Error.Hint, "chmod 600") || strings.Contains(stderr.String(), filepath.Base(keyPath)) {
+		t.Fatalf("unexpected JSON refusal: stdout=%q stderr=%q", stdout.String(), stderr.String())
 	}
 }
 
