@@ -60,8 +60,8 @@ Build selector modes (mutually exclusive):
   - --build-id BUILD_ID
   - --app APP_ID --latest
       [--version VERSION] [--platform PLATFORM] [--since RFC3339]
-  - --app APP_ID --build-number NUMBER
-      [--version VERSION] [--platform PLATFORM] [--since RFC3339]
+  - --app APP_ID --build-number NUMBER --platform PLATFORM
+      [--version VERSION] [--since RFC3339]
 
 Examples:
   asc builds wait --build-id "BUILD_ID"

@@ -62,6 +62,18 @@ func TestBuildsListCommand_HelpMentionsCombinedFilters(t *testing.T) {
 	}
 }
 
+func TestNumberedBuildHelpRequiresPlatform(t *testing.T) {
+	d, _ := newBuildsTestDeps(nil)
+	info := newBuildsInfoCommand(d)
+	if !strings.Contains(info.ShortUsage, "--build-number BUILD_NUMBER --platform PLATFORM") {
+		t.Errorf("builds info usage must require a platform for build-number selection: %q", info.ShortUsage)
+	}
+	wait := newBuildsWaitCommand(d)
+	if !strings.Contains(wait.LongHelp, "--build-number NUMBER --platform PLATFORM") {
+		t.Errorf("builds wait selector modes must require a platform for build-number selection: %q", wait.LongHelp)
+	}
+}
+
 func TestBuildsListQueryFlagsAreRegistered(t *testing.T) {
 	d, _ := newBuildsTestDeps(nil)
 	for _, test := range []struct {
