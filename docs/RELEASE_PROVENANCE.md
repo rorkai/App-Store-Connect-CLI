@@ -88,6 +88,15 @@ guarantee is claimed, and dependencies are not a complete software bill of
 materials. Historical releases are not retroactively attested; repairing their
 package-manager publication keeps its existing behavior.
 
+Retained candidate ZIPs and release TARs are validated before their files are
+materialized in a fresh temporary directory, separate from workflow tools. Only
+the expected regular files are accepted. Processing is bounded to 256 MiB per
+binary, 1 GiB total asset bytes, 16 KiB for the checksum manifest, and 1 GiB plus
+1 MiB for each archive. Candidate source markers and all asset checksums must
+match before the validated release directory is handed to subsequent steps.
+Native macOS TAR producers omit AppleDouble metadata; published downloads keep
+their ordinary non-executable file modes.
+
 `python3 scripts/test_release_provenance.py` exercises the publication shell with
 local fixtures, including changed bytes, a wrong source commit and identity
 records signed separately from the binaries. It runs under

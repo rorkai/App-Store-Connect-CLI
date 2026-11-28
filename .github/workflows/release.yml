@@ -226,6 +226,13 @@ jobs:
         id: source
         run: printf 'sha=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      - name: Checkout workflow release tools
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: workflow-source
+          persist-credentials: false
+
       - name: Check for existing immutable build artifact
         id: candidate_artifact
         env:
@@ -240,13 +247,9 @@ jobs:
             artifact_dir="${RUNNER_TEMP}/same-run-candidate-${artifact_id}"
             mkdir -p "$artifact_dir"
             gh api "repos/${GH_REPO}/actions/artifacts/${artifact_id}/zip" > "$artifact_dir/artifact.zip"
-            python3 -m zipfile -e "$artifact_dir/artifact.zip" "$artifact_dir"
-            archive="${artifact_dir}/candidate-release-${VERSION}.tar"
-            provenance="${artifact_dir}/candidate-release-${VERSION}.commit"
-            if [ ! -f "$archive" ] || [ ! -f "$provenance" ] || ! test "$(cat "$provenance")" = "$release_commit"; then
-              echo "::error::Retained candidate artifact does not match release source ${release_commit}" >&2
-              exit 1
-            fi
+            python3 workflow-source/scripts/unpack_release_archive.py \
+              --archive "$artifact_dir/artifact.zip" --output "$artifact_dir/verified" \
+              --mode candidate-zip --version "$VERSION" --source-sha "$release_commit"
             echo "Reusing immutable build artifact ${artifact_name}."
             echo "reused=true" >> "$GITHUB_OUTPUT"
             echo "cross_run=false" >> "$GITHUB_OUTPUT"
@@ -286,29 +289,24 @@ jobs:
             esac
             artifact_dir="${RUNNER_TEMP}/candidate-artifact-${artifact_id}"
             archive_zip="${artifact_dir}/artifact.zip"
-            archive_dir="${artifact_dir}/download"
-            candidate_dir="${artifact_dir}/candidate"
-            mkdir -p "$archive_dir" "$candidate_dir"
+            archive_dir="${artifact_dir}/verified"
+            mkdir -p "$artifact_dir"
             if ! gh api "repos/${GH_REPO}/actions/artifacts/${artifact_id}/zip" > "$archive_zip"; then
               continue
             fi
-            if ! ditto -x -k "$archive_zip" "$archive_dir"; then
+            if ! python3 workflow-source/scripts/unpack_release_archive.py \
+              --archive "$archive_zip" --output "$archive_dir" \
+              --mode candidate-zip --version "$VERSION" --source-sha "$release_commit"; then
               continue
             fi
             archive="${archive_dir}/candidate-release-${VERSION}.tar"
             provenance="${archive_dir}/candidate-release-${VERSION}.commit"
-            if [ ! -f "$archive" ] || [ ! -f "$provenance" ] || ! test "$(cat "$provenance")" = "$release_commit"; then
-              continue
-            fi
 
             if [ "$draft_has_assets" -eq 1 ]; then
-              if ! tar -xf "$archive" -C "$candidate_dir"; then
-                continue
-              fi
               candidate_matches=1
               while IFS= read -r -d '' draft_asset; do
                 name=$(basename "$draft_asset")
-                if [ ! -f "$candidate_dir/release/$name" ] || ! cmp -s "$draft_asset" "$candidate_dir/release/$name"; then
+                if [ ! -f "$archive_dir/release/$name" ] || ! cmp -s "$draft_asset" "$archive_dir/release/$name"; then
                   candidate_matches=0
                   break
                 fi
@@ -804,8 +802,12 @@ jobs:
 
       - name: Bind final bytes to verified release source
         run: |
-          test "$(cat "workflow-artifact/candidate-release-${VERSION}.commit")" = "$RELEASE_SHA"
-          tar -xf "workflow-artifact/candidate-release-${VERSION}.tar"
+          candidate_dir=$(mktemp -d "${RUNNER_TEMP}/release-candidate.XXXXXX")
+          python3 workflow-source/scripts/unpack_release_archive.py \
+            --archive "workflow-artifact/candidate-release-${VERSION}.tar" --output "$candidate_dir/verified" \
+            --mode candidate --version "$VERSION" --source-sha "$RELEASE_SHA" \
+            --commit-file "workflow-artifact/candidate-release-${VERSION}.commit"
+          mv "$candidate_dir/verified/release" release
           python3 workflow-source/scripts/release_provenance.py identity \
             --release-dir release --version "$VERSION" --source-sha "$RELEASE_SHA" \
             --workflow-sha "$WORKFLOW_SHA" --repository "$GH_REPO" > release-identity.json
@@ -900,8 +902,12 @@ jobs:
       - name: Unpack and verify release artifact
         if: steps.published_artifact.outputs.reused != 'true' && needs.prepare.outputs.published != 'true'
         run: |
-          tar -xf "workflow-artifact/candidate-release-${VERSION}.tar"
-          python3 workflow-source/scripts/verify_release_assets.py --release-dir release --version "${VERSION}"
+          candidate_dir=$(mktemp -d "${RUNNER_TEMP}/release-candidate.XXXXXX")
+          python3 workflow-source/scripts/unpack_release_archive.py \
+            --archive "workflow-artifact/candidate-release-${VERSION}.tar" --output "$candidate_dir/verified" \
+            --mode candidate --version "$VERSION" --source-sha "$RELEASE_SHA" \
+            --commit-file "workflow-artifact/candidate-release-${VERSION}.commit"
+          mv "$candidate_dir/verified/release" release
 
       - name: Recover and verify existing published release
         if: steps.published_artifact.outputs.reused != 'true' && needs.prepare.outputs.published == 'true'
@@ -997,7 +1003,7 @@ jobs:
           mkdir -p workflow-artifact
           rm -rf release
           mv published-release release
-          tar -cf "workflow-artifact/published-release-${VERSION}.tar" release
+          COPYFILE_DISABLE=1 tar -cf "workflow-artifact/published-release-${VERSION}.tar" release
 
       - name: Upload immutable published artifact
         if: steps.published_artifact.outputs.reused != 'true'
@@ -1034,8 +1040,11 @@ jobs:
 
       - name: Unpack and verify release artifact
         run: |
-          tar -xf "workflow-artifact/published-release-${VERSION}.tar"
-          python3 workflow-source/scripts/verify_release_assets.py --release-dir release --version "${VERSION}"
+          published_dir=$(mktemp -d "${RUNNER_TEMP}/published-release.XXXXXX")
+          python3 workflow-source/scripts/unpack_release_archive.py \
+            --archive "workflow-artifact/published-release-${VERSION}.tar" --output "$published_dir/verified" \
+            --mode published --version "$VERSION"
+          mv "$published_dir/verified/release" release
 
       - name: Update Homebrew tap
         env:
@@ -1143,8 +1152,11 @@ jobs:
 
       - name: Unpack and verify release artifact
         run: |
-          tar -xf "workflow-artifact/published-release-${VERSION}.tar"
-          python3 workflow-source/scripts/verify_release_assets.py --release-dir release --version "${VERSION}"
+          published_dir=$(mktemp -d "${RUNNER_TEMP}/published-release.XXXXXX")
+          python3 workflow-source/scripts/unpack_release_archive.py \
+            --archive "workflow-artifact/published-release-${VERSION}.tar" --output "$published_dir/verified" \
+            --mode published --version "$VERSION"
+          mv "$published_dir/verified/release" release
 
       - name: Generate WinGet manifests
         run: |
