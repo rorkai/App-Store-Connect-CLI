@@ -697,23 +697,37 @@ func syncPullCommand(d *shared.Deps) *ffcli.Command {
 	passwordFile := fs.String("password-file", "", "Protected file containing the repository encryption password (or set ASC_SIGNING_SYNC_PASSWORD)")
 	branch := fs.String("branch", "main", "Git branch")
 	outputDir := fs.String("output-dir", "./signing", "Output directory for decrypted files")
+	p12Encoding := fs.String("p12-encoding", string(shared.PKCS12EncodingLegacy), "Installer output only: "+shared.PKCS12EncodingFlagUsage+"; requires a full pull containing an active installer identity")
 	sourceFormat := fs.String("source-format", "", "Set to openssl to read an OpenSSL-encrypted signing repository laid out as certs/<type>/ and profiles/<type>/ from --repo (a Git URL or local checkout; --branch then defaults to master) instead of a signing sync store; read-only, Git only")
 	storageFlags := bindSigningSyncStorageFlags(fs)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "pull",
-		ShortUsage: "asc signing sync pull [--storage STORAGE] [storage options] [--source-format openssl] [--bundle-id ID | --targets-file PATH] [--profile-type TYPE] [--password-file PATH] [--output-dir DIR]",
+		ShortUsage: "asc signing sync pull [--storage STORAGE] [storage options] [--source-format openssl] [--bundle-id ID | --targets-file PATH] [--profile-type TYPE] [--password-file PATH] [--output-dir DIR] [--p12-encoding legacy|modern]",
 		ShortHelp:  "Pull and decrypt signing assets from the selected storage.",
 		LongHelp: `A full pull restores currently valid standalone installer identities as well as profile-bound app signing assets.
 Bundle-specific pulls return only that bundle's profile-bound assets.
 
-Installer output uses password-protected PKCS#12 with 3DES and a SHA-1 MAC for native macOS import compatibility. Conversion happens in memory; no unencrypted private key is written. Stored identities and app identity output keep their existing encryption.`,
+Installer output defaults to --p12-encoding legacy (3DES and a SHA-1 MAC) for native macOS SecItemImport compatibility. Use --p12-encoding modern for AES-256-CBC and HMAC-SHA-256 when your importer supports it, such as SecPKCS12Import. Explicit --p12-encoding requires a full pull containing an active installer identity; it cannot be used with --bundle-id or --targets-file.
+
+Conversion happens in memory; no unencrypted private key is written. Stored identities and app identity output keep their existing encryption.`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			repo := strings.TrimSpace(*repoURL)
 			provided := providedSigningSyncFlags(fs)
+			var installerEncoding shared.PKCS12Encoding
+			if provided["p12-encoding"] {
+				var err error
+				installerEncoding, err = shared.ParsePKCS12Encoding(*p12Encoding)
+				if err != nil {
+					return d.UsageError(err.Error())
+				}
+				if provided["bundle-id"] || provided["targets-file"] {
+					return d.UsageError("--p12-encoding requires a full pull without --bundle-id or --targets-file")
+				}
+			}
 			openSSLSource, sourceBranch, err := parseSigningPullSourceFormat(d, provided, *sourceFormat, *storageFlags.storage, repo, *branch)
 			if err != nil {
 				return err
@@ -774,7 +788,7 @@ Installer output uses password-protected PKCS#12 with 3DES and a SHA-1 MAC for n
 				outDir = "./signing"
 			}
 			if openSSLSource {
-				result, err := pullOpenSSLSigningSource(ctx, d, repo, sourceBranch, pass, outDir, selectedBundleIDs, profile, targetsProvided)
+				result, err := pullOpenSSLSigningSource(ctx, d, repo, sourceBranch, pass, outDir, selectedBundleIDs, profile, targetsProvided, installerEncoding)
 				if err != nil {
 					return err
 				}
@@ -805,7 +819,7 @@ Installer output uses password-protected PKCS#12 with 3DES and a SHA-1 MAC for n
 				return fmt.Errorf("signing sync pull: list files: %w", err)
 			}
 
-			if len(encryptedFiles) == 0 {
+			if len(encryptedFiles) == 0 && installerEncoding == "" {
 				if selectionRequested {
 					return fmt.Errorf("signing sync pull: no active %s profile found in encrypted repository for bundle ID(s): %s", profile, strings.Join(selectedBundleIDs, ", "))
 				}
@@ -824,7 +838,7 @@ Installer output uses password-protected PKCS#12 with 3DES and a SHA-1 MAC for n
 				return fmt.Errorf("signing sync pull: %w", err)
 			}
 			result, err := writeSigningPullFiles(d, SyncResult{Operation: "pull", RepoURL: transport.Locator(), Storage: transport.Storage()},
-				decrypted, pass, outDir, selectedBundleIDs, profile, targetsProvided)
+				decrypted, pass, outDir, selectedBundleIDs, profile, targetsProvided, installerEncoding)
 			if err != nil {
 				return err
 			}
@@ -835,7 +849,7 @@ Installer output uses password-protected PKCS#12 with 3DES and a SHA-1 MAC for n
 
 // writeSigningPullFiles applies the bundle selection, checks every
 // destination, and then writes the decrypted files under outDir.
-func writeSigningPullFiles(d *shared.Deps, result SyncResult, decrypted []decryptedSigningFile, password, outDir string, bundleIDs []string, profileType string, batch bool) (SyncResult, error) {
+func writeSigningPullFiles(d *shared.Deps, result SyncResult, decrypted []decryptedSigningFile, password, outDir string, bundleIDs []string, profileType string, batch bool, installerEncoding shared.PKCS12Encoding) (SyncResult, error) {
 	var targets []SyncTargetResult
 	if len(bundleIDs) > 0 {
 		var err error
@@ -844,19 +858,28 @@ func writeSigningPullFiles(d *shared.Deps, result SyncResult, decrypted []decryp
 			return SyncResult{}, fmt.Errorf("signing sync pull: %w", err)
 		}
 	}
+	installerPresent := false
+	encoding := installerEncoding
+	if encoding == "" {
+		encoding = shared.PKCS12EncodingLegacy
+	}
 	for index := range decrypted {
 		file := &decrypted[index]
 		if file.Metadata.Kind != installerIdentityKind {
 			continue
 		}
+		installerPresent = true
 		key, certificate, err := modernpkcs12.Decode(file.Plaintext, password)
 		if err != nil {
 			return SyncResult{}, fmt.Errorf("signing sync pull: decode installer identity: %w", err)
 		}
-		file.Plaintext, err = shared.EncodePKCS12Identity(shared.PKCS12EncodingLegacy, key, certificate, password)
+		file.Plaintext, err = shared.EncodePKCS12Identity(encoding, key, certificate, password)
 		if err != nil {
-			return SyncResult{}, fmt.Errorf("signing sync pull: encode installer identity for native import: %w", err)
+			return SyncResult{}, fmt.Errorf("signing sync pull: encode installer identity: %w", err)
 		}
+	}
+	if installerEncoding != "" && !installerPresent {
+		return SyncResult{}, fmt.Errorf("signing sync pull: --p12-encoding requires at least one active installer identity")
 	}
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return SyncResult{}, fmt.Errorf("signing sync pull: create output dir: %w", err)

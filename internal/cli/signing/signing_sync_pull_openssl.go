@@ -43,7 +43,7 @@ func parseSigningPullSourceFormat(d *shared.Deps, provided map[string]bool, form
 // pullOpenSSLSigningSource reads an OpenSSL-encrypted signing repository laid
 // out as certs/<type>/ and profiles/<type>/ without changing it, and writes
 // the same files a pull of a signing sync store would.
-func pullOpenSSLSigningSource(ctx context.Context, d *shared.Deps, repo, branch, password, outDir string, bundleIDs []string, profileType string, batch bool) (SyncResult, error) {
+func pullOpenSSLSigningSource(ctx context.Context, d *shared.Deps, repo, branch, password, outDir string, bundleIDs []string, profileType string, batch bool, installerEncoding shared.PKCS12Encoding) (SyncResult, error) {
 	root, label, cleanup, err := openOpenSSLImportSource(ctx, d, repo, branch, (*signingpkg.GitStore).Clone)
 	if err != nil {
 		return SyncResult{}, fmt.Errorf("signing sync pull: %w", err)
@@ -54,7 +54,7 @@ func pullOpenSSLSigningSource(ctx context.Context, d *shared.Deps, repo, branch,
 		return SyncResult{}, fmt.Errorf("signing sync pull: %w", err)
 	}
 	result := SyncResult{Operation: "pull", RepoURL: label, SourceFormat: signingSyncSourceFormatOpenSSL, Skipped: skipped}
-	return writeSigningPullFiles(d, result, decrypted, password, outDir, bundleIDs, profileType, batch)
+	return writeSigningPullFiles(d, result, decrypted, password, outDir, bundleIDs, profileType, batch, installerEncoding)
 }
 
 // loadOpenSSLSigningPullFiles decrypts the source into memory, re-encodes each

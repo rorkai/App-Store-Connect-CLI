@@ -26,6 +26,21 @@ func TestSigningSyncPullSelectorFlagsFailBeforeSecretsOrRepository(t *testing.T)
 		want string
 	}{
 		{
+			name: "invalid installer encoding",
+			args: []string{"--repo", "git@example.com:team/signing.git", "--p12-encoding", "invalid"},
+			want: `--p12-encoding must be one of: modern, legacy (got "invalid")`,
+		},
+		{
+			name: "empty installer encoding",
+			args: []string{"--repo", "git@example.com:team/signing.git", "--p12-encoding", ""},
+			want: `--p12-encoding must be one of: modern, legacy (got "")`,
+		},
+		{
+			name: "installer encoding with bundle selection",
+			args: []string{"--repo", "git@example.com:team/signing.git", "--p12-encoding", "modern", "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_STORE"},
+			want: "--p12-encoding requires a full pull without --bundle-id or --targets-file",
+		},
+		{
 			name: "bundle requires profile type",
 			args: []string{"--repo", "git@example.com:team/signing.git", "--bundle-id", "com.example.app"},
 			want: "--profile-type is required with --bundle-id or --targets-file",
@@ -55,7 +70,7 @@ func TestSigningSyncPullSelectorFlagsFailBeforeSecretsOrRepository(t *testing.T)
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv(signingSyncPasswordEnvVar, "must-not-be-used")
-			d, _, _ := newSigningTestDeps()
+			d, stdout, stderr := newSigningTestDeps()
 			cmd := syncPullCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.Parse(test.args); err != nil {
@@ -64,6 +79,9 @@ func TestSigningSyncPullSelectorFlagsFailBeforeSecretsOrRepository(t *testing.T)
 			err := cmd.Run(context.Background())
 			if err == nil || err.Error() != test.want || !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("error = %v, want usage error %q", err, test.want)
+			}
+			if stdout.Len() != 0 || !strings.Contains(stderr.String(), test.want) {
+				t.Fatalf("stdout=%q stderr=%q; want diagnostic %q on stderr only", stdout.String(), stderr.String(), test.want)
 			}
 		})
 	}
