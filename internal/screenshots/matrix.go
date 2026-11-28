@@ -250,6 +250,9 @@ type MatrixResult struct {
 
 // MatrixOptions contains command-line overrides. Zero values use plan defaults.
 type MatrixOptions struct {
+	// PrepareProgress receives the exact output paths after plan expansion and
+	// before any progress events or execution side effects.
+	PrepareProgress   func(outputPaths []string) error
 	Progress          func(MatrixProgressEvent)
 	MaxConcurrency    int
 	MaxConcurrencySet bool

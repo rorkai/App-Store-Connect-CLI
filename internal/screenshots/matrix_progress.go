@@ -1,5 +1,18 @@
 package screenshots
 
+import "fmt"
+
+// ValidateMatrixProgressPath keeps the progress stream separate from files
+// published by the matrix, including aliases through an existing parent.
+func ValidateMatrixProgressPath(path string, outputPaths []string) error {
+	for _, outputPath := range outputPaths {
+		if sameMatrixPath(path, outputPath) {
+			return fmt.Errorf("path conflicts with matrix output %q; choose a different progress file", outputPath)
+		}
+	}
+	return nil
+}
+
 // MatrixProgressEvent identifies native matrix execution boundaries without
 // provider identifiers, launch arguments, paths, or subprocess output.
 type MatrixProgressEvent struct {

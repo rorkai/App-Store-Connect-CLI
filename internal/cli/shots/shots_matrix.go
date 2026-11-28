@@ -133,13 +133,25 @@ without changing the matrix outcome; final stdout output is unchanged.`,
 				}
 				return fmt.Errorf("screenshots matrix: %w", err)
 			}
-			progress, err := d.OpenProgressFile(*progressFile)
-			if err != nil {
-				return d.UsageErrorf("--progress-file: %v", err)
-			}
-			defer progress.Close()
+			var progress *shared.ProgressFile
+			defer func() { progress.Close() }()
+			var prepareProgress func([]string) error
 			var observe func(screenshots.MatrixProgressEvent)
-			if progress != nil {
+			if *progressFile != "" {
+				prepareProgress = func(outputPaths []string) error {
+					path, err := d.Abs(*progressFile)
+					if err != nil {
+						return d.UsageErrorf("--progress-file: %v", err)
+					}
+					if err := screenshots.ValidateMatrixProgressPath(path, outputPaths); err != nil {
+						return d.UsageErrorf("--progress-file: %v", err)
+					}
+					progress, err = d.OpenProgressFile(path)
+					if err != nil {
+						return d.UsageErrorf("--progress-file: %v", err)
+					}
+					return nil
+				}
 				observe = func(event screenshots.MatrixProgressEvent) { progress.Emit(event) }
 			}
 			result, runErr := dependencies.runMatrix(ctx, absPlanPath, matrixPlan, screenshots.MatrixOptions{
@@ -149,6 +161,7 @@ without changing the matrix outcome; final stdout output is unchanged.`,
 				MaxAttemptsSet:    maxAttemptsSet,
 				RetryBackoff:      *retryBackoff,
 				RetryBackoffSet:   retryBackoffSet,
+				PrepareProgress:   prepareProgress,
 				Progress:          observe,
 			})
 			if result != nil {
