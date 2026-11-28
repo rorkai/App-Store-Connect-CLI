@@ -60,6 +60,7 @@ func syncImportCommand(d *shared.Deps) *ffcli.Command {
 	source := fs.String("source", "", "Local checkout directory or Git URL of the OpenSSL-encrypted signing repository (required)")
 	sourceBranch := fs.String("source-branch", "master", "Git branch of --source when it is a Git URL")
 	sourcePassword := fs.String("source-password", "", "Password of the OpenSSL-encrypted signing repository; pass @env:NAME or @file:PATH to keep it off the command line (required)")
+	includeInstallers := fs.Bool("include-installers", false, "Import standalone installer identities; upgrade all store readers before enabling")
 	repoURL := fs.String("repo", "", "Git repo URL of the destination signing sync store (required with --storage git)")
 	branch := fs.String("branch", "main", "Git branch of the destination store")
 	passwordFile := fs.String("password-file", "", "Protected file containing the destination store encryption password (or set ASC_SIGNING_SYNC_PASSWORD)")
@@ -80,9 +81,15 @@ The source uses a certs/<type>/ and profiles/<type>/ layout: each certificate
 is <id>.cer with its private key in <id>.p12 (a PEM private key or a PKCS#12
 file without a password), and each profile is a .mobileprovision or
 .provisionprofile file. Certificate directories are development, distribution,
-enterprise, and developer_id_application. The appstore, adhoc, and developer_id
-aliases also map to distribution. Installer certificate directories are skipped
-with a warning because signing sync pull requires a provisioning-profile binding.
+enterprise, developer_id_application, mac_installer_distribution, and
+developer_id_installer. The appstore, adhoc, and developer_id aliases also map
+to distribution. Installer folders are skipped unless --include-installers is
+set. Upgrade all signing sync store readers before opting in: older clients
+cannot pull a store containing the new installer identity envelopes.
+With --include-installers, installer certificate and key pairs are stored
+together as purpose-checked PKCS#12 identities, independently of profiles.
+A full pull restores currently valid installer identities; bundle-specific
+pulls continue to return only that bundle's profile-bound signing assets.
 Encrypted signing inputs are limited to 256 files, 4 MiB per file, and 128 MiB
 total. Remote cloning uses the configured request timeout.
 Every file is decrypted with --source-password. Each
@@ -149,7 +156,7 @@ Examples:
 				return fmt.Errorf("signing sync import: %w", err)
 			}
 			defer cleanup()
-			certificates, profiles, _, err := loadOpenSSLImportSource(d, sourceRoot, *sourcePassword)
+			certificates, profiles, _, err := loadOpenSSLImportSource(d, sourceRoot, *sourcePassword, *includeInstallers)
 			if err != nil {
 				return fmt.Errorf("signing sync import: %w", err)
 			}
@@ -299,7 +306,7 @@ func listOpenSSLImportFiles(root rootfs.Root, top string) ([]string, error) {
 	return files, nil
 }
 
-func loadOpenSSLImportSource(d *shared.Deps, root rootfs.Root, password string) ([]openSSLImportCertificate, []openSSLImportProfile, []asc.SigningSyncSkippedEntry, error) {
+func loadOpenSSLImportSource(d *shared.Deps, root rootfs.Root, password string, includeInstallers bool) ([]openSSLImportCertificate, []openSSLImportProfile, []asc.SigningSyncSkippedEntry, error) {
 	listedCertFiles, err := listOpenSSLImportFiles(root, "certs")
 	if err != nil {
 		return nil, nil, nil, err
@@ -309,15 +316,15 @@ func loadOpenSSLImportSource(d *shared.Deps, root rootfs.Root, password string) 
 	skippedDirs := make(map[string]bool)
 	for _, relPath := range listedCertFiles {
 		dir := path.Dir(relPath)
-		switch strings.ToLower(path.Base(dir)) {
-		case "mac_installer_distribution", "developer_id_installer":
-			if !skippedDirs[dir] {
-				skippedDirs[dir] = true
-				fmt.Fprintf(d.IO.ErrOut, "Warning: skipping installer certificate folder %s; signing sync pull requires a provisioning-profile binding\n", dir)
-				skipped = append(skipped, asc.SigningSyncSkippedEntry{Path: dir, Reason: "installer certificate folder; signing sync pull requires a provisioning-profile binding"})
-			}
-		default:
+		if includeInstallers || !isInstallerIdentityCategory(strings.ToLower(path.Base(dir))) {
 			certFiles = append(certFiles, relPath)
+			continue
+		}
+		if !skippedDirs[dir] {
+			skippedDirs[dir] = true
+			reason := "upgrade all store readers before importing with --include-installers"
+			fmt.Fprintf(d.IO.ErrOut, "Warning: skipping installer certificate folder %s; %s\n", dir, reason)
+			skipped = append(skipped, asc.SigningSyncSkippedEntry{Path: dir, Reason: reason})
 		}
 	}
 	profileFiles, err := listOpenSSLImportFiles(root, "profiles")
@@ -372,8 +379,8 @@ func loadOpenSSLImportSource(d *shared.Deps, root rootfs.Root, password string) 
 		sourceType := path.Base(path.Dir(relPath))
 		var category string
 		switch strings.ToLower(sourceType) {
-		case "development":
-			category = "development"
+		case "development", "mac_installer_distribution", "developer_id_installer":
+			category = strings.ToLower(sourceType)
 		case "distribution", "appstore", "adhoc", "enterprise", "developer_id", "developer_id_application":
 			category = "distribution"
 		default:
@@ -390,6 +397,11 @@ func loadOpenSSLImportSource(d *shared.Deps, root rootfs.Root, password string) 
 			var cert *x509.Certificate
 			if err := read(relPath, func(data []byte) error { cert, err = x509.ParseCertificate(data); return err }); err != nil {
 				return nil, nil, nil, err
+			}
+			if isInstallerIdentityCategory(category) {
+				if err := validateInstallerIdentityPurpose(cert, category); err != nil {
+					return nil, nil, nil, fmt.Errorf("%s: %w", relPath, err)
+				}
 			}
 			certificates = append(certificates, openSSLImportCertificate{sourcePath: relPath, sourceType: sourceType, category: category, cert: cert, sha256: signingCertificateSHA256(cert)})
 		default:
@@ -544,18 +556,22 @@ func planOpenSSLImportWrites(d *shared.Deps, certificates []openSSLImportCertifi
 	activeCores := make(map[string]*openSSLImportCertificate)
 	for index := range certificates {
 		certificate := &certificates[index]
-		if _, stored := storedCertificates[certificate.sha256]; !stored {
+		if _, stored := storedCertificates[certificate.sha256]; !stored && !isInstallerIdentityCategory(certificate.category) {
 			serial := fmt.Sprintf("%X", certificate.cert.SerialNumber)
 			writes = append(writes, openSSLImportWrite{
 				relPath:   path.Join("certs", certificate.category, safeFileName(serial, certificate.sha256)+".cer"),
 				plaintext: certificate.cert.Raw,
 			})
 		}
+		kind := "pkcs12-identity"
+		if isInstallerIdentityCategory(certificate.category) {
+			kind = installerIdentityKind
+		}
 		writes = append(writes, openSSLImportWrite{
 			relPath:  path.Join("identities", certificate.category, certificate.sha256+".p12"),
 			identity: certificate,
 			metadata: &signingpkg.EncryptedFileMetadata{
-				Kind:              "pkcs12-identity",
+				Kind:              kind,
 				Sensitive:         true,
 				CertificateSHA256: certificate.sha256,
 				TeamID:            certificateTeamID(certificate.cert),

@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/artifacts/artifactstest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	signingpkg "github.com/rudrankriyam/App-Store-Connect-CLI/internal/signing"
 	modernpkcs12 "software.sslmate.com/src/go-pkcs12"
@@ -112,6 +114,16 @@ func TestSigningSyncRotatePasswordReencryptsCompleteRepositoryAndIdentity(t *tes
 	if err := writeOrReuseSigningIdentityArtifacts(seedStore, artifacts, oldPassword); err != nil {
 		t.Fatal(err)
 	}
+	installer := artifactstest.NewTrustChainWithLeaf(t, artifactstest.MacInstallerDistributionLeaf, time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	installerSHA := signingCertificateSHA256(installer.Leaf)
+	installerData, err := normalizeSigningIdentity(&signingIdentity{PrivateKey: installer.LeafKey, Certificate: installer.Leaf, CertificateSHA256: installerSHA}, oldPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	installerPath := "identities/mac_installer_distribution/" + installerSHA + ".p12"
+	if err := seedStore.WriteEncryptedFileWithMetadata(installerPath, installerData, oldPassword, signingpkg.EncryptedFileMetadata{Kind: installerIdentityKind, Sensitive: true, CertificateSHA256: installerSHA, TeamID: certificateTeamID(installer.Leaf)}); err != nil {
+		t.Fatal(err)
+	}
 	if err := seedStore.CommitAndPush(context.Background(), "seed encrypted signing assets"); err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +160,7 @@ func TestSigningSyncRotatePasswordReencryptsCompleteRepositoryAndIdentity(t *tes
 	if result.Storage == nil || *result.Storage != (asc.SigningSyncStorage{Kind: "git", Location: remoteURL, Branch: "main"}) {
 		t.Fatalf("rotation storage = %#v, want git storage with the branch", result.Storage)
 	}
-	if len(result.Files) != 4 || len(result.SensitiveFiles) != 1 || result.SensitiveFiles[0] != artifacts.IdentityPath {
+	if len(result.Files) != 5 || len(result.SensitiveFiles) != 2 || result.SensitiveFiles[0] != artifacts.IdentityPath || result.SensitiveFiles[1] != installerPath {
 		t.Fatalf("rotation files = %#v sensitive = %#v", result.Files, result.SensitiveFiles)
 	}
 
@@ -180,21 +192,21 @@ func TestSigningSyncRotatePasswordReencryptsCompleteRepositoryAndIdentity(t *tes
 		t.Fatalf("legacy artifact changed format or content: metadata=%#v", certificateMetadata)
 	}
 
-	var identityPlaintext []byte
+	identities := 0
 	for _, file := range decrypted {
-		if file.RelativePath == artifacts.IdentityPath {
-			identityPlaintext = file.Plaintext
-			break
+		if !file.Identity {
+			continue
+		}
+		identities++
+		if _, _, err := modernpkcs12.Decode(file.Plaintext, newPassword); err != nil {
+			t.Fatalf("rotated identity %s does not use new password: %v", file.RelativePath, err)
+		}
+		if _, _, err := modernpkcs12.Decode(file.Plaintext, oldPassword); err == nil {
+			t.Fatalf("rotated identity %s still uses old password", file.RelativePath)
 		}
 	}
-	if len(identityPlaintext) == 0 {
-		t.Fatal("rotated identity is missing")
-	}
-	if _, _, err := modernpkcs12.Decode(identityPlaintext, newPassword); err != nil {
-		t.Fatalf("rotated identity does not use new password: %v", err)
-	}
-	if _, _, err := modernpkcs12.Decode(identityPlaintext, oldPassword); err == nil {
-		t.Fatal("rotated identity still uses old password")
+	if identities != 2 {
+		t.Fatalf("restored %d rotated identities, want app and installer", identities)
 	}
 
 	if got := strings.TrimSpace(runGitCommand(t, remotePath, "rev-list", "--count", "main")); got != "3" {

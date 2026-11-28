@@ -25,6 +25,7 @@ import (
 	"howett.net/plist"
 	modernpkcs12 "software.sslmate.com/src/go-pkcs12"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/artifacts/artifactstest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	signingpkg "github.com/rudrankriyam/App-Store-Connect-CLI/internal/signing"
@@ -157,8 +158,28 @@ func runSigningSyncImport(t *testing.T, args ...string) (string, string, error) 
 	return stdout, stderr, runErr
 }
 
+func addOpenSSLInstallerFixture(t *testing.T, dir, category string, leafType artifactstest.LeafType) *x509.Certificate {
+	t.Helper()
+	chain := artifactstest.NewTrustChainWithLeaf(t, leafType, time.Now().Add(-time.Hour), time.Now().Add(24*time.Hour))
+	keyDER, err := x509.MarshalPKCS8PrivateKey(chain.LeafKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := filepath.Join(dir, "certs", category, "INSTALLER")
+	if err := os.MkdirAll(filepath.Dir(base), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writePrivateTestFile(t, base+".cer", encryptOpenSSLV2(t, chain.Leaf.Raw))
+	writePrivateTestFile(t, base+".p12", encryptOpenSSLV2(t, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})))
+	return chain.Leaf
+}
+
 func TestSigningSyncImportWritesPullableStore(t *testing.T) {
 	fixture := newOpenSSLImportFixture(t, 1)
+	installers := map[string]*x509.Certificate{
+		"mac_installer_distribution": addOpenSSLInstallerFixture(t, fixture.dir, "mac_installer_distribution", artifactstest.MacInstallerDistributionLeaf),
+		"developer_id_installer":     addOpenSSLInstallerFixture(t, fixture.dir, "developer_id_installer", artifactstest.DeveloperIDInstallerLeaf),
+	}
 	content, err := os.ReadFile(filepath.Join(fixture.dir, "profiles", "appstore", "AppStore_com.example.app.mobileprovision"))
 	if err != nil {
 		t.Fatal(err)
@@ -180,8 +201,17 @@ func TestSigningSyncImportWritesPullableStore(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("decode result: %v\n%s", err, stdout)
 	}
-	if result.PublicationState != "succeeded" || len(result.Files) != 6 {
-		t.Fatalf("result = %+v", result)
+	if result.PublicationState != "succeeded" || len(result.Files) != 6 || !strings.Contains(stderr, "skipping installer certificate folder") {
+		t.Fatalf("default import must preserve existing readers by skipping installer folders: %+v", result)
+	}
+	args = append(args, "--include-installers")
+	stdout, stderr, err = runSigningSyncImport(t, args...)
+	if err != nil {
+		t.Fatalf("installer import: %v\nstderr=%s", err, stderr)
+	}
+	result = asc.SigningSyncImportResult{}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil || result.PublicationState != "succeeded" || len(result.Files) != 2 {
+		t.Fatalf("opt-in must add only the installer identities: %+v (%v)", result, err)
 	}
 
 	tree := remoteTree(t, remotePath)
@@ -199,9 +229,29 @@ func TestSigningSyncImportWritesPullableStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("validate imported store: %v", err)
 	}
+	for category, wanted := range installers {
+		path := "identities/" + category + "/" + signingCertificateSHA256(wanted) + ".p12"
+		found := false
+		for _, file := range decrypted {
+			if file.RelativePath != path {
+				continue
+			}
+			key, certificate, err := modernpkcs12.Decode(file.Plaintext, importDestinationPassword)
+			if err != nil || !certificate.Equal(wanted) || !publicKeysEqual(key, wanted.PublicKey) || !file.Identity || !file.Sensitive {
+				t.Fatalf("restored installer %s lost its key pair or sensitivity: %v", category, err)
+			}
+			found = true
+		}
+		if !found {
+			t.Fatalf("full pull omitted installer identity %s", category)
+		}
+	}
 	selected, _, err := selectSigningPullFiles(testSigningDeps(), decrypted, []string{"com.example.app"}, "IOS_APP_STORE")
 	if err != nil {
 		t.Fatalf("select imported files: %v", err)
+	}
+	if len(selected) != 4 {
+		t.Fatalf("bundle pull included assets outside its profile context: %v", signingPullRelativePathsFromFiles(selected))
 	}
 	identityPath := "identities/distribution/" + fixture.distributionSHA + ".p12"
 	found := false
@@ -285,25 +335,21 @@ func TestSigningSyncImportDryRunListsWithoutDestination(t *testing.T) {
 	}
 }
 
-func TestSigningSyncImportSkipsInstallerCertificateFolder(t *testing.T) {
+func TestSigningSyncImportRejectsInstallerFolderWithWrongPurpose(t *testing.T) {
 	fixture := newOpenSSLImportFixture(t, 1)
 	if err := os.Rename(filepath.Join(fixture.dir, "certs", "development"), filepath.Join(fixture.dir, "certs", "mac_installer_distribution")); err != nil {
 		t.Fatal(err)
 	}
-	stdout, stderr, err := runSigningSyncImport(t, "--source", fixture.dir, "--source-password", importSourcePassword,
+	stdout, _, err := runSigningSyncImport(t, "--source", fixture.dir, "--source-password", importSourcePassword,
 		"--repo", "file:///nonexistent/signing.git", "--dry-run", "--output", "json")
-	if err != nil {
-		t.Fatalf("dry run: %v\nstderr=%s", err, stderr)
-	}
-	if !strings.Contains(stderr, "Warning: skipping installer certificate folder certs/mac_installer_distribution") {
-		t.Fatalf("stderr = %q, want installer folder warning", stderr)
-	}
 	var result asc.SigningSyncImportResult
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatal(err)
+	if err != nil || json.Unmarshal([]byte(stdout), &result) != nil || len(result.Certificates) != 1 || len(result.Profiles) != 1 {
+		t.Fatalf("default import must ignore installer-only material: error=%v stdout=%s", err, stdout)
 	}
-	if len(result.Certificates) != 1 || result.Certificates[0].SHA256 != fixture.distributionSHA {
-		t.Fatalf("certificates = %+v, want only the distribution certificate", result.Certificates)
+	stdout, _, err = runSigningSyncImport(t, "--source", fixture.dir, "--source-password", importSourcePassword,
+		"--repo", "file:///nonexistent/signing.git", "--include-installers", "--dry-run", "--output", "json")
+	if err == nil || !strings.Contains(err.Error(), "installer certificate purpose") || stdout != "" {
+		t.Fatalf("wrong-purpose import: error=%v stdout=%s", err, stdout)
 	}
 }
 
@@ -327,7 +373,7 @@ func TestSigningSyncImportPlanCountsExistingPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Close()
-	certificates, profiles, _, err := loadOpenSSLImportSource(testSigningDeps(), root, importSourcePassword)
+	certificates, profiles, _, err := loadOpenSSLImportSource(testSigningDeps(), root, importSourcePassword, false)
 	if err != nil {
 		t.Fatal(err)
 	}

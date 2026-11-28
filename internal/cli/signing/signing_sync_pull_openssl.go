@@ -54,15 +54,15 @@ func pullOpenSSLSigningSource(ctx context.Context, d *shared.Deps, repo, branch,
 		return SyncResult{}, fmt.Errorf("signing sync pull: %w", err)
 	}
 	result := SyncResult{Operation: "pull", RepoURL: label, SourceFormat: signingSyncSourceFormatOpenSSL, Skipped: skipped}
-	return writeSigningPullFiles(d, result, decrypted, outDir, bundleIDs, profileType, batch)
+	return writeSigningPullFiles(d, result, decrypted, password, outDir, bundleIDs, profileType, batch)
 }
 
 // loadOpenSSLSigningPullFiles decrypts the source into memory, re-encodes each
 // private key as a PKCS#12 identity protected by password, and validates the
 // result as a signing sync store. Identities that no valid profile links are
-// reported and left out.
+// reported and left out. Installer identities require a currently valid certificate.
 func loadOpenSSLSigningPullFiles(d *shared.Deps, root rootfs.Root, password string, now time.Time) ([]decryptedSigningFile, []asc.SigningSyncSkippedEntry, error) {
-	certificates, profiles, skipped, err := loadOpenSSLImportSource(d, root, password)
+	certificates, profiles, skipped, err := loadOpenSSLImportSource(d, root, password, true)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -103,8 +103,12 @@ func loadOpenSSLSigningPullFiles(d *shared.Deps, root rootfs.Root, password stri
 	for _, file := range files {
 		if _, active := activeIdentityPaths[file.RelativePath]; file.Identity && !active {
 			source := keySources[file.RelativePath]
-			fmt.Fprintf(d.IO.ErrOut, "Warning: skipping %s; no currently valid profile links this private key\n", source)
-			skipped = append(skipped, asc.SigningSyncSkippedEntry{Path: source, Reason: "no currently valid profile links this private key; only the certificate is written"})
+			reason := "no currently valid profile links this private key; only the certificate is written"
+			if file.Metadata.Kind == installerIdentityKind {
+				reason = "installer certificate is not currently valid"
+			}
+			fmt.Fprintf(d.IO.ErrOut, "Warning: skipping %s; %s\n", source, reason)
+			skipped = append(skipped, asc.SigningSyncSkippedEntry{Path: source, Reason: reason})
 			continue
 		}
 		kept = append(kept, file)
