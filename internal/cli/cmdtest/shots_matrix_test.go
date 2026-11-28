@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -177,6 +178,76 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 	}
 	if err := json.Unmarshal(manifest, &review); err != nil || len(review.Cells) != 1 || review.Cells[0].Location == nil || review.Cells[0].Location.Status != "applied" {
 		t.Fatalf("review location receipt = %+v, error = %v; want applied location", review.Cells, err)
+	}
+}
+
+func TestShotsMatrix_RetryRetainsAppliedLocation(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell executable fixtures require a Unix PATH")
+	}
+	for _, firstApplied := range []bool{true, false} {
+		t.Run(map[bool]string{true: "earlier acknowledgement", false: "no acknowledgement"}[firstApplied], func(t *testing.T) {
+			dir, binDir := t.TempDir(), t.TempDir()
+			writeShotsMatrixExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+set -eu
+if [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","state":"Booted","isAvailable":true}]}}'
+  exit 0
+fi
+if [ "$2" = "ui" ] && [ "$#" = "4" ]; then printf '%s\n' light; fi
+if [ "$2" = "location" ]; then
+  printf 'location\n' >> "$LOCATION_CALL_LOG"
+  if [ "$LOCATION_ACK" != "yes" ] || [ -e "$LOCATION_APPLIED" ]; then exit 7; fi
+  printf 'applied' > "$LOCATION_APPLIED"
+fi
+`)
+			writeShotsMatrixExecutable(t, filepath.Join(binDir, "axe"), "#!/bin/sh\nexit 8\n")
+			t.Setenv("PATH", binDir)
+			t.Setenv("LOCATION_ACK", map[bool]string{true: "yes", false: "no"}[firstApplied])
+			t.Setenv("LOCATION_APPLIED", filepath.Join(dir, "applied"))
+			callLog := filepath.Join(dir, "location-calls")
+			t.Setenv("LOCATION_CALL_LOG", callLog)
+			basePath, matrixPath := filepath.Join(dir, "base.json"), filepath.Join(dir, "matrix.json")
+			writeShotsMatrixFile(t, basePath, `{"version":1,"app":{"bundle_id":"com.example.fixture"},"defaults":{"location":{"latitude":1,"longitude":2}},"steps":[{"action":"screenshot","name":"home"}]}`)
+			writeShotsMatrixFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"default"}],"execution":{"max_attempts":2},"output":{"raw_dir":"raw","review_dir":"review"}}`)
+			stdout, stderr, code := runWithDeps(t, nil, "screenshots", "matrix", "--plan", matrixPath, "--retry-backoff", "0s", "--output", "json")
+			if code != 1 || !strings.Contains(stderr, "Error: screenshots matrix: one or more matrix cells failed") {
+				t.Fatalf("exit=%d stderr=%q; want matrix failure", code, stderr)
+			}
+			calls, err := os.ReadFile(callLog)
+			if err != nil || string(calls) != "location\nlocation\n" {
+				t.Fatalf("location calls=%q error=%v; want both attempts", calls, err)
+			}
+			manifest, err := os.ReadFile(filepath.Join(dir, "review", "manifest.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for name, data := range map[string][]byte{"stdout": []byte(stdout), "review": manifest} {
+				var result struct {
+					Status            string
+					Succeeded, Failed int
+					Cells             []struct {
+						Status   string
+						Attempts int
+						screenshotLocationOutput
+					}
+				}
+				if err := json.Unmarshal(data, &result); err != nil {
+					t.Fatalf("decode %s: %v", name, err)
+				}
+				if result.Status != "failed" || result.Succeeded != 0 || result.Failed != 1 || len(result.Cells) != 1 || result.Cells[0].Status != "failed" || result.Cells[0].Attempts != 2 {
+					t.Fatalf("%s receipt=%+v; want failed cell after two attempts", name, result)
+				}
+				location := result.Cells[0].Location
+				if firstApplied {
+					if location == nil || location.Status != "applied" || location.Latitude == nil || *location.Latitude != 1 || location.Longitude == nil || *location.Longitude != 2 {
+						t.Errorf("%s location=%+v; want retained acknowledgement for 1,2", name, location)
+					}
+				} else if location != nil {
+					t.Errorf("%s location=%+v; no location attempt was acknowledged", name, location)
+				}
+			}
+		})
 	}
 }
 
