@@ -127,16 +127,39 @@ func buildWriteCommand(config WriteCommandConfig, verb string) *ffcli.Command {
 
 	idFlagName := builderDefault(config.IDFlag, "id")
 	var id *string
+	constraints := CommandConstraints{}
+	required := ConstraintRule{Kind: "required"}
+	update := ConstraintRule{Kind: "anyOf"}
 	if !config.TopLevel {
 		id = bindBuilderIDFlag(fs, idFlagName, config.IDType, config.IDUsage)
+		required.Flags = append(required.Flags, "--"+idFlagName)
 	}
 	values := make([]*string, len(config.Fields))
 	updateFlags := make([]any, len(config.Fields))
 	for i, field := range config.Fields {
 		values[i] = fs.String(field.name, "", field.usage)
 		updateFlags[i] = values[i]
+		name := "--" + field.name
+		if field.required {
+			required.Flags = append(required.Flags, name)
+		}
+		if field.explicit {
+			update.ProvidedFlags = append(update.ProvidedFlags, name)
+		} else {
+			update.Flags = append(update.Flags, name)
+		}
+		if field.maxLength > 0 {
+			constraints.Rules = append(constraints.Rules, ConstraintRule{Kind: "maxLength", Flags: []string{name}, Maximum: new(field.maxLength), Unit: "unicodeCodePoints", TrimSpace: true})
+		}
+	}
+	if len(required.Flags) != 0 {
+		constraints.Rules = append(constraints.Rules, required)
+	}
+	if verb == "update" {
+		constraints.Rules = append(constraints.Rules, update)
 	}
 	output := d.BindOutputFlags(fs)
+	setCommandConstraints(fs, constraints)
 	errorPrefix := builderDefault(config.ErrorPrefix, commandErrorPrefixFromUsage(config.ShortUsage))
 
 	return &ffcli.Command{
