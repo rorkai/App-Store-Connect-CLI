@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -302,6 +303,85 @@ func TestIAPSetupCreateOnlySuccess(t *testing.T) {
 	}
 }
 
+func TestIAPSetupVerificationRequiresRequestedAttributes(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		flags      []string
+		attributes string
+		wantError  string
+	}{
+		{name: "family sharing confirmed", flags: []string{"--family-sharable"}, attributes: `,"familySharable":true`},
+		{name: "family sharing false", flags: []string{"--family-sharable"}, attributes: `,"familySharable":false`, wantError: "readback did not confirm requested Family Sharing"},
+		{name: "family sharing omitted", flags: []string{"--family-sharable"}, wantError: "readback did not confirm requested Family Sharing"},
+		{name: "family sharing null", flags: []string{"--family-sharable"}, attributes: `,"familySharable":null`, wantError: "readback did not confirm requested Family Sharing"},
+		{name: "review note confirmed", flags: []string{"--review-note", "Open Upgrade"}, attributes: `,"reviewNote":"Open Upgrade"`},
+		{name: "review note different", flags: []string{"--review-note", "Open Upgrade"}, attributes: `,"reviewNote":"Different instruction"`, wantError: "readback did not confirm requested review note"},
+		{name: "review note empty", flags: []string{"--review-note", "Open Upgrade"}, attributes: `,"reviewNote":""`, wantError: "readback did not confirm requested review note"},
+		{name: "review note omitted", flags: []string{"--review-note", "Open Upgrade"}, wantError: "readback did not confirm requested review note"},
+		{name: "review note null", flags: []string{"--review-note", "Open Upgrade"}, attributes: `,"reviewNote":null`, wantError: "readback did not confirm requested review note"},
+		{name: "both attributes confirmed", flags: []string{"--family-sharable", "--review-note", "Open Upgrade"}, attributes: `,"familySharable":true,"reviewNote":"Open Upgrade"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			requests := 0
+			client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests++
+				status := http.StatusOK
+				if requests == 1 {
+					if req.Method != http.MethodPost || req.URL.Path != "/v2/inAppPurchases" {
+						t.Fatalf("unexpected create request: %s %s", req.Method, req.URL)
+					}
+					var payload asc.InAppPurchaseV2CreateRequest
+					if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+						t.Fatal(err)
+					}
+					wantFamily := slices.Contains(tc.flags, "--family-sharable")
+					wantNote := ""
+					if slices.Contains(tc.flags, "--review-note") {
+						wantNote = "Open Upgrade"
+					}
+					if payload.Data.Attributes.FamilySharable != wantFamily || payload.Data.Attributes.ReviewNote != wantNote {
+						t.Fatalf("requested attributes were not sent: %+v", payload.Data.Attributes)
+					}
+					status = http.StatusCreated
+				} else if requests != 2 || req.Method != http.MethodGet || req.URL.Path != "/v2/inAppPurchases/iap-1" {
+					t.Fatalf("unexpected verification or repair request: %s %s", req.Method, req.URL)
+				}
+				if requests == 2 {
+					fields := strings.Split(req.URL.Query().Get("fields[inAppPurchases]"), ",")
+					slices.Sort(fields)
+					if strings.Join(fields, ",") != "familySharable,inAppPurchaseType,name,productId,reviewNote" {
+						t.Fatalf("verification did not request its checked fields: %s", req.URL)
+					}
+				}
+				body := `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Pro Lifetime","productId":"lifetime","inAppPurchaseType":"NON_CONSUMABLE"` + tc.attributes + `}}}`
+				return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(body)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
+			}))
+			args := append([]string{"iap", "setup", "--app", "app-1", "--type", "NON_CONSUMABLE", "--reference-name", "Pro Lifetime", "--product-id", "lifetime", "--output", "json"}, tc.flags...)
+			stdout, stderr, code := runWithDeps(t, client, args...)
+			var result iapSetupOutput
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("decode receipt: %v; stdout=%q", err, stdout)
+			}
+			if requests != 2 || result.IAPID != "iap-1" || !result.Verification.IAPExists {
+				t.Fatalf("created IAP identity or bounded readback lost: requests=%d receipt=%+v", requests, result)
+			}
+			if tc.wantError == "" {
+				if code != 0 || stderr != "" || result.Status != "ok" || result.Verification.Status != "verified" {
+					t.Fatalf("confirmed attributes failed: exit=%d stderr=%q receipt=%+v", code, stderr, result)
+				}
+				return
+			}
+			if code != 1 || result.Status != "error" || result.Verification.Status != "failed" || result.FailedStep != "verify_state" || !strings.Contains(result.Error, tc.wantError) {
+				t.Fatalf("unconfirmed request reported success: exit=%d stderr=%q receipt=%+v", code, stderr, result)
+			}
+			last := result.Steps[len(result.Steps)-1]
+			if last.Name != "verify_state" || last.Status != "failed" || !strings.Contains(last.Message, tc.wantError) || strings.Contains(stdout+stderr, "Open Upgrade") || strings.Contains(stdout+stderr, "Different instruction") {
+				t.Fatalf("failure receipt or review-note privacy incorrect: stderr=%q receipt=%s", stderr, stdout)
+			}
+		})
+	}
+}
+
 func TestIAPSetupCreateOnlyNoVerifySkipsReadback(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -336,6 +416,8 @@ func TestIAPSetupCreateOnlyNoVerifySkipsReadback(t *testing.T) {
 			"--type", "NON_CONSUMABLE",
 			"--reference-name", "Pro Lifetime",
 			"--product-id", "lifetime",
+			"--family-sharable",
+			"--review-note", "Open Upgrade",
 			"--no-verify",
 			"--output", "json",
 		}); err != nil {
