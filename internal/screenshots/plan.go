@@ -96,6 +96,8 @@ type Plan struct {
 	App      PlanApp      `json:"app"`
 	Defaults PlanDefaults `json:"defaults,omitempty"`
 	Steps    []PlanStep   `json:"steps"`
+
+	failureTarget *failureScreenshotTarget
 }
 
 // PlanApp contains app/simulator defaults for a run.
@@ -116,6 +118,7 @@ type PlanDefaults struct {
 	PostActionDelayMS int           `json:"post_action_delay_ms,omitempty"`
 	StatusBar         string        `json:"status_bar,omitempty"`
 	Location          *PlanLocation `json:"location,omitempty"`
+	FailureScreenshot bool          `json:"failure_screenshot,omitempty"`
 }
 
 // PlanLocation requests a fixed simulated coordinate before the plan steps.

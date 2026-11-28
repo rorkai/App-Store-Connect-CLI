@@ -44,7 +44,11 @@ including any that were set before the run.
 Set defaults.location to {"latitude": 37.7749, "longitude": -122.4194} to apply
 a simulated location before the steps. The location receipt reports command
 acknowledgement; use app readback to verify delivery. This setting persists
-after the run; clear it with xcrun simctl location <UDID> clear when wanted.`,
+after the run; clear it with xcrun simctl location <UDID> clear when wanted.
+Set defaults.failure_screenshot to true to collect the current simulator display
+after a failed step, with a five-second capture budget that respects cancellation.
+It does not relaunch the app and may show another app or the home screen.
+The original failure is retained. Evidence paths are relative to output_dir.`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

@@ -190,7 +190,13 @@ func captureWithRootProvider(ctx context.Context, req CaptureRequest, destinatio
 	if matrixCaptureRootBeforePublishForTest != nil {
 		matrixCaptureRootBeforePublishForTest(outputPath)
 	}
-	written, writeErr := destination.WriteFromPreservingMode(relativeOutput, &matrixContextReader{ctx: ctx, reader: io.LimitReader(src, maxMatrixArtifactBytes+1)}, 0o644)
+	mode := fs.FileMode(0o644)
+	publish := destination.WriteFromPreservingMode
+	if req.privateOutput {
+		mode = 0o600
+		publish = destination.CreateNewFrom
+	}
+	written, writeErr := publish(relativeOutput, &matrixContextReader{ctx: ctx, reader: io.LimitReader(src, maxMatrixArtifactBytes+1)}, mode)
 	closeErr = src.Close()
 	if writeErr != nil {
 		return nil, fmt.Errorf("publish captured image: %w", writeErr)

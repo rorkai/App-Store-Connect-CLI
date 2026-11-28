@@ -7,6 +7,8 @@ type CaptureRequest struct {
 	UDID      string // simulator UDID or "booted"
 	Name      string // output file name (without extension)
 	OutputDir string // directory to write PNG
+
+	privateOutput bool
 }
 
 // CaptureResult is the structured result of a successful capture.

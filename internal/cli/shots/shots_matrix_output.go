@@ -58,6 +58,7 @@ func matrixCellOutput(cell screenshots.MatrixCellResult) asc.MatrixCellResult {
 		FailureStage: cell.FailureStage,
 		FailureCode:  cell.FailureCode,
 	}
+	output.FailureEvidence = append([]asc.ScreenshotFailureEvidence(nil), cell.FailureEvidence...)
 	for i, screenshot := range cell.Screenshots {
 		output.Screenshots[i] = asc.MatrixScreenshotResult{
 			Name: screenshot.Name, Status: screenshot.Status, RawPath: screenshot.RawPath,

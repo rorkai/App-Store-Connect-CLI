@@ -202,6 +202,8 @@ type MatrixCellResult struct {
 	FailureCode  string                        `json:"failureCode,omitempty"`
 	Error        *MatrixCellError              `json:"error,omitempty"`
 
+	FailureEvidence []asc.ScreenshotFailureEvidence `json:"failureEvidence,omitempty"`
+
 	framedArtifacts map[string]matrixArtifactInfo
 	rawArtifacts    map[string]matrixArtifactInfo
 }

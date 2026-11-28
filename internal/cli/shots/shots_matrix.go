@@ -48,6 +48,12 @@ Required AXe capabilities are checked before simulator settings or app launches
 change. An unmet requirement is reported on stderr and marks affected cells
 as preflight failures.
 
+Set defaults.failure_screenshot in the base plan to true to retain the current
+simulator display after each failed step, including attempts followed by a
+successful retry. The five-second capture budget respects cancellation; the
+original failure remains. Evidence paths are relative to rawDir. A display
+capture may show another app or the home screen; it does not relaunch the app.
+
 A base plan's defaults.status_bar is applied once per cell and cleared after
 it (needs AXe 2.0+ and Xcode 27+).
 A base plan's defaults.location is applied before each cell attempt and
