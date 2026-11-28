@@ -1,12 +1,43 @@
 package cmdtest
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
+
+func TestReviewsRatingsJSONStorefrontMissHasRecoveryHint(t *testing.T) {
+	const appID = "987654321"
+	requests := 0
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		if req.Method != http.MethodGet || req.URL.Path != "/lookup" || req.URL.Query().Get("id") != appID || req.URL.Query().Get("country") != "de" {
+			t.Fatalf("unexpected lookup: %s %s", req.Method, req.URL)
+		}
+		return jsonHTTPResponse(http.StatusOK, `{"resultCount":0,"results":[]}`), nil
+	})
+	stdout, stderr, code := runWithHTTPTransport(t, nil, transport,
+		"--error-format", "json", "reviews", "ratings", "--app", appID, "--country", "de")
+	if code != cmd.ExitNotFound || stdout != "" || requests != 1 {
+		t.Fatalf("exit=%d requests=%d stdout=%q stderr=%q", code, requests, stdout, stderr)
+	}
+	var envelope struct {
+		Error struct {
+			Type string `json:"type"`
+			Hint string `json:"hint"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(stderr), &envelope); err != nil {
+		t.Fatalf("decode stderr %q: %v", stderr, err)
+	}
+	if envelope.Error.Type != "resource_not_found" || !strings.Contains(envelope.Error.Hint, "--country") ||
+		!strings.Contains(envelope.Error.Hint, "--all") || strings.Contains(stderr, appID) {
+		t.Fatalf("unexpected storefront error: %s", stderr)
+	}
+}
 
 func TestReviewsRatingsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
