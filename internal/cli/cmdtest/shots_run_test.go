@@ -339,19 +339,23 @@ func TestShotsRunLocationSetup(t *testing.T) {
 		t.Skip("shell executable fixtures require a Unix PATH")
 	}
 	for _, test := range []struct {
-		name       string
-		location   string
-		coordinate string
-		latitude   float64
-		longitude  float64
-		failSet    bool
-		wantError  string
+		name        string
+		location    string
+		coordinate  string
+		latitude    float64
+		longitude   float64
+		failSet     bool
+		statusBar   bool
+		wantReceipt bool
+		wantError   string
 	}{
 		{name: "zero coordinates", location: `{"latitude":0,"longitude":0}`, coordinate: "0,0"},
 		{name: "signed coordinates", location: `{"latitude":-33.8688,"longitude":151.2093}`, coordinate: "-33.8688,151.2093", latitude: -33.8688, longitude: 151.2093},
 		{name: "latitude out of range", location: `{"latitude":91,"longitude":0}`, wantError: "defaults.location.latitude"},
 		{name: "missing longitude", location: `{"latitude":0}`, wantError: "defaults.location.longitude"},
 		{name: "setup rejected", location: `{"latitude":0,"longitude":0}`, coordinate: "0,0", failSet: true, wantError: "apply simulated location: xcrun: exit status 7 (output: location fixture rejected)"},
+		{name: "later setup failure retains location", location: `{"latitude":0,"longitude":0}`, coordinate: "0,0", statusBar: true, wantReceipt: true, wantError: `apply status bar preset "screenshot": axe: exit status 8 (output: status bar fixture rejected)`},
+		{name: "first setup failure has no receipt", location: `null`, statusBar: true, wantError: `apply status bar preset "screenshot": axe: exit status 8 (output: status bar fixture rejected)`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			binDir := t.TempDir()
@@ -368,6 +372,12 @@ if [ "$2" = "location" ] && [ "$LOCATION_FAIL_SET" = "1" ]; then
   exit 7
 fi
 `)
+			writeShotsMatrixExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
+if [ "$1" = "--version" ]; then printf '%s\n' '2.0.0'; exit 0; fi
+printf 'axe %s\n' "$*" >> "$LOCATION_CALL_LOG"
+echo 'status bar fixture rejected' >&2
+exit 8
+`)
 			t.Setenv("PATH", binDir)
 			t.Setenv("LOCATION_CALL_LOG", callLog)
 			failSet := "0"
@@ -376,15 +386,22 @@ fi
 			}
 			t.Setenv("LOCATION_FAIL_SET", failSet)
 			planPath := filepath.Join(t.TempDir(), "plan.json")
-			writeFile(t, planPath, `{"version":1,"app":{"bundle_id":"com.example.app","udid":"SIM-UDID"},"defaults":{"location":`+test.location+`},"steps":[{"action":"launch"}]}`)
+			defaults := `"location":` + test.location
+			if test.statusBar {
+				defaults += `,"status_bar":"screenshot"`
+			}
+			writeFile(t, planPath, `{"version":1,"app":{"bundle_id":"com.example.app","udid":"SIM-UDID"},"defaults":{`+defaults+`},"steps":[{"action":"launch"}]}`)
 			stdout, stderr, code := runWithDeps(t, nil, "screenshots", "run", "--plan", planPath,
 				"--output-dir", filepath.Join(t.TempDir(), "output"), "--output", "json")
 			wantCalls := ""
 			if test.coordinate != "" {
 				wantCalls = "simctl location SIM-UDID set " + test.coordinate + "\n"
 			}
+			if test.statusBar {
+				wantCalls += "axe settings status-bar preset screenshot --udid SIM-UDID\n"
+			}
 			if test.wantError != "" {
-				if code != rootcmd.ExitError || stdout != "" || !strings.Contains(stderr, test.wantError) {
+				if code != rootcmd.ExitError || (!test.wantReceipt && stdout != "") || !strings.Contains(stderr, test.wantError) {
 					t.Fatalf("exit = %d, stdout = %q, stderr = %q; want setup rejection with %q", code, stdout, stderr, test.wantError)
 				}
 			} else {
@@ -392,6 +409,8 @@ fi
 					t.Fatalf("exit = %d, stderr = %q; want successful setup", code, stderr)
 				}
 				wantCalls += "simctl launch SIM-UDID com.example.app\n"
+			}
+			if test.wantError == "" || test.wantReceipt {
 				var output screenshotLocationOutput
 				if err := json.Unmarshal([]byte(stdout), &output); err != nil {
 					t.Fatalf("decode receipt: %v; stdout = %q", err, stdout)
