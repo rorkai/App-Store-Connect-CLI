@@ -3,12 +3,14 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -42,6 +44,11 @@ type subscriptionsSetupOutput struct {
 			Amount   string `json:"amount"`
 			Currency string `json:"currency"`
 		} `json:"currentPrice,omitempty"`
+		ScheduledPrice *struct {
+			Amount   string `json:"amount"`
+			Currency string `json:"currency"`
+		} `json:"scheduledPrice,omitempty"`
+		ScheduledStartDate string `json:"scheduledStartDate,omitempty"`
 	} `json:"verification,omitempty"`
 	Steps []struct {
 		Name    string `json:"name"`
@@ -1952,5 +1959,83 @@ func runSubscriptionsSetupPriceFailureCase(t *testing.T, mode subscriptionsSetup
 	}
 	if matrixReads != wantMatrixReads {
 		t.Fatalf("expected %d filtered matrix reads in %s case, got %d", wantMatrixReads, mode, matrixReads)
+	}
+}
+
+func TestSubscriptionsSetupVerifiesRequestedPriceDate(t *testing.T) {
+	for _, tt := range []struct {
+		name, startDate, readbackPrice, wantError string
+		missing                                   bool
+	}{
+		{name: "current price", startDate: "2026-01-01", readbackPrice: "4.99"},
+		{name: "future price retry", startDate: "2026-02-01", readbackPrice: "4.99"},
+		{name: "future price before Pacific midnight", startDate: "2026-01-15", readbackPrice: "4.99"},
+		{name: "future price mismatch", startDate: "2026-02-01", readbackPrice: "8.99", wantError: `scheduled price mismatch: got "8.99" want "4.99"`},
+		{name: "future price missing", startDate: "2026-02-01", readbackPrice: "4.99", missing: true, wantError: "scheduled price missing after setup"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			sub := `{"type":"subscriptions","id":"sub-1","attributes":{"name":"Pro Monthly","productId":"monthly","subscriptionPeriod":"ONE_MONTH","state":"READY_TO_SUBMIT"}}`
+			price := func(id, point, date string) string {
+				return fmt.Sprintf(`{"type":"subscriptionPrices","id":%q,"attributes":{"startDate":%q,"planType":"UPFRONT"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":%q}}}}`, id, date, point)
+			}
+			client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet {
+					t.Fatalf("matching setup retry must not mutate: %s %s", req.Method, req.URL)
+				}
+				var body string
+				switch req.URL.Path {
+				case "/v1/subscriptionGroups/group-1/subscriptions":
+					body = `{"data":[` + sub + `],"links":{}}`
+				case "/v1/subscriptionGroups/group-1":
+					body = `{"data":{"type":"subscriptionGroups","id":"group-1"}}`
+				case "/v1/subscriptions/sub-1":
+					body = `{"data":` + sub + `}`
+				case "/v1/subscriptions/sub-1/prices":
+					data := price("old", "pp-old", "2025-01-01")
+					if !tt.missing || req.URL.Query().Get("filter[territory]") == "" {
+						data += "," + price("target", "pp-target", tt.startDate)
+					}
+					currentPrice := "3.99"
+					if tt.missing {
+						currentPrice = "4.99"
+					}
+					body = fmt.Sprintf(`{"data":[%s],"included":[{"type":"subscriptionPricePoints","id":"pp-old","attributes":{"customerPrice":%q}},{"type":"subscriptionPricePoints","id":"pp-target","attributes":{"customerPrice":%q}},{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],"links":{}}`, data, currentPrice, tt.readbackPrice)
+				case "/v1/subscriptionPricePoints/pp-target/equalizations":
+					body = `{"data":[],"links":{}}`
+				case "/v1/subscriptions/sub-1/pricePoints":
+					body = `{"data":[{"type":"subscriptionPricePoints","id":"pp-target","attributes":{"customerPrice":"4.99"}}],"links":{}}`
+				case "/v1/subscriptions/sub-1/subscriptionAvailability":
+					body = `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":false}}}`
+				case "/v1/subscriptionAvailabilities/avail-1/availableTerritories":
+					body = `{"data":[{"type":"territories","id":"USA"}],"links":{}}`
+				default:
+					t.Fatalf("unexpected request: %s", req.URL)
+				}
+				return jsonHTTPResponse(http.StatusOK, body), nil
+			}))
+			d, stdout, stderr := newTestDeps(t, client)
+			d.Now = func() time.Time { return time.Date(2026, 1, 15, 1, 0, 0, 0, time.UTC) }
+			code := rootcmd.RunWithDeps([]string{"subscriptions", "setup", "--group-id", "group-1", "--reference-name", "Pro Monthly", "--product-id", "monthly", "--subscription-period", "ONE_MONTH", "--price-point-id", "pp-target", "--price-territory", "USA", "--start-date", tt.startDate, "--output", "json"}, "1.2.3", d)
+			var result subscriptionsSetupOutput
+			if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+				t.Fatalf("decode receipt: %v; stdout=%s stderr=%s", err, stdout, stderr)
+			}
+			if tt.wantError != "" {
+				if code != rootcmd.ExitError || result.Status != "error" || result.Verification.Status != "failed" || result.FailedStep != "verify_state" || result.Error != tt.wantError || !strings.Contains(stderr.String(), tt.wantError) {
+					t.Fatalf("missing verification failure: code=%d result=%+v stderr=%q", code, result, stderr)
+				}
+				return
+			}
+			if code != 0 || stderr.Len() != 0 || result.Status != "ok" || result.Verification.Status != "verified" || result.Verification.PriceVerified == nil || !*result.Verification.PriceVerified || result.Verification.PriceCoverageVerified == nil || !*result.Verification.PriceCoverageVerified {
+				t.Fatalf("expected verified existing price matrix: code=%d result=%+v stderr=%q", code, result, stderr)
+			}
+			if tt.startDate == "2026-01-01" {
+				if result.Verification.CurrentPrice == nil || result.Verification.CurrentPrice.Amount != "4.99" || result.Verification.ScheduledPrice != nil {
+					t.Fatalf("incorrect current price: %+v", result.Verification)
+				}
+			} else if result.Verification.CurrentPrice != nil || result.Verification.ScheduledPrice == nil || result.Verification.ScheduledPrice.Amount != "4.99" || result.Verification.ScheduledPrice.Currency != "USD" || result.Verification.ScheduledStartDate != tt.startDate {
+				t.Fatalf("incorrect scheduled price: %+v", result.Verification)
+			}
+		})
 	}
 }
