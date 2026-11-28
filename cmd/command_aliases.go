@@ -296,6 +296,8 @@ var groupFlagsLeaf = map[string]string{
 	"asc versions":                          "list",
 	"asc builds":                            "list",
 	"asc builds beta-app-review-submission": "view",
+	"asc builds build-beta-detail":          "view",
+	"asc builds groups":                     "list",
 	"asc builds pre-release-version":        "view",
 	"asc testflight groups":                 "list",
 	"asc testflight groups builds":          "list",

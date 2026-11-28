@@ -1075,7 +1075,7 @@ ok builds get --app X X --include X
 ok builds get --id X
 ok builds get --id X --include X
 ok builds get X --output X
-unknown-flag builds groups --build-id X --output X
+ok builds groups --build-id X --output X
 unknown-flag builds individual-testers add --build-id X --email X --output X
 ok builds info --build-id X --json
 ok builds list --app X --build-number X --json
