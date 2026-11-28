@@ -14,14 +14,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-const (
-	privateCloudCompute = "PRIVATE_CLOUD_COMPUTE"
-)
-
-var supportedDeveloperBundleIDCapabilities = map[string]struct{}{
-	privateCloudCompute: {},
-}
-
 var developerBundleIDIncludes = []string{
 	"bundleIdCapabilities",
 	"bundleIdCapabilities.capability",
@@ -40,8 +32,10 @@ var developerBundleIDIncludes = []string{
 // DeveloperBundleIDCapabilityEnableRequest enables one supported Developer
 // Portal-only capability on an existing Bundle ID resource.
 type DeveloperBundleIDCapabilityEnableRequest struct {
-	BundleID   string
-	Capability string
+	BundleID     string
+	Capability   string
+	Settings     []BundleIDCapabilitySetting
+	Associations map[string][]string
 }
 
 // DeveloperBundleIDCapabilityEnableResult summarizes a Developer Portal
@@ -73,21 +67,16 @@ func (e *DeveloperBundleIDCapabilityUnverifiedError) Error() string { return e.E
 
 func (e *DeveloperBundleIDCapabilityUnverifiedError) Unwrap() error { return e.Err }
 
-type developerCapabilityMetadataResponse struct {
-	Data []struct {
-		ID         string                                `json:"id"`
-		Type       string                                `json:"type"`
-		Attributes developerCapabilityMetadataAttributes `json:"attributes"`
-	} `json:"data"`
-}
-
 type developerCapabilityMetadataAttributes struct {
-	Name         string `json:"name"`
-	Entitlement  string `json:"entitlement"`
-	IsPublic     bool   `json:"isPublic"`
-	Editable     bool   `json:"editable"`
-	CanRequest   bool   `json:"canRequestFromPortal"`
-	EnabledByDef bool   `json:"enabledByDefault"`
+	Name          string          `json:"name"`
+	Settings      json.RawMessage `json:"settings"`
+	Associations  json.RawMessage `json:"associations"`
+	Entitlement   string          `json:"entitlement"`
+	IsPublic      bool            `json:"isPublic"`
+	Editable      *bool           `json:"editable"`
+	CanRequest    bool            `json:"canRequestFromPortal"`
+	EnabledByDef  bool            `json:"enabledByDefault"`
+	OptInRequired bool            `json:"optInRequired"`
 }
 
 type developerResource struct {
@@ -131,9 +120,6 @@ func normalizeDeveloperBundleIDCapabilityEnableRequest(req DeveloperBundleIDCapa
 	if req.Capability == "" {
 		return req, fmt.Errorf("capability is required")
 	}
-	if _, ok := supportedDeveloperBundleIDCapabilities[req.Capability]; !ok {
-		return req, fmt.Errorf("unsupported Developer Portal capability %q (supported: %s)", req.Capability, privateCloudCompute)
-	}
 	return req, nil
 }
 
@@ -145,27 +131,21 @@ func (c *Client) EnableDeveloperBundleIDCapability(ctx context.Context, req Deve
 	if err != nil {
 		return nil, err
 	}
-	if err := c.ensureDeveloperPortalSession(ctx); err != nil {
-		return nil, err
-	}
-
-	metadata, err := c.loadDeveloperCapabilityMetadata(ctx, req.BundleID)
+	capability, err := c.editableDeveloperCapability(ctx, req.BundleID, req.Capability)
 	if err != nil {
 		return nil, err
 	}
-	capabilityMetadata, ok := findDeveloperCapability(metadata, req.Capability)
-	if !ok {
-		return nil, fmt.Errorf("capability %q is not available in Developer Portal for this account", req.Capability)
-	}
-	if !capabilityMetadata.Editable {
-		return nil, fmt.Errorf("capability %q is not editable in Developer Portal for this account", req.Capability)
-	}
+	req.Capability = capability.ID
+	capabilityMetadata := capability.Attributes
 
 	current, err := c.loadDeveloperBundleIDExact(ctx, req.BundleID)
 	if err != nil {
 		return nil, err
 	}
-	payload, alreadyEnabled, err := buildDeveloperBundleIDCapabilityPatchRequest(current, req)
+	if err := validateDeveloperBundleIDEnableSettings(current, capabilityMetadata, req); err != nil {
+		return nil, err
+	}
+	payload, alreadyEnabled, err := buildDeveloperBundleIDCapabilityPatchRequest(current, req, capabilityMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -177,6 +157,9 @@ func (c *Client) EnableDeveloperBundleIDCapability(ctx context.Context, req Deve
 			Changed:    false,
 			Status:     "already-enabled",
 		}, nil
+	}
+	if capabilityMetadata.OptInRequired {
+		return nil, fmt.Errorf("capability %q requires opt-in in Developer Portal before enabling", req.Capability)
 	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
@@ -192,8 +175,16 @@ func (c *Client) EnableDeveloperBundleIDCapability(ctx context.Context, req Deve
 		return nil, fmt.Errorf("missing Developer Portal CSRF headers; %s", developerPortalAuthHint())
 	}
 	path := "/bundleIds/" + url.PathEscape(req.BundleID)
-	if _, err := c.doDeveloperPortalRequest(ctx, http.MethodPatch, path, payload, developerPortalHeaders(req.BundleID), true); err != nil {
-		return nil, err
+	_, writeErr := c.doDeveloperPortalRequest(ctx, http.MethodPatch, path, payload, developerPortalHeaders(req.BundleID), true)
+	if writeErr != nil && !isAmbiguousDeveloperBundleIDCapabilityWriteFailure(writeErr) {
+		return nil, writeErr
+	}
+	verified, verifyErr := c.loadDeveloperBundleIDExact(ctx, req.BundleID)
+	if verifyErr != nil {
+		return nil, newDeveloperBundleIDUnverifiedError("enabling %q could not be verified: %v", req.Capability, verifyErr)
+	}
+	if err := verifyDeveloperBundleIDCapabilityGraph(payload, verified, ""); err != nil {
+		return nil, newDeveloperBundleIDUnverifiedError("enabling %q could not be verified: %v", req.Capability, err)
 	}
 
 	return &DeveloperBundleIDCapabilityEnableResult{
@@ -211,27 +202,18 @@ func (c *Client) EnableDeveloperBundleIDCapability(ctx context.Context, req Deve
 // successful PATCH is accepted only after a fresh exact-resource read proves
 // that no matching capability remains enabled.
 func (c *Client) DisableDeveloperBundleIDCapability(ctx context.Context, req DeveloperBundleIDCapabilityDisableRequest) (*asc.DeveloperBundleIDCapabilityDisableResult, error) {
-	normalized, err := normalizeDeveloperBundleIDCapabilityEnableRequest(DeveloperBundleIDCapabilityEnableRequest(req))
+	normalized, err := normalizeDeveloperBundleIDCapabilityEnableRequest(DeveloperBundleIDCapabilityEnableRequest{BundleID: req.BundleID, Capability: req.Capability})
 	if err != nil {
 		return nil, err
 	}
 	req.BundleID = normalized.BundleID
 	req.Capability = normalized.Capability
-	if err := c.ensureDeveloperPortalSession(ctx); err != nil {
-		return nil, err
-	}
-
-	metadata, err := c.loadDeveloperCapabilityMetadata(ctx, req.BundleID)
+	capability, err := c.editableDeveloperCapability(ctx, req.BundleID, req.Capability)
 	if err != nil {
 		return nil, err
 	}
-	capabilityMetadata, ok := findDeveloperCapability(metadata, req.Capability)
-	if !ok {
-		return nil, fmt.Errorf("capability %q is not available in Developer Portal for this account", req.Capability)
-	}
-	if !capabilityMetadata.Editable {
-		return nil, fmt.Errorf("capability %q is not editable in Developer Portal for this account", req.Capability)
-	}
+	req.Capability = capability.ID
+	capabilityMetadata := capability.Attributes
 
 	current, err := c.loadDeveloperBundleIDExact(ctx, req.BundleID)
 	if err != nil {
@@ -242,6 +224,9 @@ func (c *Client) DisableDeveloperBundleIDCapability(ctx context.Context, req Dev
 		return nil, err
 	}
 	if !before.hasEnabled() {
+		if len(before.EnabledByID) == 0 && capabilityMetadata.EnabledByDef {
+			return nil, fmt.Errorf("capability %q is enabled by default without a writable capability resource; configure it in Developer Portal", req.Capability)
+		}
 		return &asc.DeveloperBundleIDCapabilityDisableResult{
 			BundleID:   req.BundleID,
 			Capability: req.Capability,
@@ -251,7 +236,7 @@ func (c *Client) DisableDeveloperBundleIDCapability(ctx context.Context, req Dev
 		}, nil
 	}
 
-	payload, alreadyDisabled, err := buildDeveloperBundleIDCapabilityPatchRequestForState(current, DeveloperBundleIDCapabilityEnableRequest(req), false, false)
+	payload, alreadyDisabled, err := buildDeveloperBundleIDCapabilityPatchRequestForState(current, DeveloperBundleIDCapabilityEnableRequest{BundleID: req.BundleID, Capability: req.Capability}, false, false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +273,10 @@ func (c *Client) DisableDeveloperBundleIDCapability(ctx context.Context, req Dev
 		if stateErr != nil {
 			return nil, newDeveloperBundleIDUnverifiedError("Developer Portal accepted disabling %q but verification failed: %v", req.Capability, stateErr)
 		}
-		if !after.isDisabled() || !before.retainsNonTargetResources(after) || (!after.sameTargetIDs(before) && !after.targetsRemoved(before)) {
+		if err := verifyDeveloperBundleIDCapabilityGraph(payload, verified, req.Capability); err != nil {
+			return nil, newDeveloperBundleIDUnverifiedError("disabling %q could not verify preserved capabilities: %v", req.Capability, err)
+		}
+		if !after.isDisabled() || (!after.sameTargetIDs(before) && !after.targetsRemoved(before)) {
 			return nil, newDeveloperBundleIDUnverifiedError("Developer Portal accepted disabling %q but verification did not prove the same target resources are disabled or that Apple removed all target resources", req.Capability)
 		}
 		return developerBundleIDCapabilityDisableResult(req), nil
@@ -305,8 +293,11 @@ func (c *Client) DisableDeveloperBundleIDCapability(ctx context.Context, req Dev
 	if stateErr != nil {
 		return nil, newDeveloperBundleIDUnverifiedError("disabling %q may have been applied but verification failed: %v", req.Capability, stateErr)
 	}
+	if err := verifyDeveloperBundleIDCapabilityGraph(payload, verified, req.Capability); err != nil {
+		return nil, newDeveloperBundleIDUnverifiedError("disabling %q could not verify preserved capabilities: %v", req.Capability, err)
+	}
 	switch {
-	case after.isDisabled() && before.retainsNonTargetResources(after) && (after.sameTargetIDs(before) || after.targetsRemoved(before)):
+	case after.isDisabled() && (after.sameTargetIDs(before) || after.targetsRemoved(before)):
 		return developerBundleIDCapabilityDisableResult(req), nil
 	default:
 		return nil, newDeveloperBundleIDUnverifiedError("disabling %q may have been applied but verification did not prove the same target resources are disabled or that Apple removed all target resources (write error: %v)", req.Capability, writeErr)
@@ -336,7 +327,6 @@ func (c *Client) loadDeveloperBundleIDExact(ctx context.Context, bundleID string
 
 type developerBundleIDCapabilityDisableSnapshot struct {
 	EnabledByID map[string]bool
-	ResourceIDs map[string]struct{}
 }
 
 func (s developerBundleIDCapabilityDisableSnapshot) hasEnabled() bool {
@@ -362,18 +352,6 @@ func (s developerBundleIDCapabilityDisableSnapshot) sameTargetIDs(other develope
 	return true
 }
 
-func (s developerBundleIDCapabilityDisableSnapshot) retainsNonTargetResources(other developerBundleIDCapabilityDisableSnapshot) bool {
-	for id := range s.ResourceIDs {
-		if _, target := s.EnabledByID[id]; target {
-			continue
-		}
-		if _, retained := other.ResourceIDs[id]; !retained {
-			return false
-		}
-	}
-	return true
-}
-
 func (s developerBundleIDCapabilityDisableSnapshot) targetsRemoved(other developerBundleIDCapabilityDisableSnapshot) bool {
 	return len(s.EnabledByID) == 0 && len(other.EnabledByID) > 0
 }
@@ -385,18 +363,16 @@ func developerBundleIDCapabilityDisableState(current developerBundleIDResponse, 
 	}
 	state := developerBundleIDCapabilityDisableSnapshot{
 		EnabledByID: make(map[string]bool),
-		ResourceIDs: make(map[string]struct{}, len(capabilities)),
 	}
 	for _, capability := range capabilities {
 		if strings.TrimSpace(capability.ID) == "" {
 			return developerBundleIDCapabilityDisableSnapshot{}, fmt.Errorf("cannot safely verify Bundle ID capability graph without a resource id")
 		}
-		state.ResourceIDs[capability.ID] = struct{}{}
 		id, err := developerBundleIDCapabilityID(capability)
 		if err != nil {
 			return developerBundleIDCapabilityDisableSnapshot{}, err
 		}
-		if id != capabilityID {
+		if !strings.EqualFold(id, capabilityID) {
 			continue
 		}
 		if strings.TrimSpace(capability.ID) == "" {
@@ -426,28 +402,21 @@ func isAmbiguousDeveloperBundleIDCapabilityWriteFailure(err error) bool {
 	return isAmbiguousDeveloperPortalWriteFailure(err) || errors.Is(err, io.ErrUnexpectedEOF)
 }
 
-func (c *Client) loadDeveloperCapabilityMetadata(ctx context.Context, bundleID string) (developerCapabilityMetadataResponse, error) {
-	query := make(url.Values)
-	query.Set("filter[capabilityType]", "capability,service")
-	query.Set("filter[includeRequestable]", "true")
-	body, err := c.doDeveloperPortalProxyRead(ctx, "/capabilities", query, developerPortalHeaders(bundleID))
+func (c *Client) editableDeveloperCapability(ctx context.Context, bundleID, capabilityID string) (DeveloperCapability, error) {
+	catalog, err := c.ListDeveloperBundleIDCapabilities(ctx, bundleID)
 	if err != nil {
-		return developerCapabilityMetadataResponse{}, err
+		return DeveloperCapability{}, err
 	}
-	var response developerCapabilityMetadataResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return response, fmt.Errorf("failed to parse Developer Portal capabilities response: %w", err)
-	}
-	return response, nil
-}
-
-func findDeveloperCapability(response developerCapabilityMetadataResponse, capabilityID string) (developerCapabilityMetadataAttributes, bool) {
-	for _, capability := range response.Data {
-		if capability.Type == "capabilities" && strings.EqualFold(strings.TrimSpace(capability.ID), capabilityID) {
-			return capability.Attributes, true
+	for _, capability := range catalog.Data {
+		if capability.Type != "capabilities" || !strings.EqualFold(capability.ID, capabilityID) {
+			continue
 		}
+		if capability.Attributes.Editable == nil || !*capability.Attributes.Editable {
+			return DeveloperCapability{}, fmt.Errorf("capability %q is not editable in Developer Portal for this account", capability.ID)
+		}
+		return capability, nil
 	}
-	return developerCapabilityMetadataAttributes{}, false
+	return DeveloperCapability{}, fmt.Errorf("capability %q is not available in Developer Portal for this account", capabilityID)
 }
 
 func (c *Client) loadDeveloperBundleID(ctx context.Context, bundleID string) (developerBundleIDResponse, error) {
@@ -470,15 +439,15 @@ func (c *Client) loadDeveloperBundleID(ctx context.Context, bundleID string) (de
 	return response, nil
 }
 
-func buildDeveloperBundleIDCapabilityPatchRequest(current developerBundleIDResponse, req DeveloperBundleIDCapabilityEnableRequest) (developerBundleIDPatchRequest, bool, error) {
-	return buildDeveloperBundleIDCapabilityPatchRequestForState(current, req, true, true)
+func buildDeveloperBundleIDCapabilityPatchRequest(current developerBundleIDResponse, req DeveloperBundleIDCapabilityEnableRequest, metadata developerCapabilityMetadataAttributes) (developerBundleIDPatchRequest, bool, error) {
+	return buildDeveloperBundleIDCapabilityPatchRequestForState(current, req, true, true, &metadata)
 }
 
 // buildDeveloperBundleIDCapabilityPatchRequestForState builds the shared
-// capability graph patch. The enable path keeps its historical first-target
-// duplicate behavior; disabling updates every matching enabled resource and
-// never synthesizes or drops a disabled resource.
-func buildDeveloperBundleIDCapabilityPatchRequestForState(current developerBundleIDResponse, req DeveloperBundleIDCapabilityEnableRequest, desiredEnabled, addIfMissing bool) (developerBundleIDPatchRequest, bool, error) {
+// capability graph patch. Enabling updates the selected target and preserves
+// other resources. Disabling updates every matching enabled resource and never
+// synthesizes or drops a disabled resource.
+func buildDeveloperBundleIDCapabilityPatchRequestForState(current developerBundleIDResponse, req DeveloperBundleIDCapabilityEnableRequest, desiredEnabled, addIfMissing bool, metadata *developerCapabilityMetadataAttributes) (developerBundleIDPatchRequest, bool, error) {
 	capabilities, err := developerBundleIDCapabilities(current)
 	if err != nil {
 		return developerBundleIDPatchRequest{}, false, err
@@ -495,7 +464,7 @@ func buildDeveloperBundleIDCapabilityPatchRequestForState(current developerBundl
 			return developerBundleIDPatchRequest{}, false, err
 		}
 		capabilityIDs[index] = capabilityID
-		if capabilityID != req.Capability {
+		if !strings.EqualFold(capabilityID, req.Capability) {
 			continue
 		}
 		hasTarget = true
@@ -523,8 +492,29 @@ func buildDeveloperBundleIDCapabilityPatchRequestForState(current developerBundl
 			targetEnabled = enabled
 		}
 	}
-	if desiredEnabled && targetEnabled {
-		return developerBundleIDPatchRequest{}, true, nil
+	var desiredTarget developerResource
+	if desiredEnabled {
+		desiredTarget = newDeveloperBundleIDCapability(req.Capability)
+		if targetIndex >= 0 {
+			desiredTarget = capabilities[targetIndex]
+			desiredTarget.Attributes, err = setDeveloperCapabilityEnabledValue(desiredTarget.Attributes, true)
+			if err != nil {
+				return developerBundleIDPatchRequest{}, false, err
+			}
+		}
+		if req.Settings != nil {
+			desiredTarget.Attributes, err = setDeveloperCapabilitySettings(desiredTarget.Attributes, req.Settings)
+			if err != nil {
+				return developerBundleIDPatchRequest{}, false, err
+			}
+		}
+		desiredTarget, err = applyDeveloperCapabilityAssociations(*metadata, desiredTarget, req.Associations)
+		if err != nil {
+			return developerBundleIDPatchRequest{}, false, err
+		}
+		if targetEnabled && requestedSettingsApplied(desiredTarget.Attributes, capabilities[targetIndex].Attributes) && developerCapabilityRelationshipsApplied(desiredTarget.Relationships, capabilities[targetIndex].Relationships) {
+			return developerBundleIDPatchRequest{}, true, nil
+		}
 	}
 	if !desiredEnabled && (!hasTarget || !hasEnabledTarget) {
 		return developerBundleIDPatchRequest{}, true, nil
@@ -532,18 +522,13 @@ func buildDeveloperBundleIDCapabilityPatchRequestForState(current developerBundl
 
 	updated := make([]developerResource, 0, len(capabilities)+1)
 	for index, capability := range capabilities {
-		if capabilityIDs[index] != req.Capability {
+		if !strings.EqualFold(capabilityIDs[index], req.Capability) {
 			updated = append(updated, capability)
 			continue
 		}
 		if desiredEnabled {
-			if index != targetIndex {
-				continue
-			}
-			var err error
-			capability.Attributes, err = setDeveloperCapabilityEnabledValue(capability.Attributes, desiredEnabled)
-			if err != nil {
-				return developerBundleIDPatchRequest{}, false, err
+			if index == targetIndex {
+				capability = desiredTarget
 			}
 			updated = append(updated, capability)
 			continue
@@ -564,7 +549,7 @@ func buildDeveloperBundleIDCapabilityPatchRequestForState(current developerBundl
 		updated = append(updated, capability)
 	}
 	if targetIndex == -1 && addIfMissing {
-		updated = append(updated, newDeveloperBundleIDCapability(req.Capability))
+		updated = append(updated, desiredTarget)
 	}
 
 	relationshipBody, err := marshalDeveloperBundleIDCapabilitiesForPatch(updated)
@@ -615,6 +600,9 @@ func addDeveloperPortalTeamID(payload developerBundleIDPatchRequest, teamID stri
 
 func marshalDeveloperBundleIDCapabilitiesForPatch(capabilities []developerResource) (json.RawMessage, error) {
 	for index := range capabilities {
+		if !developerCapabilityRelationshipsApplied(capabilities[index].Relationships, capabilities[index].Relationships) {
+			return nil, fmt.Errorf("cannot safely preserve capability %q: invalid or duplicate relationship linkage", capabilities[index].ID)
+		}
 		if len(capabilities[index].Attributes) == 0 {
 			continue
 		}
@@ -704,7 +692,7 @@ func developerBundleIDCapabilityID(resource developerResource) (string, error) {
 	if err := json.Unmarshal(raw, &relationship); err != nil {
 		return "", fmt.Errorf("invalid capability relationship: %w", err)
 	}
-	id := strings.ToUpper(strings.TrimSpace(relationship.Data.ID))
+	id := strings.TrimSpace(relationship.Data.ID)
 	if relationship.Data.Type != "capabilities" || id == "" {
 		return "", fmt.Errorf("invalid capability relationship data")
 	}

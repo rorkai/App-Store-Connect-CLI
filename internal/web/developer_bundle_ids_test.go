@@ -93,10 +93,7 @@ func TestEnableDeveloperBundleIDCapabilityPreservesWritablePayloadAndGraph(t *te
 			if proxy.TeamID != "TEAM123456" {
 				t.Fatalf("metadata teamId = %q", proxy.TeamID)
 			}
-			query, err := url.ParseQuery(proxy.URLEncodedQueryParams)
-			if err != nil {
-				t.Fatalf("metadata query: %v", err)
-			}
+			query := r.URL.Query()
 			if got := query.Get("filter[capabilityType]"); got != "capability,service" {
 				t.Fatalf("filter[capabilityType] = %q", got)
 			}
@@ -193,6 +190,8 @@ func TestEnableDeveloperBundleIDCapabilityPreservesWritablePayloadAndGraph(t *te
 				t.Fatalf("ReadAll() error: %v", err)
 			}
 			return developerPortalTestResponse(http.StatusOK, `{"data":{"type":"bundleIds","id":"bundle-1"}}`, nil)
+		case 5:
+			return developerPortalTestResponse(http.StatusOK, developerBundleResponseAfterPatch(t, patchBody), nil)
 		default:
 			t.Fatalf("unexpected request %d: %s %s", requestCount, r.Method, r.URL.String())
 			return nil
@@ -234,8 +233,8 @@ func TestEnableDeveloperBundleIDCapabilityPreservesWritablePayloadAndGraph(t *te
 	if !result.Enabled || !result.Changed || result.Status != "enabled" {
 		t.Fatalf("unexpected result: %+v", result)
 	}
-	if requestCount != 4 {
-		t.Fatalf("request count = %d, want 4", requestCount)
+	if requestCount != 5 {
+		t.Fatalf("request count = %d, want 5", requestCount)
 	}
 
 	var payload struct {
@@ -404,34 +403,44 @@ func TestDisableDeveloperBundleIDCapabilityDisablesPCCAndVerifiesGraph(t *testin
 }
 
 func TestDisableDeveloperBundleIDCapabilityAlreadyDisabledSkipsPatch(t *testing.T) {
-	requestCount := 0
-	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
-		case 2:
-			return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
-		case 3:
-			return developerPortalTestResponse(http.StatusOK, developerBundleResponse(false), nil), nil
-		default:
-			t.Fatalf("unexpected PATCH or extra request: %s %s", r.Method, r.URL.String())
-			return nil, nil
-		}
-	})
+	for _, enabledByDefault := range []bool{false, true} {
+		t.Run(fmt.Sprint(enabledByDefault), func(t *testing.T) {
+			requestCount := 0
+			client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
+				requestCount++
+				switch requestCount {
+				case 1:
+					return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
+				case 2:
+					return developerPortalTestResponse(http.StatusOK, strings.Replace(developerCapabilityMetadata(true), `"editable":true`, `"editable":true,"enabledByDefault":`+fmt.Sprint(enabledByDefault), 1), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
+				case 3:
+					return developerPortalTestResponse(http.StatusOK, developerBundleResponse(false), nil), nil
+				default:
+					t.Fatalf("unexpected PATCH or extra request: %s %s", r.Method, r.URL.String())
+					return nil, nil
+				}
+			})
 
-	result, err := client.DisableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityDisableRequest{
-		BundleID:   "bundle-1",
-		Capability: "PRIVATE_CLOUD_COMPUTE",
-	})
-	if err != nil {
-		t.Fatalf("DisableDeveloperBundleIDCapability() error: %v", err)
-	}
-	if result == nil || result.Changed || result.Enabled || result.Status != "already-disabled" {
-		t.Fatalf("unexpected result: %+v", result)
-	}
-	if requestCount != 3 {
-		t.Fatalf("request count = %d, want 3", requestCount)
+			result, err := client.DisableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityDisableRequest{
+				BundleID:   "bundle-1",
+				Capability: "PRIVATE_CLOUD_COMPUTE",
+			})
+			if enabledByDefault {
+				if err == nil || !strings.Contains(err.Error(), "enabled by default without a writable capability resource") || result != nil {
+					t.Fatalf("default-enabled capability produced a disabled receipt: %+v, error = %v", result, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("DisableDeveloperBundleIDCapability() error: %v", err)
+			}
+			if result == nil || result.Changed || result.Enabled || result.Status != "already-disabled" {
+				t.Fatalf("unexpected result: %+v", result)
+			}
+			if requestCount != 3 {
+				t.Fatalf("request count = %d, want 3", requestCount)
+			}
+		})
 	}
 }
 
@@ -753,37 +762,46 @@ func TestDisableDeveloperBundleIDCapabilityRejectsUnresolvableIncludedGraphAfter
 	}
 }
 
-func TestDisableDeveloperBundleIDCapabilityRejectsDroppedNonTargetResource(t *testing.T) {
-	requestCount := 0
-	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
-		case 2:
-			return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
-		case 3:
-			return developerPortalTestResponse(http.StatusOK, developerBundleResponseWithPCCAndICloud(true), nil), nil
-		case 4:
-			return developerPortalTestResponse(http.StatusOK, ``, nil), nil
-		case 5:
-			return developerPortalTestResponse(http.StatusOK, developerBundleResponse(false), nil), nil
-		default:
-			t.Fatalf("unexpected request %d: %s %s", requestCount, r.Method, r.URL.String())
-			return nil, nil
-		}
-	})
-
-	_, err := client.DisableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityDisableRequest{
-		BundleID:   "bundle-1",
-		Capability: "PRIVATE_CLOUD_COMPUTE",
-	})
-	var unverified *DeveloperBundleIDCapabilityUnverifiedError
-	if !errors.As(err, &unverified) {
-		t.Fatalf("error = %v, want unverified dropped-non-target result", err)
+func TestDisableDeveloperBundleIDCapabilityRejectsChangedNonTargetResources(t *testing.T) {
+	readBacks := map[string]string{
+		"removed":                   developerBundleResponse(false),
+		"settings changed":          strings.ReplaceAll(developerBundleResponseWithPCCAndICloud(false), "ICLOUD_VERSION", "DIFFERENT_SETTING"),
+		"linked identifier changed": strings.ReplaceAll(developerBundleResponseWithPCCAndICloud(false), "cloud-1", "cloud-2"),
 	}
-	if requestCount != 5 {
-		t.Fatalf("request count = %d, want 5", requestCount)
+	for name, readBack := range readBacks {
+		t.Run(name, func(t *testing.T) {
+			requestCount := 0
+			client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
+				requestCount++
+				switch requestCount {
+				case 1:
+					return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
+				case 2:
+					return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
+				case 3:
+					return developerPortalTestResponse(http.StatusOK, developerBundleResponseWithPCCAndICloud(true), nil), nil
+				case 4:
+					return developerPortalTestResponse(http.StatusOK, ``, nil), nil
+				case 5:
+					return developerPortalTestResponse(http.StatusOK, readBack, nil), nil
+				default:
+					t.Fatalf("unexpected request %d: %s %s", requestCount, r.Method, r.URL.String())
+					return nil, nil
+				}
+			})
+
+			_, err := client.DisableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityDisableRequest{
+				BundleID:   "bundle-1",
+				Capability: "PRIVATE_CLOUD_COMPUTE",
+			})
+			var unverified *DeveloperBundleIDCapabilityUnverifiedError
+			if !errors.As(err, &unverified) {
+				t.Fatalf("error = %v, want unverified unrelated-capability result", err)
+			}
+			if requestCount != 5 {
+				t.Fatalf("request count = %d, want 5", requestCount)
+			}
+		})
 	}
 }
 
@@ -1082,7 +1100,7 @@ func TestDeveloperBundleIDCapabilityMutationsRejectPotentiallyTruncatedGraph(t *
 	_, _, err := buildDeveloperBundleIDCapabilityPatchRequest(response, DeveloperBundleIDCapabilityEnableRequest{
 		BundleID:   "bundle-1",
 		Capability: "PRIVATE_CLOUD_COMPUTE",
-	})
+	}, developerCapabilityMetadataAttributes{})
 	if err == nil || !strings.Contains(err.Error(), "may be truncated") {
 		t.Fatalf("enable error = %v, want truncation refusal", err)
 	}
@@ -1138,6 +1156,8 @@ func TestEnableDeveloperBundleIDCapabilityUpdatesDisabledTargetOnce(t *testing.T
 				t.Fatalf("ReadAll() error: %v", err)
 			}
 			return developerPortalTestResponse(http.StatusOK, `{"data":{"type":"bundleIds","id":"bundle-1"}}`, nil), nil
+		case 5:
+			return developerPortalTestResponse(http.StatusOK, developerBundleResponseAfterPatch(t, patchBody), nil), nil
 		default:
 			t.Fatalf("unexpected request")
 			return nil, nil
@@ -1166,8 +1186,8 @@ func TestEnableDeveloperBundleIDCapabilityUpdatesDisabledTargetOnce(t *testing.T
 		t.Fatalf("json.Unmarshal() error: %v", err)
 	}
 	caps := payload.Data.Relationships.BundleIDCapabilities.Data
-	if len(caps) != 1 {
-		t.Fatalf("target capability count = %d, want 1: %+v", len(caps), caps)
+	if len(caps) != 2 || caps[1].ID != "pcc-disabled-2" {
+		t.Fatalf("expected both target identities preserved: %+v", caps)
 	}
 	if caps[0].ID != "pcc-disabled-1" {
 		t.Fatalf("first target identity not preserved: %+v", caps[0])
@@ -1206,7 +1226,7 @@ func TestBuildDeveloperBundleIDCapabilityPatchPrefersEnabledDuplicate(t *testing
 	_, alreadyEnabled, err := buildDeveloperBundleIDCapabilityPatchRequest(current, DeveloperBundleIDCapabilityEnableRequest{
 		BundleID:   "bundle-1",
 		Capability: "PRIVATE_CLOUD_COMPUTE",
-	})
+	}, developerCapabilityMetadataAttributes{})
 	if err != nil {
 		t.Fatalf("buildDeveloperBundleIDCapabilityPatchRequest() error: %v", err)
 	}
@@ -1247,17 +1267,20 @@ func TestEnableDeveloperBundleIDCapabilityRejectsUnavailableAndNonEditable(t *te
 	}
 }
 
-func TestEnableDeveloperBundleIDCapabilityRejectsUnsupportedCapabilityBeforeHTTP(t *testing.T) {
+func TestEnableDeveloperBundleIDCapabilityRejectsUnknownMetadataBeforeWrite(t *testing.T) {
+	requestCount := 0
 	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", r.Method, r.URL.String())
-		return nil, nil
+		requestCount++
+		if requestCount == 1 {
+			return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
+		}
+		if requestCount != 2 || r.URL.Path != "/services-account/v1/capabilities" {
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
+		}
+		return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), nil), nil
 	})
-
-	_, err := client.EnableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityEnableRequest{
-		BundleID:   "bundle-1",
-		Capability: "ICLOUD",
-	})
-	if err == nil || !strings.Contains(err.Error(), "unsupported Developer Portal capability") {
+	_, err := client.EnableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityEnableRequest{BundleID: "bundle-1", Capability: "UNKNOWN_CAPABILITY"})
+	if err == nil || !strings.Contains(err.Error(), "not available") {
 		t.Fatalf("error = %v", err)
 	}
 }
@@ -1436,4 +1459,36 @@ func TestDisableDeveloperBundleIDCapabilityRejectsContradictoryIncludedGraph(t *
 			}
 		})
 	}
+}
+
+func developerBundleResponseAfterPatch(t *testing.T, body []byte) string {
+	t.Helper()
+	var response developerBundleIDResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatal(err)
+	}
+	var relationship developerResourceRelationship
+	if err := json.Unmarshal(response.Data.Relationships["bundleIdCapabilities"], &relationship); err != nil {
+		t.Fatal(err)
+	}
+	references := make([]relationshipData, 0, len(relationship.Data))
+	for index, capability := range relationship.Data {
+		if capability.ID == "" {
+			capability.ID = fmt.Sprintf("created-%d", index)
+		}
+		references = append(references, relationshipData{ID: capability.ID, Type: capability.Type})
+		response.Included = append(response.Included, capability)
+	}
+	encoded, err := json.Marshal(struct {
+		Data []relationshipData `json:"data"`
+	}{Data: references})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Data.Relationships["bundleIdCapabilities"] = encoded
+	encoded, err = json.Marshal(response)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(encoded)
 }

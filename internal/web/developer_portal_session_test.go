@@ -155,6 +155,7 @@ func TestEnsureDeveloperPortalSessionAmbiguousExactNameFailsBeforeMutation(t *te
 
 func TestEnsureDeveloperPortalSessionSelectsSingleTeam(t *testing.T) {
 	var selectedTeamID string
+	enabled := false
 	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
 		switch {
 		case r.URL.Path == developerPortalTeamsPath:
@@ -168,9 +169,10 @@ func TestEnsureDeveloperPortalSessionSelectsSingleTeam(t *testing.T) {
 				return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
 			}
 			if r.Method == http.MethodPatch {
+				enabled = true
 				return developerPortalTestResponse(http.StatusOK, `{"data":{"id":"bundle-1","type":"bundleIds"}}`, nil), nil
 			}
-			return developerPortalTestResponse(http.StatusOK, developerBundleResponse(false), nil), nil
+			return developerPortalTestResponse(http.StatusOK, developerBundleResponse(enabled), nil), nil
 		default:
 			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
 			return developerPortalTestResponse(http.StatusNotFound, `{}`, nil), nil
@@ -341,6 +343,7 @@ func developerPortalSecretTeamsResponse(body string) *http.Response {
 
 func developerPortalCapabilityEnableRoundTrip(t *testing.T, wantSelector string, selectedTeamID *string) roundTripFunc {
 	t.Helper()
+	enabled := false
 	return func(r *http.Request) (*http.Response, error) {
 		switch {
 		case r.URL.Path == developerPortalTeamsPath:
@@ -367,9 +370,10 @@ func developerPortalCapabilityEnableRoundTrip(t *testing.T, wantSelector string,
 			case strings.HasSuffix(r.URL.Path, "/capabilities"):
 				return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
 			case r.Method == http.MethodPatch:
+				enabled = true
 				return developerPortalTestResponse(http.StatusOK, `{"data":{"id":"bundle-1","type":"bundleIds"}}`, nil), nil
 			default:
-				return developerPortalTestResponse(http.StatusOK, developerBundleResponse(false), nil), nil
+				return developerPortalTestResponse(http.StatusOK, developerBundleResponse(enabled), nil), nil
 			}
 		default:
 			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)

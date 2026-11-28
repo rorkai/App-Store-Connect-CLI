@@ -9366,7 +9366,7 @@
           }
         },
         "x-asc-observed": {
-          "code": "2026-11-14"
+          "code": "2026-11-28"
         },
         "x-asc-source": [
           "Client.AcceptAgreements",
@@ -9378,9 +9378,7 @@
           "Client.DeleteDeveloperAppGroup",
           "Client.DeleteDeveloperServiceID",
           "Client.DeleteDeveloperWebsitePushID",
-          "Client.DisableDeveloperBundleIDCapability",
           "Client.DownloadAgreement",
-          "Client.EnableDeveloperBundleIDCapability",
           "Client.GetAgreementHistory",
           "Client.GetAgreementsStatus",
           "Client.GetDeveloperBundleID",
@@ -9388,6 +9386,7 @@
           "Client.GetDeveloperSignInKey",
           "Client.GetDeveloperWebsitePushID",
           "Client.ListDeveloperAppGroups",
+          "Client.ListDeveloperBundleIDCapabilities",
           "Client.ListDeveloperBundleIDs",
           "Client.ListDeveloperICloudContainers",
           "Client.ListDeveloperPortalTeams",
@@ -9619,9 +9618,25 @@
         "tags": [
           "Capabilities"
         ],
-        "description": "Always sent with X-HTTP-Method-Override: GET; lists capabilities.",
+        "description": "Lists capabilities using a POST with the GET method override. For an App ID, the portal sends the capability type and requestable filters in the URL and the bundleId and platform filters in the JSON body’s urlEncodedQueryParams.",
         "operationId": "capabilities_overrideCollection",
         "parameters": [
+          {
+            "name": "filter[capabilityType]",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": "capability,service"
+          },
+          {
+            "name": "filter[includeRequestable]",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": "true"
+          },
           {
             "name": "filter[referenceType]",
             "in": "query",
@@ -9663,6 +9678,11 @@
                   }
                 ]
               }
+            },
+            "application/vnd.api+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeveloperPortalReadRequest"
+              }
             }
           },
           "required": true
@@ -9690,12 +9710,12 @@
           }
         },
         "x-asc-observed": {
-          "code": "2026-11-14"
+          "code": "2026-11-28",
+          "live": "2026-11-28"
         },
         "x-asc-source": [
           "Client.CreateDeveloperWebsitePushID",
-          "Client.DisableDeveloperBundleIDCapability",
-          "Client.EnableDeveloperBundleIDCapability"
+          "Client.ListDeveloperBundleIDCapabilities"
         ]
       }
     },
