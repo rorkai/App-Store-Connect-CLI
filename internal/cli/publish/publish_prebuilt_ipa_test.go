@@ -37,6 +37,7 @@ func TestPublishCommandsCheckIPABundleBeforeReservation(t *testing.T) {
 			missingPlist, missingBundle  bool
 			metadataChanged              bool
 			metadataAmbiguous            bool
+			metadataPlatform             string
 			inferMetadata                bool
 			wantValidation               bool
 			appStatus                    int
@@ -51,6 +52,9 @@ func TestPublishCommandsCheckIPABundleBeforeReservation(t *testing.T) {
 			{name: "inferred metadata becomes unreadable", metadataChanged: true, inferMetadata: true, wantError: "inspect IPA metadata before upload"},
 			{name: "readable metadata becomes unreadable with overrides", metadataChanged: true, wantError: "inspect IPA metadata before upload"},
 			{name: "unreadable metadata becomes ambiguous with overrides", missingPlist: true, metadataAmbiguous: true, wantError: "IPA has multiple top-level app Info.plist entries"},
+			{name: "unreadable metadata becomes simulator with overrides", missingPlist: true, metadataPlatform: "iPhoneSimulator", wantError: `unsupported IPA platform metadata CFBundleSupportedPlatforms="iPhoneSimulator"`},
+			{name: "readable platform changes with overrides", metadataPlatform: "AppleTVOS", appBundleID: "com.example.app", wantError: "IPA platform TV_OS does not match upload platform IOS"},
+			{name: "unreadable metadata becomes macOS with overrides", missingPlist: true, metadataPlatform: "MacOSX", appBundleID: "com.example.app", wantError: "IPA platform MAC_OS does not match upload platform IOS"},
 		} {
 			t.Run(command.name+"/"+test.name, func(t *testing.T) {
 				t.Cleanup(overridePublishCommandTestHooks(t))
@@ -93,9 +97,14 @@ func TestPublishCommandsCheckIPABundleBeforeReservation(t *testing.T) {
 					ipaPath = writePublishIPAFile(t, "Payload/Demo.app/Info.plist", []byte(`<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleVersion</key><string>42</string></dict></plist>`))
 				}
 				resolvePublishAppIDWithLookupFn = func(context.Context, *asc.Client, string) (string, error) {
+					var replacement string
 					if test.metadataAmbiguous {
 						info := []byte(`<plist><dict><key>CFBundleIdentifier</key><string>com.example.app</string></dict></plist>`)
-						replacement := writePublishIPAFile(t, "Payload/Demo.app/Info.plist", info, "Payload/Other.app/Info.plist")
+						replacement = writePublishIPAFile(t, "Payload/Demo.app/Info.plist", info, "Payload/Other.app/Info.plist")
+					} else if test.metadataPlatform != "" {
+						replacement = writePublishIPA(t, test.metadataPlatform)
+					}
+					if replacement != "" {
 						data, err := os.ReadFile(replacement)
 						if err != nil {
 							t.Fatal(err)

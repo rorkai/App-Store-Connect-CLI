@@ -17,23 +17,36 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
-func TestUploadCommandsRejectAmbiguousIPA(t *testing.T) {
+func TestUploadCommandsRejectInvalidIPAMetadata(t *testing.T) {
 	for _, command := range [][]string{{"builds", "upload"}, {"publish", "testflight", "--upload-only"}, {"publish", "appstore"}} {
-		for _, secondPath := range []string{"Payload/Demo.app/Info.plist", "Payload/Other.app/Info.plist"} {
+		for _, test := range []struct {
+			name, platformName, secondPath, wantError string
+			supportedPlatforms                        []string
+		}{
+			{name: "duplicate plist", secondPath: "Payload/Demo.app/Info.plist", wantError: "IPA has multiple top-level app Info.plist entries"},
+			{name: "multiple apps", secondPath: "Payload/Other.app/Info.plist", wantError: "IPA has multiple top-level app Info.plist entries"},
+			{name: "simulator platform name", platformName: "iphonesimulator", wantError: `unsupported IPA platform metadata DTPlatformName="iphonesimulator"`},
+			{name: "simulator supported platform", supportedPlatforms: []string{"iPhoneSimulator"}, wantError: `unsupported IPA platform metadata CFBundleSupportedPlatforms="iPhoneSimulator"`},
+			{name: "conflicting platforms", platformName: "iphoneos", supportedPlatforms: []string{"AppleTVOS"}, wantError: "conflicting IPA platform metadata: IOS and TV_OS"},
+		} {
 			for _, overrides := range []bool{false, true} {
-				t.Run(fmt.Sprintf("%s/%s/overrides=%t", strings.Join(command, " "), secondPath, overrides), func(t *testing.T) {
+				t.Run(fmt.Sprintf("%s/%s/overrides=%t", strings.Join(command, " "), test.name, overrides), func(t *testing.T) {
 					setupAuth(t)
 					t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 					reg := asctest.NewRegistry(t)
 					reg.Install()
-					ipa := writeBuildUploadIPAWithPlatform(t, "com.example.demo", "iphoneos", nil, secondPath)
+					var extraPaths []string
+					if test.secondPath != "" {
+						extraPaths = append(extraPaths, test.secondPath)
+					}
+					ipa := writeBuildUploadIPAWithPlatform(t, "com.example.demo", test.platformName, test.supportedPlatforms, extraPaths...)
 					args := append(append([]string{}, command...), "--app", "123456789", "--ipa", ipa, "--output", "json")
 					if overrides {
 						args = append(args, "--version", "2.0", "--build-number", "99")
 					}
 					stdout, _, err := runCommand(t, args)
-					if cmd.ExitCodeFromError(err) != cmd.ExitError || err == nil || !strings.Contains(err.Error(), "IPA has multiple top-level app Info.plist entries") || stdout != "" || len(reg.Requests()) != 0 {
-						t.Fatalf("ambiguous IPA: error=%v stdout=%q requests=%d", err, stdout, len(reg.Requests()))
+					if cmd.ExitCodeFromError(err) != cmd.ExitError || err == nil || !strings.Contains(err.Error(), test.wantError) || stdout != "" || len(reg.Requests()) != 0 {
+						t.Fatalf("invalid IPA metadata: error=%v stdout=%q requests=%d", err, stdout, len(reg.Requests()))
 					}
 				})
 			}
