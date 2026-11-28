@@ -65,6 +65,51 @@ func TestRunOptInJSONError(t *testing.T) {
 	}
 }
 
+func TestRunReviewDetailsFileDiagnostics(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	t.Setenv("DO_NOT_TRACK", "1")
+
+	dir := t.TempDir()
+	invalid := filepath.Join(dir, "invalid-review.json")
+	if err := os.WriteFile(invalid, []byte(`{"private_fixture_field":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name string
+		path string
+		kind shared.DiagnosticCode
+	}{
+		{"missing file", filepath.Join(dir, "missing-review.json"), shared.DiagnosticFileNotFound},
+		{"invalid schema", invalid, shared.DiagnosticFileInvalidFormat},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			deps := shared.DefaultDeps()
+			deps.Client = func() (*asc.Client, error) {
+				t.Fatal("review file must be validated before making an API client")
+				return nil, nil
+			}
+			var stdout, stderr bytes.Buffer
+			deps.IO.Out, deps.IO.ErrOut = &stdout, &stderr
+			args := []string{"--error-format=json", "review", "details", "plan", "--version-id", "fixture-version", "--file", test.path}
+			if got := RunWithDeps(args, "test-version", deps); got != ExitUsage || stdout.Len() != 0 {
+				t.Fatalf("exit = %d, stdout = %q, stderr = %q", got, stdout.String(), stderr.String())
+			}
+			var envelope struct {
+				Error jsonError `json:"error"`
+			}
+			if err := json.Unmarshal(stderr.Bytes(), &envelope); err != nil {
+				t.Fatalf("decode stderr %q: %v", stderr.String(), err)
+			}
+			if envelope.Error.Type != string(test.kind) || envelope.Error.ExitCode != ExitUsage {
+				t.Fatalf("error = %+v, want %s with exit %d", envelope.Error, test.kind, ExitUsage)
+			}
+			if strings.Contains(stderr.String(), filepath.Base(test.path)) || strings.Contains(stderr.String(), "private_fixture_field") {
+				t.Fatalf("JSON stderr contains private file details: %q", stderr.String())
+			}
+		})
+	}
+}
+
 func TestRunJSONErrorFormatPreservesTerminalStdout(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 	t.Setenv("DO_NOT_TRACK", "1")
