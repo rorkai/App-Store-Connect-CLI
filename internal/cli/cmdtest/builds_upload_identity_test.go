@@ -13,8 +13,33 @@ import (
 
 	"howett.net/plist"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
+
+func TestUploadCommandsRejectAmbiguousIPA(t *testing.T) {
+	for _, command := range [][]string{{"builds", "upload"}, {"publish", "testflight", "--upload-only"}, {"publish", "appstore"}} {
+		for _, secondPath := range []string{"Payload/Demo.app/Info.plist", "Payload/Other.app/Info.plist"} {
+			for _, overrides := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/%s/overrides=%t", strings.Join(command, " "), secondPath, overrides), func(t *testing.T) {
+					setupAuth(t)
+					t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+					reg := asctest.NewRegistry(t)
+					reg.Install()
+					ipa := writeBuildUploadIPAWithPlatform(t, "com.example.demo", "iphoneos", nil, secondPath)
+					args := append(append([]string{}, command...), "--app", "123456789", "--ipa", ipa, "--output", "json")
+					if overrides {
+						args = append(args, "--version", "2.0", "--build-number", "99")
+					}
+					stdout, _, err := runCommand(t, args)
+					if cmd.ExitCodeFromError(err) != cmd.ExitError || err == nil || !strings.Contains(err.Error(), "IPA has multiple top-level app Info.plist entries") || stdout != "" || len(reg.Requests()) != 0 {
+						t.Fatalf("ambiguous IPA: error=%v stdout=%q requests=%d", err, stdout, len(reg.Requests()))
+					}
+				})
+			}
+		}
+	}
+}
 
 func TestBuildsUploadResolvesExactBundleIDAndChecksIPAIdentityBeforeReservation(t *testing.T) {
 	setupAuth(t)
@@ -256,7 +281,7 @@ func writeBuildUploadIPA(t *testing.T, bundleID string) string {
 	return writeBuildUploadIPAWithPlatform(t, bundleID, "", nil)
 }
 
-func writeBuildUploadIPAWithPlatform(t *testing.T, bundleID, platformName string, supportedPlatforms []string) string {
+func writeBuildUploadIPAWithPlatform(t *testing.T, bundleID, platformName string, supportedPlatforms []string, extraInfoPaths ...string) string {
 	t.Helper()
 
 	plistData, err := plist.Marshal(map[string]any{
@@ -276,12 +301,14 @@ func writeBuildUploadIPAWithPlatform(t *testing.T, bundleID, platformName string
 		t.Fatalf("create IPA: %v", err)
 	}
 	zipWriter := zip.NewWriter(file)
-	entry, err := zipWriter.Create("Payload/Demo.app/Info.plist")
-	if err != nil {
-		t.Fatalf("create Info.plist entry: %v", err)
-	}
-	if _, err := entry.Write(plistData); err != nil {
-		t.Fatalf("write Info.plist entry: %v", err)
+	for _, name := range append([]string{"Payload/Demo.app/Info.plist"}, extraInfoPaths...) {
+		entry, err := zipWriter.Create(name)
+		if err != nil {
+			t.Fatalf("create Info.plist entry: %v", err)
+		}
+		if _, err := entry.Write(plistData); err != nil {
+			t.Fatalf("write Info.plist entry: %v", err)
+		}
 	}
 	if err := zipWriter.Close(); err != nil {
 		t.Fatalf("close IPA: %v", err)

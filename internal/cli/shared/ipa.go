@@ -23,6 +23,9 @@ type IPABundleInfo struct {
 	Platform    asc.Platform
 }
 
+// ErrAmbiguousIPAMetadata identifies an archive with multiple top-level app plists.
+var ErrAmbiguousIPAMetadata = errors.New("IPA has multiple top-level app Info.plist entries")
+
 // ValidateIPAPath ensures an IPA path points to a non-empty regular file and
 // rejects symlinks so upload commands don't dereference unexpected files.
 func ValidateIPAPath(ipaPath string) (os.FileInfo, error) {
@@ -100,6 +103,7 @@ func ExtractBundleInfoFromIPAFile(file *os.File) (IPABundleInfo, error) {
 }
 
 func extractBundleInfoFromIPAFiles(files []*zip.File) (IPABundleInfo, error) {
+	var main *zip.File
 	for _, file := range files {
 		if file.FileInfo().IsDir() {
 			continue
@@ -107,7 +111,13 @@ func extractBundleInfoFromIPAFiles(files []*zip.File) (IPABundleInfo, error) {
 		if !isTopLevelAppInfoPlist(file.Name) {
 			continue
 		}
-		return readBundleInfoFromInfoPlist(file)
+		if main != nil {
+			return IPABundleInfo{}, ErrAmbiguousIPAMetadata
+		}
+		main = file
+	}
+	if main != nil {
+		return readBundleInfoFromInfoPlist(main)
 	}
 
 	// Keep the canonical casing for the filename, but follow Go error string style.
@@ -234,6 +244,9 @@ func ResolveBundleInfoForIPA(ipaPath, version, buildNumber string) (IPABundleInf
 	buildNumberValue := strings.TrimSpace(buildNumber)
 	info, err := ExtractBundleInfoFromIPA(ipaPath)
 	if err != nil {
+		if errors.Is(err, ErrAmbiguousIPAMetadata) {
+			return IPABundleInfo{}, false, err
+		}
 		missingFlags := make([]string, 0, 2)
 		if versionValue == "" {
 			missingFlags = append(missingFlags, "--version")

@@ -36,6 +36,7 @@ func TestPublishCommandsCheckIPABundleBeforeReservation(t *testing.T) {
 			name, appBundleID, wantError string
 			missingPlist, missingBundle  bool
 			metadataChanged              bool
+			metadataAmbiguous            bool
 			inferMetadata                bool
 			wantValidation               bool
 			appStatus                    int
@@ -49,6 +50,7 @@ func TestPublishCommandsCheckIPABundleBeforeReservation(t *testing.T) {
 			{name: "unreadable plist with overrides", missingPlist: true, wantError: "stop at reservation", wantRequests: []string{"POST /v1/buildUploads"}},
 			{name: "inferred metadata becomes unreadable", metadataChanged: true, inferMetadata: true, wantError: "inspect IPA metadata before upload"},
 			{name: "readable metadata becomes unreadable with overrides", metadataChanged: true, wantError: "inspect IPA metadata before upload"},
+			{name: "unreadable metadata becomes ambiguous with overrides", missingPlist: true, metadataAmbiguous: true, wantError: "IPA has multiple top-level app Info.plist entries"},
 		} {
 			t.Run(command.name+"/"+test.name, func(t *testing.T) {
 				t.Cleanup(overridePublishCommandTestHooks(t))
@@ -91,6 +93,17 @@ func TestPublishCommandsCheckIPABundleBeforeReservation(t *testing.T) {
 					ipaPath = writePublishIPAFile(t, "Payload/Demo.app/Info.plist", []byte(`<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleVersion</key><string>42</string></dict></plist>`))
 				}
 				resolvePublishAppIDWithLookupFn = func(context.Context, *asc.Client, string) (string, error) {
+					if test.metadataAmbiguous {
+						info := []byte(`<plist><dict><key>CFBundleIdentifier</key><string>com.example.app</string></dict></plist>`)
+						replacement := writePublishIPAFile(t, "Payload/Demo.app/Info.plist", info, "Payload/Other.app/Info.plist")
+						data, err := os.ReadFile(replacement)
+						if err != nil {
+							t.Fatal(err)
+						}
+						if err := os.WriteFile(ipaPath, data, 0o600); err != nil {
+							t.Fatal(err)
+						}
+					}
 					if test.metadataChanged {
 						info, err := os.Stat(ipaPath)
 						if err != nil {
@@ -247,7 +260,7 @@ func writePublishIPA(t *testing.T, platform string) string {
 	return writePublishIPAFile(t, "Payload/Demo.app/Info.plist", data)
 }
 
-func writePublishIPAFile(t *testing.T, name string, data []byte) string {
+func writePublishIPAFile(t *testing.T, name string, data []byte, extraNames ...string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "Demo.ipa")
 	file, err := os.Create(path)
@@ -255,12 +268,14 @@ func writePublishIPAFile(t *testing.T, name string, data []byte) string {
 		t.Fatal(err)
 	}
 	writer := zip.NewWriter(file)
-	entry, err := writer.Create(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := entry.Write(data); err != nil {
-		t.Fatal(err)
+	for _, name := range append([]string{name}, extraNames...) {
+		entry, err := writer.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := entry.Write(data); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := errors.Join(writer.Close(), file.Close()); err != nil {
 		t.Fatal(err)
