@@ -117,6 +117,21 @@ func RunMatrixWithDependencies(ctx context.Context, matrixPath string, matrixPla
 	}
 
 	deps := dependencies
+	if options.Progress != nil {
+		var progressMu sync.Mutex
+		deps.progress = func(event MatrixProgressEvent) {
+			progressMu.Lock()
+			defer progressMu.Unlock()
+			options.Progress(event)
+		}
+	}
+	deps.emitProgress(MatrixProgressEvent{Event: "run_started", TotalCells: result.TotalCells})
+	defer func() {
+		for _, cell := range result.Cells {
+			deps.emitProgress(MatrixProgressEvent{Event: "cell_finished", CellID: cell.ID, Attempt: cell.Attempts, Status: cell.Status, FailureStage: cell.FailureStage, FailureCode: cell.FailureCode})
+		}
+		deps.emitProgress(MatrixProgressEvent{Event: "run_finished", TotalCells: result.TotalCells, Status: result.Status})
+	}()
 	useDefaultDeviceCheck := deps.RunPlan == nil && deps.RunPlanRooted == nil && deps.Frame == nil && deps.FrameRooted == nil && deps.Appearance == nil && deps.CheckDevice == nil
 	capturePlan := base
 	if deps.RunPlan != nil || deps.RunPlanRooted != nil {

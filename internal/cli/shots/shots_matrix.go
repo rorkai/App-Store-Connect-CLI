@@ -31,6 +31,7 @@ func shotsMatrixCommandWithDependencies(d *shared.Deps, dependencies shotsMatrix
 	maxConcurrency := fs.Int("max-concurrency", 0, "Override matrix worker count (1-8; 0 uses plan value)")
 	maxAttempts := fs.Int("max-attempts", 0, "Override total attempts per cell (1-3; 0 uses plan value)")
 	retryBackoff := fs.Duration("retry-backoff", 0, "Override retry backoff duration (0 uses plan value unless explicitly set)")
+	progressFile := fs.String("progress-file", "", "Stream lifecycle events as JSONL to a new file")
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -54,7 +55,13 @@ remains set after the run. Each cell's location receipt reports command
 acknowledgement; use app readback to verify delivery.
 
 Use --max-concurrency, --max-attempts, and --retry-backoff to override the
-execution values in the matrix plan.`,
+execution values in the matrix plan.
+
+Use --progress-file with a new file for live JSONL attempt events and final
+cell and run states. Cell IDs match the final receipt. Terminal cell events
+follow artifact verification and cleanup. Provider identifiers, launch arguments,
+paths, and subprocess output are omitted. Later progress write failures warn
+without changing the matrix outcome; final stdout output is unchanged.`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -65,12 +72,15 @@ execution values in the matrix plan.`,
 			maxConcurrencySet := false
 			maxAttemptsSet := false
 			retryBackoffSet := false
+			progressSet := false
 			fs.Visit(func(value *flag.Flag) {
 				switch value.Name {
 				case "max-concurrency":
 					maxConcurrencySet = true
 				case "max-attempts":
 					maxAttemptsSet = true
+				case "progress-file":
+					progressSet = true
 				case "retry-backoff":
 					retryBackoffSet = true
 				}
@@ -102,6 +112,10 @@ execution values in the matrix plan.`,
 				return shared.InvalidValueUsageError("--retry-backoff")
 			}
 
+			if progressSet && strings.TrimSpace(*progressFile) == "" {
+				return d.UsageError("--progress-file must not be empty")
+			}
+
 			absPlanPath, err := d.Abs(planValue)
 			if err != nil {
 				return fmt.Errorf("screenshots matrix: resolve plan path: %w", err)
@@ -113,6 +127,15 @@ execution values in the matrix plan.`,
 				}
 				return fmt.Errorf("screenshots matrix: %w", err)
 			}
+			progress, err := d.OpenProgressFile(*progressFile)
+			if err != nil {
+				return d.UsageErrorf("--progress-file: %v", err)
+			}
+			defer progress.Close()
+			var observe func(screenshots.MatrixProgressEvent)
+			if progress != nil {
+				observe = func(event screenshots.MatrixProgressEvent) { progress.Emit(event) }
+			}
 			result, runErr := dependencies.runMatrix(ctx, absPlanPath, matrixPlan, screenshots.MatrixOptions{
 				MaxConcurrency:    *maxConcurrency,
 				MaxConcurrencySet: maxConcurrencySet,
@@ -120,6 +143,7 @@ execution values in the matrix plan.`,
 				MaxAttemptsSet:    maxAttemptsSet,
 				RetryBackoff:      *retryBackoff,
 				RetryBackoffSet:   retryBackoffSet,
+				Progress:          observe,
 			})
 			if result != nil {
 				if printErr := d.PrintOutput(matrixResultOutput(result), *output.Output, *output.Pretty); printErr != nil {

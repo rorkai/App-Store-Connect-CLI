@@ -248,6 +248,7 @@ type MatrixResult struct {
 
 // MatrixOptions contains command-line overrides. Zero values use plan defaults.
 type MatrixOptions struct {
+	Progress          func(MatrixProgressEvent)
 	MaxConcurrency    int
 	MaxConcurrencySet bool
 	MaxAttempts       int
@@ -266,7 +267,8 @@ type MatrixAppearance interface {
 // MatrixDependencies makes external execution replaceable by tests without
 // changing the normal command behavior.
 type MatrixDependencies struct {
-	RunPlan func(context.Context, *Plan) (*RunResult, error)
+	progress func(MatrixProgressEvent)
+	RunPlan  func(context.Context, *Plan) (*RunResult, error)
 	// RunPlanRooted is the matrix-only provider contract. The destination root
 	// is retained for the whole attempt and must be used for every output write.
 	// It is additive so existing test/integration callbacks keep compiling while
