@@ -209,6 +209,35 @@ func buildBetaGroupMembershipRows(result *BuildBetaGroupMembershipResult) ([]str
 	return headers, rows
 }
 
+// BetaTesterDevicesResponse keeps the tester envelope with an opt-in device renderer.
+type BetaTesterDevicesResponse struct {
+	BetaTestersResponse
+}
+
+func betaTesterDevicesRows(resp *BetaTesterDevicesResponse) ([]string, [][]string) {
+	headers := []string{"Tester ID", "Model", "Platform", "OS", "App Build"}
+	rows := make([][]string, 0, len(resp.Data))
+	for _, tester := range resp.Data {
+		if len(tester.Attributes.AppDevices) == 0 {
+			state := "None reported"
+			if tester.Attributes.AppDevices == nil {
+				state = "Not reported"
+			}
+			rows = append(rows, []string{compactWhitespace(tester.ID), state, "", "", ""})
+		}
+		for _, device := range tester.Attributes.AppDevices {
+			rows = append(rows, []string{
+				compactWhitespace(tester.ID),
+				compactWhitespace(device.Model),
+				compactWhitespace(device.Platform),
+				compactWhitespace(device.OSVersion),
+				compactWhitespace(device.AppBuildVersion),
+			})
+		}
+	}
+	return headers, rows
+}
+
 func betaTestersRows(resp *BetaTestersResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Email", "Name", "State", "Invite"}
 	rows := make([][]string, 0, len(resp.Data))

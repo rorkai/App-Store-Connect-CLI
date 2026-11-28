@@ -57,7 +57,15 @@ explicit `--result-bundle-path` is resolved to an absolute path; an omitted path
 is allocated below the user cache. Existing paths, directories, and symlink
 destinations are rejected. `build-for-testing` does not need a result bundle,
 but reports the generated `.xctestrun` file when exactly one safe candidate can
-be identified under its derived-data directory.
+be identified under its derived-data directory. A single literal absolute
+`SYMROOT` supplied through `--xcodebuild-flag` instead selects that products
+directory. Its parent must exist before the build. asc retains directory and
+file identities across the build and reports only one new or replaced regular
+`.xctestrun` file. Unchanged or renamed files, in-place rewrites, symlinks, replaced
+directories, ambiguous candidates, and unsupported `SYMROOT` expressions omit
+the path with guidance to pass the generated file explicitly to
+`--action test-without-building --xctestrun`. Discovery does not change Xcode's
+build settings or run another build-settings query.
 
 ## Result parsing and output
 

@@ -404,6 +404,7 @@ func planSigningTarget(ctx context.Context, clock func() time.Time, client *asc.
 			observed.Profiles = append(observed.Profiles, signingObservedProfile{
 				ID: candidate.Profile.ID, State: string(candidate.Profile.Attributes.ProfileState),
 				ExpirationDate: candidate.Profile.Attributes.ExpirationDate,
+				Verification:   candidate.Verification,
 				CertificateIDs: append([]string(nil), candidate.CertificateIDs...),
 				DeviceCount:    len(candidate.DeviceIDs), DeviceSetHash: hashSortedStrings(candidate.DeviceIDs), Suitable: candidate.Suitable,
 			})
@@ -510,6 +511,7 @@ type profileCandidate struct {
 	DeviceIDs      []string
 	ExtraDevices   int
 	Suitable       bool
+	Verification   asc.SigningProfileVerification
 }
 
 func getProfileCandidates(ctx context.Context, clock func() time.Time, client *asc.Client, bundle asc.Resource[asc.BundleIDAttributes], target signingTarget, desired []signingDesiredDevice, certificate signingCertificateRef, minimumValidityDays int) ([]profileCandidate, error) {
@@ -524,7 +526,7 @@ func getProfileCandidates(ctx context.Context, clock func() time.Time, client *a
 		if profile.Attributes.ProfileType != reconcileProfileType || profile.Attributes.ProfileState != asc.ProfileStateActive {
 			continue
 		}
-		candidate := profileCandidate{Profile: profile}
+		candidate := profileCandidate{Profile: profile, Verification: asc.SigningProfileVerification{CMSSignature: "notChecked", AppleTrust: "notChecked"}}
 		candidate.CertificateIDs, err = getAllProfileCertificateIDs(ctx, client, profile.ID)
 		if err != nil {
 			return nil, err
@@ -544,7 +546,7 @@ func getProfileCandidates(ctx context.Context, clock func() time.Time, client *a
 				return nil, getErr
 			}
 			candidate.Profile = fullProfile.Data
-			entitlementsMatch = profileContentMatchesTarget(fullProfile.Data.Attributes.ProfileContent, target, desired, certificate.SHA256, minimumExpiration)
+			entitlementsMatch, candidate.Verification = profileContentMatchesTarget(fullProfile.Data.Attributes.ProfileContent, target, desired, certificate.SHA256, minimumExpiration)
 		}
 		candidate.Suitable = expirationErr == nil && expires.After(minimumExpiration) && certificateMatches && devicesMatch && entitlementsMatch
 		candidates = append(candidates, candidate)
@@ -623,40 +625,42 @@ func getAllProfileDeviceIDs(ctx context.Context, client *asc.Client, profileID s
 	return result, nil
 }
 
-func profileContentMatchesTarget(content string, target signingTarget, desired []signingDesiredDevice, certificateSHA256 string, minimumExpiration time.Time) bool {
+func profileContentMatchesTarget(content string, target signingTarget, desired []signingDesiredDevice, certificateSHA256 string, minimumExpiration time.Time) (bool, asc.SigningProfileVerification) {
+	verification := asc.SigningProfileVerification{CMSSignature: "notChecked", AppleTrust: "notChecked"}
 	if len(strings.TrimSpace(content)) > base64.StdEncoding.EncodedLen(reconcileProfileMaxBytes) {
-		return false
+		return false, verification
 	}
 	decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(content))
 	if err != nil {
-		return false
+		return false, verification
 	}
 	profile, err := decodeReconcileMobileProvision(decoded)
+	verification = profile.Verification
 	if err != nil {
-		return false
+		return false, verification
 	}
 	if !entitlementsContain(profile.Entitlements, target.Entitlements) {
-		return false
+		return false, verification
 	}
 	if !profile.ExpirationDate.After(minimumExpiration) {
-		return false
+		return false, verification
 	}
 	if !mobileProvisionContainsCertificate(profile, certificateSHA256) {
-		return false
+		return false, verification
 	}
 	provisioned := make(map[string]struct{}, len(profile.ProvisionedDevices))
 	for _, udid := range profile.ProvisionedDevices {
 		provisioned[fingerprintDevice(normalizeReconcileUDID(udid))] = struct{}{}
 	}
 	if len(provisioned) != len(desired) {
-		return false
+		return false, verification
 	}
 	for _, device := range desired {
 		if _, ok := provisioned[device.Fingerprint]; !ok {
-			return false
+			return false, verification
 		}
 	}
-	return true
+	return true, verification
 }
 
 type reconcileMobileProvision struct {
@@ -665,21 +669,25 @@ type reconcileMobileProvision struct {
 	ProvisionedDevices    []string       `plist:"ProvisionedDevices"`
 	Entitlements          map[string]any `plist:"Entitlements"`
 	DeveloperCertificates [][]byte       `plist:"DeveloperCertificates"`
+
+	Verification asc.SigningProfileVerification `plist:"-"`
 }
 
 func decodeReconcileMobileProvision(data []byte) (reconcileMobileProvision, error) {
+	result := reconcileMobileProvision{Verification: asc.SigningProfileVerification{CMSSignature: "notChecked", AppleTrust: "notChecked"}}
 	p7, err := pkcs7.Parse(data)
 	if err != nil {
-		return reconcileMobileProvision{}, fmt.Errorf("parse CMS: %w", err)
+		return result, fmt.Errorf("parse CMS: %w", err)
 	}
 	if err := p7.Verify(); err != nil {
-		return reconcileMobileProvision{}, fmt.Errorf("verify CMS signature: %w", err)
+		result.Verification.CMSSignature = "failed"
+		return result, fmt.Errorf("verify CMS signature: %w", err)
 	}
+	result.Verification.CMSSignature = "verified"
 	if len(p7.Content) == 0 {
-		return reconcileMobileProvision{}, fmt.Errorf("CMS content is empty")
+		return result, fmt.Errorf("CMS content is empty")
 	}
 	data = p7.Content
-	var result reconcileMobileProvision
 	if _, err := plist.Unmarshal(data, &result); err != nil {
 		return result, err
 	}

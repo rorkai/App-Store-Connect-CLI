@@ -123,6 +123,11 @@ skipped with the asc command that sets each value.
 
 App Preview validation requires ffprobe on PATH (provided by FFmpeg).
 Headers must be PNG at 1800 x 1200; previews must be 15-30 seconds.
+Shared metadata/default values are retained in the defaults receipt.
+Offline previews do not guess target languages. Remote previews and imports
+apply those values to existing version and App Info locales; locale-specific
+values take precedence.
+
 By default, dry-run lists local inputs without comparing remote assets.
 Add --check-remote to read remote store assets and plan their changes without writes.
 This requires authentication and may download delivered media for comparison.
@@ -195,6 +200,7 @@ Examples:
 				screenshotsDir = ""
 			}
 
+			var defaults *ImportMetadataDefaults
 			var localizations []FastlaneLocalization
 			var appInfoLocs []AppInfoFastlaneLocalization
 			var reviewInfo *ReviewInformation
@@ -204,7 +210,14 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
-				skipped = append(skipped, metadataSkipped...)
+				for _, entry := range localeDirs {
+					if entry.Default {
+						entry.Default = false
+						entry.Locale = defaultMetadataDirName
+						localeDirs = append(localeDirs, entry)
+						break
+					}
+				}
 
 				localizations, err = readFastlaneMetadataFromLocaleDirs(d, metadataDir, localeDirs)
 				if err != nil {
@@ -214,6 +227,42 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
+
+				defaults = &ImportMetadataDefaults{}
+				for i, value := range localizations {
+					if value.Locale == defaultMetadataDirName {
+						if countNonEmptyFields(value) > 0 {
+							prepared, err := prepareVersionLocalizations(localizations[i : i+1])
+							if err != nil {
+								return err
+							}
+							defaults.version = prepared[0]
+							defaults.version.attributes.Locale = ""
+							defaults.Version = &defaults.version.attributes
+						}
+						localizations = slices.Delete(localizations, i, i+1)
+						break
+					}
+				}
+				for i, value := range appInfoLocs {
+					if value.Locale == defaultMetadataDirName {
+						prepared, err := prepareAppInfoLocalizationAttributes(appInfoLocs[i : i+1])
+						if err != nil {
+							return err
+						}
+						defaults.appInfo = prepared[0]
+						defaults.appInfo.attributes.Locale = ""
+						defaults.AppInfo = &defaults.appInfo.attributes
+						appInfoLocs = slices.Delete(appInfoLocs, i, i+1)
+						break
+					}
+				}
+				if defaults.Version == nil && defaults.AppInfo == nil {
+					defaults = nil
+				} else {
+					metadataSkipped = slices.DeleteFunc(metadataSkipped, func(item SkippedItem) bool { return item.Path == filepath.Join(metadataDir, defaultMetadataDirName) })
+				}
+				skipped = append(skipped, metadataSkipped...)
 
 				reviewInfo, err = readFastlaneReviewInformation(d, metadataDir)
 				if err != nil {
@@ -310,7 +359,13 @@ Examples:
 			}
 			sort.Strings(locales)
 			metadataFiles := buildMetadataFilePlans(localizations)
+			if defaults != nil && defaults.Version != nil {
+				metadataFiles = append(metadataFiles, LocalizationFilePlan{Locale: defaultMetadataDirName, Files: versionLocalizationFiles(defaults.version.localization)})
+			}
 			appInfoFiles := buildAppInfoFilePlans(appInfoLocs)
+			if defaults != nil && defaults.AppInfo != nil {
+				appInfoFiles = append(appInfoFiles, LocalizationFilePlan{Locale: defaultMetadataDirName, Files: appInfoLocalizationFiles(defaults.appInfo.localization)})
+			}
 
 			if strings.TrimSpace(*versionID) == "" && (strings.TrimSpace(inputs.DeliverfileConfig.AppVersion) == "" || strings.TrimSpace(inputs.DeliverfileConfig.Platform) == "") {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --version-id is required (or set Deliverfile app_version and platform)")
@@ -368,6 +423,7 @@ Examples:
 
 			result := &MigrateImportResult{
 				DryRun:               *dryRun,
+				Defaults:             defaults,
 				VersionID:            resolvedVersionID,
 				AppID:                resolvedAppID,
 				DeliverfilePath:      inputs.DeliverfilePath,
@@ -403,7 +459,7 @@ Examples:
 				return fmt.Errorf("migrate import: %w", err)
 			}
 			localeToID := make(map[string]string)
-			if len(localizations) > 0 || len(screenshotPlan) > 0 || len(previews) > 0 {
+			if len(localizations) > 0 || len(screenshotPlan) > 0 || len(previews) > 0 || (defaults != nil && defaults.Version != nil) {
 				existingCtx, cancelExisting := migrateRequestContext(ctx, d)
 				existingLocs, err := fetchVersionLocalizationsForPlan(existingCtx, d, client, strings.TrimSpace(resolvedVersionID))
 				cancelExisting()
@@ -414,6 +470,14 @@ Examples:
 					localeToID[loc.Attributes.Locale] = loc.ID
 				}
 			}
+			if defaults != nil {
+				preparedLocalizations = appendDefaultVersionLocales(preparedLocalizations, defaults, localeToID)
+				localizations = localizations[:0]
+				for _, item := range preparedLocalizations {
+					localizations = append(localizations, item.localization)
+				}
+			}
+
 			if err := validateVersionLocalizationCreateLocales(preparedLocalizations, localeToID); err != nil {
 				return err
 			}
@@ -421,10 +485,23 @@ Examples:
 				return err
 			}
 			appInfoCtx, cancelAppInfo := migrateRequestContext(ctx, d)
-			appInfoPlan, err := prepareAppInfoLocalizations(appInfoCtx, d, client, resolvedAppID, preparedAppInfoLocalizations)
+			appInfoPlan, err := prepareAppInfoLocalizations(appInfoCtx, d, client, resolvedAppID, preparedAppInfoLocalizations, defaults)
 			cancelAppInfo()
 			if err != nil {
 				return err
+			}
+
+			if defaults != nil {
+				result.Localizations = localizations
+				result.AppInfoLocalizations = nil
+				for _, item := range appInfoPlan.localizations {
+					result.AppInfoLocalizations = append(result.AppInfoLocalizations, item.localization)
+				}
+				result.Locales = append(result.Locales, collectLocales(localizations, result.AppInfoLocalizations, screenshotPlan)...)
+				sort.Strings(result.Locales)
+				result.Locales = slices.Compact(result.Locales)
+				result.MetadataFiles = buildMetadataFilePlans(localizations)
+				result.AppInfoFiles = buildAppInfoFilePlans(result.AppInfoLocalizations)
 			}
 
 			if *dryRun {
@@ -846,6 +923,7 @@ const (
 
 // MigrateImportResult is the result of a migrate import operation.
 type MigrateImportResult struct {
+	Defaults             *ImportMetadataDefaults       `json:"defaults,omitempty"`
 	RemoteChecked        bool                          `json:"remoteChecked,omitempty"`
 	AssetResults         []asc.StoreAssetResult        `json:"assetResults,omitempty"`
 	DryRun               bool                          `json:"dryRun"`

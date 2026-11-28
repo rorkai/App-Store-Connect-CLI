@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -330,6 +331,12 @@ func TestArchiveCreatesArchiveAtExactPathAndReturnsMetadata(t *testing.T) {
 	}
 	if result.BuildNumber != "42" {
 		t.Fatalf("expected build number %q, got %q", "42", result.BuildNumber)
+	}
+	metadata, _ := json.Marshal(result)
+	var receipt map[string]any
+	_ = json.Unmarshal(metadata, &receipt)
+	if receipt["displayName"] != "Demo Display" {
+		t.Fatalf("missing final app display name: %s", metadata)
 	}
 	if result.Scheme != "Demo" {
 		t.Fatalf("expected scheme %q, got %q", "Demo", result.Scheme)
@@ -1366,6 +1373,9 @@ func TestExportWritesIPAAtExactPathAndReturnsMetadata(t *testing.T) {
 	}
 	if result.BuildNumber != "42" {
 		t.Fatalf("expected build number %q, got %q", "42", result.BuildNumber)
+	}
+	if result.DisplayName != "Demo Bundle" {
+		t.Fatalf("expected final IPA bundle-name fallback, got %q", result.DisplayName)
 	}
 
 	if _, err := os.Stat(ipaPath); err != nil {
@@ -2624,6 +2634,9 @@ func TestXcodeHelperProcess(t *testing.T) {
 		os.Exit(2)
 	}
 	commandName := filepath.Base(commandArgs[0])
+	if commandName == "xcodebuild" && len(commandArgs) > 1 && commandArgs[1] == "-hideShellScriptEnvironment" {
+		commandArgs = append([]string{commandArgs[0]}, commandArgs[2:]...)
+	}
 	if environmentLog := os.Getenv("ASC_XCODE_HELPER_ENV_LOG"); environmentLog != "" {
 		entry := fmt.Sprintf("%s ASC_ONLY=%s ASC_SHOULD_NOT_LEAK=%s\n", commandName, os.Getenv("ASC_ONLY"), os.Getenv("ASC_SHOULD_NOT_LEAK"))
 		file, err := os.OpenFile(environmentLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
@@ -2802,6 +2815,16 @@ func TestXcodeHelperProcess(t *testing.T) {
 			os.Exit(2)
 		}
 		if err := writeArchiveInfoPlist(archivePath); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		appPath := filepath.Join(archivePath, "Products", "Applications", "Demo.app")
+		if err := os.MkdirAll(appPath, 0o755); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		appInfo, _ := plist.Marshal(map[string]any{"CFBundleDisplayName": "Demo Display", "CFBundleName": "Demo"}, plist.XMLFormat)
+		if err := os.WriteFile(filepath.Join(appPath, "Info.plist"), appInfo, 0o644); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
 		}
@@ -3094,6 +3117,7 @@ func writeTestIPAWithPlatform(path, platform string) error {
 	}
 	payload := map[string]any{
 		"CFBundleIdentifier":         "com.example.demo",
+		"CFBundleName":               "Demo Bundle",
 		"CFBundleShortVersionString": "1.2.3",
 		"CFBundleVersion":            "42",
 		"CFBundleSupportedPlatforms": []string{platform},

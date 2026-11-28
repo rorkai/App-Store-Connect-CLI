@@ -23,6 +23,26 @@ func TestNotarizationValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
+			name:    "package missing app",
+			args:    []string{"notarization", "package"},
+			wantErr: "notarization package: --file must specify a signed .app directory",
+		},
+		{
+			name:    "package unsupported input",
+			args:    []string{"notarization", "package", "--file", "MyApp.zip", "--output-path", "out.zip"},
+			wantErr: "notarization package: --file must specify a signed .app directory",
+		},
+		{
+			name:    "package missing output",
+			args:    []string{"notarization", "package", "--file", "MyApp.app"},
+			wantErr: "notarization package: --output-path must specify a new .zip file",
+		},
+		{
+			name:    "package unsupported output",
+			args:    []string{"notarization", "package", "--file", "MyApp.app", "--output-path", "out.dmg"},
+			wantErr: "notarization package: --output-path must specify a new .zip file",
+		},
+		{
 			name:    "submit missing file",
 			args:    []string{"notarization", "submit"},
 			wantErr: "--file is required",

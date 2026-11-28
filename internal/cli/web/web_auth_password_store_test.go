@@ -969,3 +969,50 @@ func TestWebAuthLogoutAllCanForgetPasswordsWithSessions(t *testing.T) {
 		t.Fatalf("logout output = %q, want stored-password confirmation", stdout)
 	}
 }
+
+func TestWebAuthLoginNoPrompt(t *testing.T) {
+	for _, tc := range []struct {
+		name, password, wantDiagnostic string
+	}{
+		{"missing password", "", "ASC_WEB_PASSWORD"},
+		{"missing verification code source", "fixture-password", "two-factor-code-command"},
+		{"configured inputs", "fixture-password", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d, stdout, stderr := newWebTestDeps()
+			configureFreshPasswordLoginTest(t)
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			t.Setenv(webPasswordEnv, tc.password)
+			t.Setenv(webTwoFactorCodeCommandEnv, "")
+			original := twoFactorPromptAvailableFn
+			t.Cleanup(func() { twoFactorPromptAvailableFn = original })
+			twoFactorPromptAvailableFn = func() bool { return true }
+			promptPasswordFn = func(context.Context) (string, error) {
+				t.Fatal("noninteractive login prompted for a password")
+				return "", nil
+			}
+			webLoginFn = func(_ context.Context, credentials webcore.LoginCredentials) (*webcore.AuthSession, error) {
+				if tc.wantDiagnostic == "" && credentials.Password == tc.password {
+					return &webcore.AuthSession{UserEmail: "user@example.com"}, nil
+				}
+				t.Fatal("attempted a fresh sign-in with incomplete unattended inputs")
+				return nil, nil
+			}
+			cmd := newWebAuthLoginCommand(d)
+			args := []string{"--apple-id", "user@example.com", "--no-prompt", "--output", "json"}
+			if tc.wantDiagnostic == "" {
+				args = append(args, "--two-factor-code-command", "fixture-code-command")
+			}
+			err := cmd.ParseAndRun(context.Background(), args)
+			if tc.wantDiagnostic == "" {
+				if err != nil || !strings.Contains(stdout.String(), `"authenticated":true`) {
+					t.Fatalf("expected authenticated session, got %v and %s", err, stdout.String())
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error()+" "+stderr.String(), tc.wantDiagnostic) {
+				t.Fatalf("expected guidance naming %s, got error %v and stderr %q", tc.wantDiagnostic, err, stderr.String())
+			}
+		})
+	}
+}

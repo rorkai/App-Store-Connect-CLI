@@ -99,9 +99,15 @@ func (c *Client) UploadAssetLibraryImageWithCategory(ctx context.Context, stderr
 	if result.ImageID == "" || reserved.Data.Type != "appAssetLibraryImages" {
 		return result, fmt.Errorf("%w: missing image resource identity", errImageUploadInvalidResponse)
 	}
+	if err := recordAssetLibraryCheckpoint(ctx, AssetLibraryCheckpointReserved, result.ImageID, reserved.Data.Type); err != nil {
+		return result, err
+	}
 	nextStage("upload")
 	if err := UploadAssetFromFile(stageCtx, file, fileSize, reserved.Data.Attributes.UploadOperations); err != nil {
 		return result, fmt.Errorf("upload image %s: %w", result.ImageID, err)
+	}
+	if err := recordAssetLibraryCheckpoint(ctx, AssetLibraryCheckpointTransferred, result.ImageID, reserved.Data.Type); err != nil {
+		return result, err
 	}
 	path := "/v1/appAssetLibraryImages/" + url.PathEscape(result.ImageID)
 	commit := struct {

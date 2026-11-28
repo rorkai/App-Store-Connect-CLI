@@ -39,7 +39,7 @@ func readCSVRecords(t *testing.T, path string) [][]string {
 func TestTestFlightBetaTestersExport_WritesDeterministicCSV(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-2","attributes":{"email":"b@example.com","firstName":"B","lastName":"Bee"}},{"type":"betaTesters","id":"tester-1","attributes":{"email":"a@example.com","firstName":"A","lastName":"Aye"}}]}`))
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-2","attributes":{"email":"b@example.com","firstName":"B","lastName":"Bee","appDevices":[{"model":"iPhone17,1","platform":"IOS","osVersion":"18.0","appBuildVersion":"41"}]}},{"type":"betaTesters","id":"tester-1","attributes":{"email":"a@example.com","firstName":"A","lastName":"Aye"}}]}`))
 
 	outPath := filepath.Join(t.TempDir(), "testers.csv")
 

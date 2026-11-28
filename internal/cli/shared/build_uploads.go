@@ -10,6 +10,29 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
+// ValidateIPAAppBundleID verifies that an IPA belongs to the selected app.
+func ValidateIPAAppBundleID(ctx context.Context, client *asc.Client, appID, ipaBundleID string) error {
+	app, err := client.GetApp(ctx, appID)
+	if err != nil {
+		return fmt.Errorf("fetch selected app %q: %w", appID, err)
+	}
+	if app == nil {
+		return fmt.Errorf("fetch selected app %q: empty response", appID)
+	}
+	appBundleID := strings.TrimSpace(app.Data.Attributes.BundleID)
+	if appBundleID == "" {
+		return fmt.Errorf("selected app %q has no bundle ID", appID)
+	}
+	if !strings.EqualFold(ipaBundleID, appBundleID) {
+		appName := strings.TrimSpace(app.Data.Attributes.Name)
+		if appName == "" {
+			appName = appID
+		}
+		return WithDiagnostic(NewValidationError(fmt.Errorf("IPA bundle ID %q does not match selected app %q bundle ID %q", ipaBundleID, appName, appBundleID)), DiagnosticInvalidInput, "--ipa")
+	}
+	return nil
+}
+
 // PrepareBuildUpload creates the build upload and file reservation records used
 // by publish/build upload flows before the binary is transferred.
 func PrepareBuildUpload(ctx context.Context, client *asc.Client, appID string, fileInfo os.FileInfo, version, buildNumber string, platform asc.Platform, uti asc.UTI) (*asc.BuildUploadResponse, *asc.BuildUploadFileResponse, error) {

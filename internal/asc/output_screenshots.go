@@ -2,6 +2,13 @@ package asc
 
 import "strconv"
 
+// ScreenshotLocationResult acknowledges a simulated location setting.
+type ScreenshotLocationResult struct {
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Status    string  `json:"status"`
+}
+
 // MatrixResult is the stable output contract for a local screenshot matrix
 // run. It deliberately contains logical device labels and artifact paths, but
 // no simulator identifiers or launch arguments.
@@ -24,21 +31,22 @@ type MatrixResult struct {
 
 // MatrixCellResult is the privacy-safe output for one matrix cell.
 type MatrixCellResult struct {
-	ID           string                   `json:"id"`
-	Device       string                   `json:"device"`
-	Locale       string                   `json:"locale"`
-	Appearance   string                   `json:"appearance"`
-	Content      string                   `json:"contentVariant"`
-	Status       string                   `json:"status"`
-	Attempts     int                      `json:"attempts"`
-	DurationMS   int64                    `json:"durationMs"`
-	RawPaths     []string                 `json:"rawPaths,omitempty"`
-	FramedPaths  []string                 `json:"framedPaths,omitempty"`
-	Screenshots  []MatrixScreenshotResult `json:"screenshots,omitempty"`
-	Steps        []MatrixStepResult       `json:"steps,omitempty"`
-	FailureStage string                   `json:"failureStage,omitempty"`
-	FailureCode  string                   `json:"failureCode,omitempty"`
-	Error        *MatrixCellError         `json:"error,omitempty"`
+	ID           string                    `json:"id"`
+	Device       string                    `json:"device"`
+	Locale       string                    `json:"locale"`
+	Appearance   string                    `json:"appearance"`
+	Content      string                    `json:"contentVariant"`
+	Status       string                    `json:"status"`
+	Attempts     int                       `json:"attempts"`
+	DurationMS   int64                     `json:"durationMs"`
+	RawPaths     []string                  `json:"rawPaths,omitempty"`
+	FramedPaths  []string                  `json:"framedPaths,omitempty"`
+	Screenshots  []MatrixScreenshotResult  `json:"screenshots,omitempty"`
+	Steps        []MatrixStepResult        `json:"steps,omitempty"`
+	Location     *ScreenshotLocationResult `json:"location,omitempty"`
+	FailureStage string                    `json:"failureStage,omitempty"`
+	FailureCode  string                    `json:"failureCode,omitempty"`
+	Error        *MatrixCellError          `json:"error,omitempty"`
 }
 
 // MatrixCellError is the sanitized, stable failure contract for one cell.
@@ -201,4 +209,15 @@ func matrixFailureDisplay(result *MatrixCellResult) string {
 		return result.Error.Code
 	}
 	return "-"
+}
+
+// ScreenshotPlanValidationResult reports successful offline capture-plan checks.
+type ScreenshotPlanValidationResult struct {
+	PlanPath   string `json:"planPath"`
+	Valid      bool   `json:"valid"`
+	TotalSteps int    `json:"totalSteps"`
+}
+
+func screenshotPlanValidationRows(result *ScreenshotPlanValidationResult) ([]string, [][]string) {
+	return []string{"Plan", "Valid", "Steps"}, [][]string{{compactWhitespace(result.PlanPath), strconv.FormatBool(result.Valid), strconv.Itoa(result.TotalSteps)}}
 }

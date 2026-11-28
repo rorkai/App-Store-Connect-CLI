@@ -70,6 +70,9 @@ func TestXcodeInstallPrintsPrivacySafeResult(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("JSON output error = %v; stdout=%q", err, stdout)
 	}
+	if result.Launch != nil || strings.Contains(stdout, `"launch"`) {
+		t.Fatalf("default installation unexpectedly includes launch receipt: %q", stdout)
+	}
 	if !result.Success || !result.Verified || result.Device == nil || result.Device.IdentifierSHA256 == "SELECTOR_CANARY" {
 		t.Fatalf("privacy-safe output = %#v", result)
 	}

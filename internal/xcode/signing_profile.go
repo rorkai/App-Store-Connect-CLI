@@ -15,6 +15,7 @@ import (
 	"github.com/fullsailor/pkcs7"
 	"howett.net/plist"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -29,6 +30,8 @@ type SigningPlanInference struct {
 	ProfileUUID       string `json:"profileUuid"`
 	CertificateSHA256 string `json:"certificateSha256"`
 	Match             string `json:"match"`
+
+	Verification asc.SigningProfileVerification `json:"verification,omitzero"`
 }
 
 // SigningPlanExportOptions is the export-options payload embedded in a plan.
@@ -54,6 +57,8 @@ type signingProfile struct {
 	noValidCert bool
 	method      string
 	platforms   []string
+
+	verification asc.SigningProfileVerification
 }
 
 type signingProfileAssignment struct {
@@ -236,6 +241,7 @@ func inferSigningSettings(project *structuredVersionProject, opts SigningPlanOpt
 			ProfileUUID:       item.profile.uuid,
 			CertificateSHA256: item.profile.certSHA256,
 			Match:             item.match,
+			Verification:      item.profile.verification,
 		})
 	}
 	sort.Slice(inferences, func(left, right int) bool {
@@ -901,6 +907,7 @@ func parseSigningProfile(path string) (signingProfile, error) {
 		certSHA256:  certSHA,
 		platforms:   append([]string(nil), payload.Platform...),
 	}
+	profile.verification = asc.SigningProfileVerification{CMSSignature: "verified", AppleTrust: "notChecked"}
 	profile.method = signingProfileExportMethod(signingProfileMacOnly(profile), payload.ProvisionsAllDevices, len(payload.ProvisionedDevices) > 0, entitlementBool(payload.Entitlements["get-task-allow"]))
 	return profile, nil
 }

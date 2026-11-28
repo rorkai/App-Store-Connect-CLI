@@ -2,13 +2,86 @@ package screenshots
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
+	"time"
 )
+
+func TestRunWaitForStepHonorsDeadline(t *testing.T) {
+	hierarchyErr := errors.New("hierarchy read failed")
+	for _, test := range []struct {
+		name           string
+		readDuration   time.Duration
+		matched        bool
+		readErr        error
+		clockAdvance   time.Duration
+		cancelParent   bool
+		parentDeadline bool
+		wantDuration   time.Duration
+		wantErr        error
+		wantTimeout    bool
+	}{
+		{name: "hierarchy read", readDuration: 80 * time.Millisecond, matched: true, wantDuration: 50 * time.Millisecond, wantTimeout: true},
+		{name: "step deadline before timer callback", clockAdvance: 80 * time.Millisecond, matched: true, wantTimeout: true},
+		{name: "unmatched read after deadline", clockAdvance: 80 * time.Millisecond, wantTimeout: true},
+		{name: "caller deadline before timer callback", clockAdvance: 80 * time.Millisecond, matched: true, parentDeadline: true, wantErr: context.DeadlineExceeded},
+		{name: "poll interval", readDuration: 20 * time.Millisecond, wantDuration: 50 * time.Millisecond, wantTimeout: true},
+		{name: "caller cancellation", readDuration: 80 * time.Millisecond, cancelParent: true, wantDuration: 20 * time.Millisecond, wantErr: context.Canceled},
+		{name: "caller deadline", readDuration: 80 * time.Millisecond, parentDeadline: true, wantDuration: 20 * time.Millisecond, wantErr: context.DeadlineExceeded},
+		{name: "match before deadline", readDuration: 10 * time.Millisecond, matched: true, wantDuration: 10 * time.Millisecond},
+		{name: "hierarchy error", readDuration: 10 * time.Millisecond, readErr: hierarchyErr, wantDuration: 10 * time.Millisecond, wantErr: hierarchyErr},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				if test.parentDeadline {
+					var cancelDeadline context.CancelFunc
+					ctx, cancelDeadline = context.WithTimeout(ctx, 20*time.Millisecond)
+					defer cancelDeadline()
+				}
+				if test.cancelParent {
+					go func() {
+						<-time.After(20 * time.Millisecond)
+						cancel()
+					}()
+				}
+				calls := 0
+				var clockAdvance time.Duration
+				now := func() time.Time { return time.Now().Add(clockAdvance) }
+				readHierarchy := func(ctx context.Context, _ string, _ PlanStep) (bool, error) {
+					calls++
+					select {
+					case <-ctx.Done():
+						return false, hierarchyErr
+					case <-time.After(test.readDuration):
+						clockAdvance = test.clockAdvance
+						return test.matched, test.readErr
+					}
+				}
+				timeout, poll := 50, 400
+				start := time.Now()
+				err := runWaitForStep(ctx, PlanStep{TimeoutMS: &timeout, PollIntervalMS: &poll}, "simulator", readHierarchy, now)
+				if test.wantTimeout {
+					if err == nil || err.Error() != "wait_for timed out after 50ms" {
+						t.Fatalf("error = %v, want the step timeout", err)
+					}
+				} else if !errors.Is(err, test.wantErr) {
+					t.Fatalf("error = %v, want %v", err, test.wantErr)
+				}
+				if elapsed := time.Since(start); elapsed != test.wantDuration || calls != 1 {
+					t.Fatalf("duration = %v, hierarchy reads = %d; want %v and one read", elapsed, calls, test.wantDuration)
+				}
+			})
+		})
+	}
+}
 
 func skipWindowsUnixExecutableFixtures(t *testing.T) {
 	t.Helper()
@@ -136,6 +209,10 @@ func TestRunPlan_ScreenshotStepsDoNotRelaunchApp(t *testing.T) {
 
 	writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
 set -eu
+if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID-123","state":"Booted","isAvailable":true}]}}'
+  exit 0
+fi
 printf '%s\n' "$*" >> "$XCRUN_LOG"
 `)
 	writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
@@ -210,8 +287,12 @@ func TestRunPlan_ScrollAndSwipeStepsCallAXe(t *testing.T) {
 	skipWindowsUnixExecutableFixtures(t)
 	binDir := t.TempDir()
 	axeLog := filepath.Join(t.TempDir(), "axe.log")
+	writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID-123","state":"Booted","isAvailable":true}]}}'
+`)
 	writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
 set -eu
+if [ "$1" = "--version" ]; then printf '2.0.0\n'; exit 0; fi
 printf '%s\n' "$*" >> "$AXE_LOG"
 `)
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -268,6 +349,10 @@ func TestRunPlan_TerminatesOnlyTheInitialMatrixLaunch(t *testing.T) {
 	xcrunLog := filepath.Join(t.TempDir(), "xcrun.log")
 	writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
 set -eu
+if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID-123","state":"Booted","isAvailable":true}]}}'
+  exit 0
+fi
 printf '%s\n' "$*" >> "$XCRUN_LOG"
 `)
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -301,12 +386,36 @@ printf '%s\n' "$*" >> "$XCRUN_LOG"
 	}
 }
 
-func TestRunPlanResolvesBootedSimulatorWhenUDIDOmitted(t *testing.T) {
+func TestRunPlanResolvesSimulatorBeforeDeviceActions(t *testing.T) {
 	tests := []struct {
 		name    string
+		udid    string
 		devices string
 		wantErr []string
 	}{
+		{
+			name:    "explicit normalized UDID",
+			udid:    " booted-1 ",
+			devices: `[{"udid":"BOOTED-1","name":"iPhone 17","state":"Booted","isAvailable":true}]`,
+		},
+		{
+			name:    "explicit missing UDID",
+			udid:    "MISSING",
+			devices: `[]`,
+			wantErr: []string{"MISSING", "not found", "xcrun simctl list devices"},
+		},
+		{
+			name:    "explicit unavailable simulator",
+			udid:    "BOOTED-1",
+			devices: `[{"udid":"BOOTED-1","name":"iPhone 17","state":"Booted","isAvailable":false}]`,
+			wantErr: []string{"BOOTED-1", "unavailable"},
+		},
+		{
+			name:    "explicit shutdown simulator",
+			udid:    "BOOTED-1",
+			devices: `[{"udid":"BOOTED-1","name":"iPhone 17","state":"Shutdown","isAvailable":true}]`,
+			wantErr: []string{"BOOTED-1", "not booted", "xcrun simctl list devices"},
+		},
 		{
 			name:    "one booted",
 			devices: `[{"udid":"BOOTED-1","name":"iPhone 17","state":"Booted","isAvailable":true},{"udid":"SHUTDOWN-1","name":"iPad Air","state":"Shutdown","isAvailable":true}]`,
@@ -362,7 +471,7 @@ if [ -n "$out" ]; then cp "$AXE_TEMPLATE_PNG" "$out"; fi
 			name := "home"
 			plan := &Plan{
 				Version: 1,
-				App:     PlanApp{BundleID: "com.example.app", OutputDir: t.TempDir()},
+				App:     PlanApp{BundleID: "com.example.app", UDID: test.udid, OutputDir: t.TempDir()},
 				Steps: []PlanStep{
 					{Action: ActionLaunch},
 					{Action: ActionType, Text: &text},
@@ -381,6 +490,9 @@ if [ -n "$out" ]; then cp "$AXE_TEMPLATE_PNG" "$out"; fi
 				}
 				if _, statErr := os.Stat(axeLog); !os.IsNotExist(statErr) {
 					t.Fatalf("axe ran before the simulator was resolved")
+				}
+				if _, statErr := os.Stat(xcrunLog); !os.IsNotExist(statErr) {
+					t.Fatalf("xcrun launch ran before the simulator was resolved")
 				}
 				return
 			}
@@ -498,6 +610,7 @@ fi
 `)
 			writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
 set -eu
+if [ "$1" = "--version" ]; then printf '2.0.0\n'; exit 0; fi
 printf '%s\n' "$*" >> "$AXE_LOG"
 if [ "$1" = "$AXE_FAIL_ON" ]; then exit 1; fi
 if [ "$AXE_FAIL_CLEAR" = "1" ] && [ "$1" = "settings" ] && [ "$3" = "clear" ]; then exit 1; fi

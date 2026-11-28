@@ -51,6 +51,7 @@ type IPAManifest struct {
 	SignerCommonName string
 	Status           string
 	NestedBundles    []NestedBundle
+	PrivacyManifests *PrivacyManifestInventory
 	Entitlements     map[string]any
 	Profile          *ProfileSummary
 	// CodeSignature classifies the main executable's embedded signature. It is
@@ -134,8 +135,9 @@ type bundlePlist struct {
 
 // IPAOptions selects optional IPA inspection work.
 type IPAOptions struct {
-	IncludeEntitlements bool
-	IncludeProfile      bool
+	IncludePrivacyManifests bool
+	IncludeEntitlements     bool
+	IncludeProfile          bool
 	// VerifySignature verifies the main executable's code signature offline.
 	VerifySignature bool
 }
@@ -145,14 +147,14 @@ type IPAOptions struct {
 // Inspection failures caused by the IPA's own contents match ErrInvalidArchive.
 func InspectIPAWithOptions(source io.ReaderAt, size int64, options IPAOptions) (IPAManifest, error) {
 	if !options.VerifySignature {
-		manifest, err := inspectIPA(source, size, options.IncludeEntitlements, options.IncludeProfile, nil)
+		manifest, err := inspectIPA(source, size, options.IncludeEntitlements, options.IncludeProfile, nil, options.IncludePrivacyManifests)
 		return manifest, markInvalidArchive(err)
 	}
 	policy, err := appleTrustPolicy()
 	if err != nil {
 		return IPAManifest{Status: "unreadable"}, fmt.Errorf("load Apple certificates: %w", err)
 	}
-	manifest, err := inspectIPAVerifying(source, size, options.IncludeEntitlements, options.IncludeProfile, policy)
+	manifest, err := inspectIPAVerifying(source, size, options.IncludeEntitlements, options.IncludeProfile, policy, options.IncludePrivacyManifests)
 	return manifest, markInvalidArchive(err)
 }
 
@@ -184,8 +186,8 @@ func isOperationalReadError(err error) bool {
 	return errors.As(err, &pathErr) || errors.As(err, &errno)
 }
 
-func inspectIPAVerifying(source io.ReaderAt, size int64, includeEntitlements, includeProfile bool, policy *trustPolicy) (IPAManifest, error) {
-	manifest, err := inspectIPA(source, size, includeEntitlements, includeProfile, policy)
+func inspectIPAVerifying(source io.ReaderAt, size int64, includeEntitlements, includeProfile bool, policy *trustPolicy, includePrivacyManifests bool) (IPAManifest, error) {
+	manifest, err := inspectIPA(source, size, includeEntitlements, includeProfile, policy, includePrivacyManifests)
 	if manifest.SignatureVerification == nil {
 		detail := "IPA could not be inspected"
 		if err != nil {
@@ -269,7 +271,7 @@ func scanIPA(source io.ReaderAt, size int64) (ipaScan, error) {
 }
 
 // inspectIPA verifies the code signature when policy is non-nil.
-func inspectIPA(source io.ReaderAt, size int64, includeEntitlements, includeProfile bool, policy *trustPolicy) (IPAManifest, error) {
+func inspectIPA(source io.ReaderAt, size int64, includeEntitlements, includeProfile bool, policy *trustPolicy, includePrivacyManifests bool) (IPAManifest, error) {
 	scan, err := scanIPA(source, size)
 	if err != nil {
 		return IPAManifest{Status: "unreadable"}, err
@@ -290,6 +292,10 @@ func inspectIPA(source io.ReaderAt, size int64, includeEntitlements, includeProf
 		return IPAManifest{Status: "unreadable"}, err
 	}
 	manifest := manifestFromPlist(mainPlist)
+	var privacyErr error
+	if includePrivacyManifests {
+		manifest.PrivacyManifests, privacyErr = inspectPrivacyManifests(reader.File, appRoot)
+	}
 	executable, executableErr := mainExecutableMember(reader.File, appRoot, mainPlist.Executable)
 	for _, file := range nested {
 		path := zipMemberName(file.Name)
@@ -299,7 +305,7 @@ func inspectIPA(source io.ReaderAt, size int64, includeEntitlements, includeProf
 		parsed, err := readZipPlist(file)
 		if err != nil {
 			manifest.Status = "unreadable"
-			return manifest, fmt.Errorf("read %s: %w", path, err)
+			return manifest, errors.Join(fmt.Errorf("read %s: %w", path, err), privacyErr)
 		}
 		manifest.NestedBundles = append(manifest.NestedBundles, NestedBundle{
 			BundleID: parsed.BundleID,
@@ -341,7 +347,7 @@ func inspectIPA(source io.ReaderAt, size int64, includeEntitlements, includeProf
 		summary, entitlements, err := readEmbeddedProfile(profile)
 		if err != nil {
 			manifest.Status = "unreadable"
-			return manifest, fmt.Errorf("read embedded profile: %w", err)
+			return manifest, errors.Join(fmt.Errorf("read embedded profile: %w", err), privacyErr)
 		}
 		manifest.Status = "readable"
 		if includeProfile {
@@ -359,7 +365,10 @@ func inspectIPA(source io.ReaderAt, size int64, includeEntitlements, includeProf
 	if manifest.Status == "" {
 		manifest.Status = "unsigned"
 	}
-	return manifest, nil
+	if privacyErr != nil {
+		manifest.Status = "unreadable"
+	}
+	return manifest, privacyErr
 }
 
 // mainExecutableMember finds CFBundleExecutable inside the selected app. Xcode

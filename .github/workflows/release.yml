@@ -771,15 +771,84 @@ jobs:
           retention-days: 14
 
 
+  attest:
+    name: Attest final release assets
+    outputs:
+      bundle-id: ${{ steps.bundle.outputs.artifact-id }}
+    needs: [prepare, resolve, build]
+    if: always() && needs.build.result == 'success' && needs.prepare.outputs.published != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_SHA: ${{ needs.resolve.outputs.sha }}
+      WORKFLOW_SHA: ${{ github.workflow_sha }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout workflow release tools
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: workflow-source
+          persist-credentials: false
+
+      - name: Download qualified candidate
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: candidate-release-${{ needs.prepare.outputs.version }}
+          path: workflow-artifact
+
+      - name: Bind final bytes to verified release source
+        run: |
+          test "$(cat "workflow-artifact/candidate-release-${VERSION}.commit")" = "$RELEASE_SHA"
+          tar -xf "workflow-artifact/candidate-release-${VERSION}.tar"
+          python3 workflow-source/scripts/release_provenance.py predicate \
+            --release-dir release --version "$VERSION" --source-sha "$RELEASE_SHA" \
+            --workflow-sha "$WORKFLOW_SHA" --repository "$GH_REPO" > predicate.json
+
+      - name: Attest binaries and checksum manifest
+        id: provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: release/asc_*
+          predicate-type: https://slsa.dev/provenance/v1
+          predicate-path: predicate.json
+
+      - name: Verify attested candidate bytes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+        run: |
+          python3 workflow-source/scripts/release_provenance.py verify \
+            --release-dir release --version "$VERSION" --source-sha "$RELEASE_SHA" \
+            --workflow-sha "$WORKFLOW_SHA" --repository "$GH_REPO" --bundle "$PROVENANCE_BUNDLE"
+          mkdir -p provenance
+          cp "$PROVENANCE_BUNDLE" provenance/attestation.jsonl
+
+      - name: Retain verification bundle
+        id: bundle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: candidate-provenance-${{ needs.prepare.outputs.version }}-${{ github.run_attempt }}
+          path: provenance/attestation.jsonl
+          if-no-files-found: error
+          retention-days: 14
+
   publish:
     name: Publish GitHub release
     needs:
       - prepare
+      - resolve
       - build
+      - attest
     if: >-
       always() &&
       needs.prepare.result == 'success' &&
-      (needs.prepare.outputs.published == 'true' || needs.build.result == 'success')
+      (needs.prepare.outputs.published == 'true' || (needs.build.result == 'success' && needs.attest.result == 'success'))
     runs-on: macos-latest
     permissions:
       actions: read
@@ -788,6 +857,8 @@ jobs:
       version: ${{ needs.prepare.outputs.version }}
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_SHA: ${{ needs.resolve.outputs.sha }}
+      WORKFLOW_SHA: ${{ github.workflow_sha }}
     steps:
       - name: Checkout workflow release tools
         uses: actions/checkout@v7
@@ -818,6 +889,13 @@ jobs:
         with:
           name: candidate-release-${{ needs.prepare.outputs.version }}
           path: workflow-artifact
+
+      - name: Download candidate provenance bundle
+        if: steps.published_artifact.outputs.reused != 'true' && needs.prepare.outputs.published != 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.attest.outputs.bundle-id }}
+          path: provenance
 
       - name: Unpack and verify release artifact
         if: steps.published_artifact.outputs.reused != 'true' && needs.prepare.outputs.published != 'true'
@@ -868,7 +946,6 @@ jobs:
                 diff -u "$expected_names" "$published_names" || true
                 exit 1
               fi
-              gh release download "${VERSION}" --dir published-release
             else
               for asset in release/asc_*; do
                 name=$(basename "$asset")
@@ -883,16 +960,10 @@ jobs:
                   fi
                 else
                   gh release upload "${VERSION}" "$asset"
-                  cp "$asset" published-release/
                 fi
               done
 
-              (
-                cd published-release
-                binaries=(asc_*)
-                shasum -a 256 "${binaries[@]}" > "$checksum_name"
-              )
-              gh release upload "${VERSION}" "published-release/${checksum_name}"
+              gh release upload "${VERSION}" "release/${checksum_name}"
             fi
 
             gh release view "${VERSION}" --json assets --jq '.assets[].name' | LC_ALL=C sort > "$published_names"
@@ -907,10 +978,15 @@ jobs:
               diff -u "$expected_names" "$published_names" || true
               exit 1
             fi
-            gh release download "${VERSION}" --dir published-release
           fi
 
+          rm -rf published-release
+          mkdir -p published-release
+          gh release download "${VERSION}" --dir published-release
           python3 workflow-source/scripts/verify_release_assets.py --release-dir published-release --version "${VERSION}"
+          python3 workflow-source/scripts/release_provenance.py verify \
+            --release-dir published-release --version "$VERSION" --source-sha "$RELEASE_SHA" \
+            --workflow-sha "$WORKFLOW_SHA" --repository "$GH_REPO" --bundle provenance/attestation.jsonl
           if [ "$release_is_draft" = "true" ]; then
             gh release edit "${VERSION}" --draft=false
           fi

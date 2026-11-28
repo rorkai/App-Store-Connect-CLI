@@ -2,6 +2,7 @@ package shots
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"strings"
@@ -34,11 +35,16 @@ button takes button apple-pay, home, lock, side-button, or siri, and optional du
 pinch takes scale above 0 and not 1 (above 1 zooms in), and optional x and y (default: the screen centre) and radius.
 rotate takes x, y, radius, and degrees from -360 to 360, not 0 (clockwise).
 double_tap takes x and y; it does not accept label or id.
-scroll and swipe need AXe 2.0 or later.
+long_press, pinch, rotate, double_tap, and scroll with distance, label, id, or
+max_swipes need AXe 2.0 or later. Required tools are checked before steps run.
 Set defaults.status_bar to screenshot, low-battery, no-service, or charging to
 override the simulator status bar during the run (needs AXe 2.0+ and Xcode 27+).
 When the run ends, every status bar override on that simulator is cleared,
-including any that were set before the run.`,
+including any that were set before the run.
+Set defaults.location to {"latitude": 37.7749, "longitude": -122.4194} to apply
+a simulated location before the steps. The location receipt reports command
+acknowledgement; use app readback to verify delivery. This setting persists
+after the run; clear it with xcrun simctl location <UDID> clear when wanted.`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -73,10 +79,12 @@ including any that were set before the run.`,
 
 			result, err := screenshots.RunPlan(ctx, plan)
 			if err != nil {
-				return fmt.Errorf("screenshots run: %w", err)
+				err = fmt.Errorf("screenshots run: %w", err)
 			}
-
-			return d.PrintOutput(result, *output.Output, *output.Pretty)
+			if result != nil {
+				return errors.Join(err, d.PrintOutput(result, *output.Output, *output.Pretty))
+			}
+			return err
 		},
 	}
 }

@@ -96,14 +96,17 @@ func NewShotsFrameCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Compose a screenshot into an Apple device frame.",
 		LongHelp: `Compose screenshots using Koubou's YAML-based rendering flow.
 
-Requires Koubou v0.20.0 (pip install koubou==0.20.0). Upgrading from 0.18.x:
-pip install -U koubou==0.20.0, then kou setup-frames.
+Install Koubou v0.21.0 (pip install -U koubou==0.21.0), then kou setup-frames.
+Koubou v0.20.0 remains supported for existing frames; iPhone Duo requires v0.21.0.
 
 Use --input for one screenshot, --input-dir to frame every PNG in a
 directory, or --config for an explicit Koubou YAML config.
 
 Devices cover iPhone, iPad, Apple Watch, Apple TV, and Mac. Run
 asc screenshots list-frame-devices to see each device's --frame-color values.
+Use iphone-duo-outer or iphone-duo-inner for Duo portrait frames; append
+-landscape to either device value for landscape. Both offer night-sky and
+star-white frame colors.
 Title and subtitle overlays, --font, --text-position, --text-box, and
 --bg-color apply to every device. --font takes an installed family name or a
 .ttf, .otf, or .ttc file; asc copies the file into its private Koubou work

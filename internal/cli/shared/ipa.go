@@ -228,7 +228,8 @@ func appStorePlatformForIPA(value string) (asc.Platform, bool) {
 
 // ResolveBundleInfoForIPA reads IPA metadata and fills missing version/build-number
 // values while preserving explicit overrides and CLI-facing error messages.
-func ResolveBundleInfoForIPA(ipaPath, version, buildNumber string) (IPABundleInfo, error) {
+// The boolean reports whether metadata was successfully extracted.
+func ResolveBundleInfoForIPA(ipaPath, version, buildNumber string) (IPABundleInfo, bool, error) {
 	versionValue := strings.TrimSpace(version)
 	buildNumberValue := strings.TrimSpace(buildNumber)
 	info, err := ExtractBundleInfoFromIPA(ipaPath)
@@ -241,9 +242,9 @@ func ResolveBundleInfoForIPA(ipaPath, version, buildNumber string) (IPABundleInf
 			missingFlags = append(missingFlags, "--build-number")
 		}
 		if len(missingFlags) > 0 {
-			return IPABundleInfo{}, fmt.Errorf("%s required (failed to extract from IPA: %w)", strings.Join(missingFlags, " and "), err)
+			return IPABundleInfo{}, false, fmt.Errorf("%s required (failed to extract from IPA: %w)", strings.Join(missingFlags, " and "), err)
 		}
-		return IPABundleInfo{Version: versionValue, BuildNumber: buildNumberValue}, nil
+		return IPABundleInfo{Version: versionValue, BuildNumber: buildNumberValue}, false, nil
 	}
 	if versionValue == "" {
 		versionValue = info.Version
@@ -262,10 +263,10 @@ func ResolveBundleInfoForIPA(ipaPath, version, buildNumber string) (IPABundleInf
 			missingFields = append(missingFields, "CFBundleVersion")
 			missingFlags = append(missingFlags, "--build-number")
 		}
-		return IPABundleInfo{}, fmt.Errorf("missing Info.plist keys %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and "))
+		return IPABundleInfo{}, true, fmt.Errorf("missing Info.plist keys %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and "))
 	}
 	info.Version, info.BuildNumber = versionValue, buildNumberValue
-	return info, nil
+	return info, true, nil
 }
 
 func coercePlistValueToString(value any) string {

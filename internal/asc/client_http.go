@@ -954,11 +954,7 @@ func (c *Client) doStreamNoAuth(ctx context.Context, rawURL, accept string) (*ht
 		_ = resp.Body.Close()
 		// Presigned-CDN error bodies are untrusted and can echo the requested
 		// capability. The status code is sufficient diagnostic context here.
-		return nil, &APIError{
-			Code:       apiErrorCodeFromStatus(resp.StatusCode),
-			Title:      fmt.Sprintf("download request failed with status %d", resp.StatusCode),
-			StatusCode: resp.StatusCode,
-		}
+		return nil, DownloadResponseError(resp.StatusCode, resp.Header.Get("Retry-After"))
 	}
 	return resp, nil
 }

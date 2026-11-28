@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -26,10 +27,11 @@ type RunStepResult struct {
 
 // RunResult is the structured output for a plan run.
 type RunResult struct {
-	BundleID  string          `json:"bundle_id"`
-	UDID      string          `json:"udid"`
-	OutputDir string          `json:"output_dir"`
-	Steps     []RunStepResult `json:"steps"`
+	BundleID  string                        `json:"bundle_id"`
+	UDID      string                        `json:"udid"`
+	OutputDir string                        `json:"output_dir"`
+	Steps     []RunStepResult               `json:"steps"`
+	Location  *asc.ScreenshotLocationResult `json:"location,omitempty"`
 }
 
 // DefaultPlanOutputDir is where a plan without app.output_dir writes its
@@ -56,13 +58,18 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (_ *Run
 	if err := validatePlan(plan); err != nil {
 		return nil, err
 	}
+	if rootedOutput == nil {
+		if err := checkPlanCaptureTools(ctx, plan); err != nil {
+			return nil, err
+		}
+	}
 
 	udid := strings.TrimSpace(plan.App.UDID)
 	if udid == "" {
 		udid = "booted"
 	}
 	for _, step := range plan.Steps {
-		if plan.Defaults.StatusBar != "" || StepAction(strings.TrimSpace(strings.ToLower(string(step.Action)))) != ActionWait {
+		if plan.Defaults.StatusBar != "" || plan.Defaults.Location != nil || StepAction(strings.TrimSpace(strings.ToLower(string(step.Action)))) != ActionWait {
 			resolved, err := resolveSimulatorUDID(ctx, udid)
 			if err != nil {
 				return nil, err
@@ -96,6 +103,19 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (_ *Run
 		Steps:     make([]RunStepResult, 0, len(plan.Steps)),
 	}
 	terminateRunningProcess := plan.App.terminateRunningProcess
+
+	if location := plan.Defaults.Location; location != nil {
+		coordinate := formatFloat(*location.Latitude) + "," + formatFloat(*location.Longitude)
+		locationCtx, cancel := context.WithTimeout(ctx, matrixSubprocessTimeout)
+		err := runExternal(locationCtx, "xcrun", "simctl", "location", udid, "set", coordinate)
+		cancel()
+		if err != nil {
+			return nil, fmt.Errorf("apply simulated location: %w", err)
+		}
+		result.Location = &asc.ScreenshotLocationResult{
+			Latitude: *location.Latitude, Longitude: *location.Longitude, Status: "applied",
+		}
+	}
 
 	if preset := plan.Defaults.StatusBar; preset != "" {
 		if err := runExternal(ctx, "axe", "settings", "status-bar", "preset", preset, "--udid", udid); err != nil {
@@ -216,7 +236,7 @@ func runStep(ctx context.Context, action StepAction, step PlanStep, bundleID str
 	case ActionWait:
 		return waitContext(ctx, time.Duration(intValue(step.DurationMS))*time.Millisecond)
 	case ActionWaitFor:
-		return runWaitForStep(ctx, step, udid)
+		return runWaitForStep(ctx, step, udid, axeMatchesTarget, time.Now)
 	case ActionScreenshot:
 		req := CaptureRequest{
 			Provider: ProviderAXe,
@@ -238,7 +258,7 @@ func runStep(ctx context.Context, action StepAction, step PlanStep, bundleID str
 	}
 }
 
-func runWaitForStep(ctx context.Context, step PlanStep, udid string) error {
+func runWaitForStep(ctx context.Context, step PlanStep, udid string, matchesTarget func(context.Context, string, PlanStep) (bool, error), now func() time.Time) error {
 	timeout := intValue(step.TimeoutMS)
 	if timeout <= 0 {
 		timeout = 15000
@@ -248,20 +268,33 @@ func runWaitForStep(ctx context.Context, step PlanStep, udid string) error {
 		poll = 400
 	}
 
-	deadline := time.Now().Add(time.Duration(timeout) * time.Millisecond)
+	deadline := now().Add(time.Duration(timeout) * time.Millisecond)
+	deadlineErr := fmt.Errorf("wait_for timed out after %dms", timeout)
+	if parentDeadline, ok := ctx.Deadline(); ok && !parentDeadline.After(deadline) {
+		deadline = parentDeadline
+		deadlineErr = context.DeadlineExceeded
+	}
+	stepCtx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
 	for {
-		matched, err := axeMatchesTarget(ctx, udid, step)
+		matched, err := matchesTarget(stepCtx, udid, step)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if stepCtx.Err() != nil || !now().Before(deadline) {
+			return deadlineErr
+		}
 		if err != nil {
 			return err
 		}
 		if matched {
 			return nil
 		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("wait_for timed out after %dms", timeout)
-		}
-		if err := waitContext(ctx, time.Duration(poll)*time.Millisecond); err != nil {
-			return err
+		if err := waitContext(stepCtx, time.Duration(poll)*time.Millisecond); err != nil {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			return deadlineErr
 		}
 	}
 }

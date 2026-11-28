@@ -19,6 +19,7 @@ import (
 // NewCommand returns the Asset Library command group, built on d.
 func NewCommand(d *shared.Deps) *ffcli.Command {
 	return group(d, "asset-library", "Inspect Asset Library media and specifications, and upload images and videos.",
+		group(d, "manifest", "Plan multi-locale creative manifests.", manifestPlanCommand(d), manifestApplyCommand(d)),
 		readCommand(d, "asset-library", "view", "Read an app's Asset Library.", "app", "/v1/apps/%s/assetLibrary", false),
 		group(d, "images", "Inspect and upload Asset Library images.",
 			imagesUploadCommand(d),

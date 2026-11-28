@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -60,6 +61,10 @@ func TestShotsFramesListDevices_JSON(t *testing.T) {
 		"watch-series-11",
 		"watch-ultra-3",
 		"apple-tv",
+		"iphone-duo-outer",
+		"iphone-duo-outer-landscape",
+		"iphone-duo-inner",
+		"iphone-duo-inner-landscape",
 	}
 	if len(result.Devices) != len(expected) {
 		t.Fatalf("expected %d devices, got %d", len(expected), len(result.Devices))
@@ -72,6 +77,9 @@ func TestShotsFramesListDevices_JSON(t *testing.T) {
 		}
 		if got.Default {
 			defaultCount++
+		}
+		if strings.HasPrefix(want, "iphone-duo-") && (got.Family != "iphone" || got.DefaultFrameColor != "night-sky" || len(got.FrameColors) != 2 || got.FrameColors[0] != "night-sky" || got.FrameColors[1] != "star-white") {
+			t.Fatalf("%s colors = %+v", want, got)
 		}
 	}
 	if defaultCount != 1 || !result.Devices[0].Default {

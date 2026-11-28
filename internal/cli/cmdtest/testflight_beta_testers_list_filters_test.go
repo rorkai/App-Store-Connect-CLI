@@ -204,6 +204,11 @@ func TestTestFlightBetaTestersListRejectsFiltersWithNextURL(t *testing.T) {
 		wantErr string
 	}{
 		{
+			name:    "device view requires device fields in continuation",
+			args:    []string{"testflight", "testers", "list", "--next", nextURL, "--devices"},
+			wantErr: "--devices requires --next to include appDevices in fields[betaTesters]",
+		},
+		{
 			name:    "sort",
 			args:    []string{"testflight", "testers", "list", "--next", nextURL, "--sort", "email"},
 			wantErr: "--next cannot be combined with --sort",

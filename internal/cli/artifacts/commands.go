@@ -21,13 +21,14 @@ func NewIPAInfoCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("ipa-info", flag.ExitOnError)
 	path := fs.String("path", "", "Path to an .ipa")
 	shared.BindFlagAlias(fs, "ipa", "path")
+	includePrivacyManifests := fs.Bool("include-privacy-manifests", false, "Inventory packaged privacy manifests and their owning bundles")
 	includeEntitlements := fs.Bool("include-entitlements", false, "Include the embedded profile entitlements map")
 	includeProfile := fs.Bool("include-profile", false, "Include the embedded profile summary")
 	verifySignature := fs.Bool("verify-signature", false, "Verify the main executable's code signature and certificate chain offline; exits 1 unless valid")
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "ipa-info",
-		ShortUsage: "asc ipa-info --path PATH [--include-entitlements] [--include-profile] [--verify-signature]",
+		ShortUsage: "asc ipa-info --path PATH [--include-entitlements] [--include-profile] [--include-privacy-manifests] [--verify-signature]",
 		ShortHelp:  "Inspect a local IPA without contacting App Store Connect.",
 		LongHelp: `Inspect a local IPA and print bundle identity, signer identity, nested bundles, and optional profile fields.
 
@@ -38,6 +39,9 @@ signer describes the leaf certificate in a signed executable's CMS signature and
 architectures lists every slice of the main executable in universal header order, with cpuType, cpuSubtype, the lipo arch name, codeSignature, and signer; a thin executable has one entry.
 signerConsistent is true when every slice has the same codeSignature and signer certificate. A false value prints a warning to stderr and does not change the exit code.
 An unreadable code signature prints a warning to stderr and does not change the exit code.
+
+With --include-privacy-manifests, privacyManifests lists each packaged PrivacyInfo.xcprivacy, its nearest enclosing app, extension, framework or resource bundle, and its declarations. Bundle IDs are read from that owner, never inherited from a containing framework. Missing IDs stay omitted.
+The inventory does not establish collection behavior or compliance. Malformed or unsafe entries make complete false and exit 1 after the receipt; declarations are not validated against Apple requirements. No archive files are extracted or symlinks followed.
 
 Without --verify-signature, signatures and certificate chains are not verified and signatureVerification is not-verified.
 With --verify-signature, the check runs offline, with no network or revocation checks. Trust is anchored at the embedded Apple Root CA and Apple Root CA - G3; the embedded WWDR G3, G5, and G6 and Developer ID intermediates and the certificates in the signature complete the chain. It verifies:
@@ -56,13 +60,14 @@ Examples:
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return runArtifactInfo(ctx, d, artifactInfoConfig{
-				Kind:                "ipa-info",
-				Path:                *path,
-				IncludeEntitlements: *includeEntitlements,
-				IncludeProfile:      *includeProfile,
-				VerifySignature:     *verifySignature,
-				Output:              *output.Output,
-				Pretty:              *output.Pretty,
+				Kind:                    "ipa-info",
+				IncludePrivacyManifests: *includePrivacyManifests,
+				Path:                    *path,
+				IncludeEntitlements:     *includeEntitlements,
+				IncludeProfile:          *includeProfile,
+				VerifySignature:         *verifySignature,
+				Output:                  *output.Output,
+				Pretty:                  *output.Pretty,
 			})
 		},
 	}
@@ -121,13 +126,14 @@ Examples:
 }
 
 type artifactInfoConfig struct {
-	Kind                string
-	Path                string
-	IncludeEntitlements bool
-	IncludeProfile      bool
-	VerifySignature     bool
-	Output              string
-	Pretty              bool
+	IncludePrivacyManifests bool
+	Kind                    string
+	Path                    string
+	IncludeEntitlements     bool
+	IncludeProfile          bool
+	VerifySignature         bool
+	Output                  string
+	Pretty                  bool
 }
 
 func runArtifactInfo(ctx context.Context, d *shared.Deps, config artifactInfoConfig) error {
@@ -162,9 +168,10 @@ func runArtifactInfo(ctx context.Context, d *shared.Deps, config artifactInfoCon
 	switch config.Kind {
 	case "ipa-info":
 		manifest, inspectErr := artifacts.InspectIPAWithOptions(file, info.Size(), artifacts.IPAOptions{
-			IncludeEntitlements: config.IncludeEntitlements,
-			IncludeProfile:      config.IncludeProfile,
-			VerifySignature:     config.VerifySignature,
+			IncludePrivacyManifests: config.IncludePrivacyManifests,
+			IncludeEntitlements:     config.IncludeEntitlements,
+			IncludeProfile:          config.IncludeProfile,
+			VerifySignature:         config.VerifySignature,
 		})
 		receipt := ipaReceipt(path, manifest)
 		if printErr := d.PrintOutput(receipt, config.Output, config.Pretty); printErr != nil {
@@ -249,6 +256,12 @@ func ipaReceipt(path string, manifest artifacts.IPAManifest) *asc.ArtifactIPAInf
 		CodeSignature:               manifest.CodeSignature,
 		Signer:                      signerReceipt(manifest.Signer),
 		SignerConsistent:            manifest.SignerConsistent,
+	}
+	if manifest.PrivacyManifests != nil {
+		info.PrivacyManifests = &asc.ArtifactPrivacyManifestInventory{Complete: manifest.PrivacyManifests.Complete, Manifests: []asc.ArtifactPrivacyManifest{}}
+		for _, item := range manifest.PrivacyManifests.Manifests {
+			info.PrivacyManifests.Manifests = append(info.PrivacyManifests.Manifests, asc.ArtifactPrivacyManifest{Path: item.Path, BundlePath: item.BundlePath, BundleKind: item.BundleKind, BundleID: item.BundleID, Declarations: item.Declarations, Error: item.Error})
+		}
 	}
 	for _, architecture := range manifest.Architectures {
 		info.Architectures = append(info.Architectures, asc.ArtifactArchitecture{

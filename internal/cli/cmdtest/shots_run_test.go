@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -15,6 +17,83 @@ import (
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
 )
+
+func TestShotsRun_FailureReceipt(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell executable fixtures require a Unix PATH")
+	}
+	binDir := t.TempDir()
+	writeShotsMatrixExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+printf '%s\n' '{"devices":{"runtime":[{"udid":"fixture-udid","state":"Booted","isAvailable":true}]}}'
+`)
+	writeShotsMatrixExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
+printf '%s\n' "$1" >> "$AXE_CALL_LOG"
+if [ "$1" = "type" ]; then
+  echo 'fixture typing failure' >&2
+  exit 7
+fi
+`)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	const failingSteps = `[{"action":"tap","label":"Ready"},{"action":"type","text":"hello"},{"action":"tap","label":"Done"}]`
+	for _, test := range []struct {
+		name          string
+		steps         string
+		wantReceipt   bool
+		outputFailure bool
+		wantError     string
+	}{
+		{"execution", failingSteps, true, false, "step 2 (type): axe: exit status 7 (output: fixture typing failure)"},
+		{"output failure", failingSteps, true, true, "step 2 (type): axe: exit status 7 (output: fixture typing failure)"},
+		{"validation", `[{"action":"tap","label":"Ready"},{"action":"type"}]`, false, false, "steps[2] type requires text"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			callLog := filepath.Join(t.TempDir(), "calls")
+			t.Setenv("AXE_CALL_LOG", callLog)
+			planPath := filepath.Join(t.TempDir(), "plan.json")
+			writeFile(t, planPath, `{"version":1,"app":{"bundle_id":"com.example.app","udid":"fixture-udid"},"steps":`+test.steps+`}`)
+			d, stdoutBuf, stderrBuf := newTestDeps(t, nil)
+			if test.outputFailure {
+				reader, writer := io.Pipe()
+				_ = reader.Close()
+				t.Cleanup(func() { _ = writer.Close() })
+				d.IO.Out = writer
+			}
+			code := rootcmd.RunWithDeps([]string{
+				"screenshots", "run", "--plan", planPath,
+				"--output-dir", filepath.Join(t.TempDir(), "output"), "--output", "json",
+			}, "1.2.3", d)
+			stdout, stderr := stdoutBuf.String(), stderrBuf.String()
+			if code != rootcmd.ExitError || !strings.Contains(stderr, "Error: screenshots run: "+test.wantError) {
+				t.Fatalf("exit = %d, stderr = %q; want failure with %q", code, stderr, test.wantError)
+			}
+			calls, err := os.ReadFile(callLog)
+			if !test.wantReceipt {
+				if stdout != "" || !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("validation stdout = %q, calls = %q, log error = %v; want no receipt or device calls", stdout, calls, err)
+				}
+				return
+			}
+			if err != nil || string(calls) != "tap\ntype\n" {
+				t.Fatalf("calls = %q, error = %v; want execution to stop at the failed step", calls, err)
+			}
+			if test.outputFailure {
+				if !strings.Contains(stderr, io.ErrClosedPipe.Error()) {
+					t.Fatalf("stderr = %q, want both execution and output errors", stderr)
+				}
+				return
+			}
+			var result screenshots.RunResult
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("decode partial receipt: %v; stdout = %q", err, stdout)
+			}
+			if len(result.Steps) != 2 || result.Steps[0].Index != 1 || result.Steps[0].Action != "tap" || result.Steps[0].Status != "ok" ||
+				result.Steps[1].Index != 2 || result.Steps[1].Action != "type" || result.Steps[1].Status != "error" ||
+				result.Steps[1].Error != "axe: exit status 7 (output: fixture typing failure)" {
+				t.Fatalf("partial receipt steps = %+v, want completed tap and failed type with original cause", result.Steps)
+			}
+		})
+	}
+}
 
 func TestShotsRun_MissingPlanFile(t *testing.T) {
 	root, _, rootStderr := shotsRootWithDeps(t)
@@ -243,4 +322,89 @@ func shotsRootWithDeps(t *testing.T) (*ffcli.Command, *bytes.Buffer, *bytes.Buff
 
 	d, stdout, stderr := newTestDeps(t, nil)
 	return rootcmd.RootCommandWithDeps("1.2.3", d), stdout, stderr
+}
+
+type screenshotLocationReceipt struct {
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
+	Status    string   `json:"status"`
+}
+
+type screenshotLocationOutput struct {
+	Location *screenshotLocationReceipt `json:"location"`
+}
+
+func TestShotsRunLocationSetup(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell executable fixtures require a Unix PATH")
+	}
+	for _, test := range []struct {
+		name       string
+		location   string
+		coordinate string
+		latitude   float64
+		longitude  float64
+		failSet    bool
+		wantError  string
+	}{
+		{name: "zero coordinates", location: `{"latitude":0,"longitude":0}`, coordinate: "0,0"},
+		{name: "signed coordinates", location: `{"latitude":-33.8688,"longitude":151.2093}`, coordinate: "-33.8688,151.2093", latitude: -33.8688, longitude: 151.2093},
+		{name: "latitude out of range", location: `{"latitude":91,"longitude":0}`, wantError: "defaults.location.latitude"},
+		{name: "missing longitude", location: `{"latitude":0}`, wantError: "defaults.location.longitude"},
+		{name: "setup rejected", location: `{"latitude":0,"longitude":0}`, coordinate: "0,0", failSet: true, wantError: "apply simulated location: xcrun: exit status 7 (output: location fixture rejected)"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			binDir := t.TempDir()
+			callLog := filepath.Join(t.TempDir(), "calls")
+			writeFile(t, callLog, "")
+			writeShotsMatrixExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","state":"Booted","isAvailable":true}]}}'
+  exit 0
+fi
+printf '%s\n' "$*" >> "$LOCATION_CALL_LOG"
+if [ "$2" = "location" ] && [ "$LOCATION_FAIL_SET" = "1" ]; then
+  echo 'location fixture rejected' >&2
+  exit 7
+fi
+`)
+			t.Setenv("PATH", binDir)
+			t.Setenv("LOCATION_CALL_LOG", callLog)
+			failSet := "0"
+			if test.failSet {
+				failSet = "1"
+			}
+			t.Setenv("LOCATION_FAIL_SET", failSet)
+			planPath := filepath.Join(t.TempDir(), "plan.json")
+			writeFile(t, planPath, `{"version":1,"app":{"bundle_id":"com.example.app","udid":"SIM-UDID"},"defaults":{"location":`+test.location+`},"steps":[{"action":"launch"}]}`)
+			stdout, stderr, code := runWithDeps(t, nil, "screenshots", "run", "--plan", planPath,
+				"--output-dir", filepath.Join(t.TempDir(), "output"), "--output", "json")
+			wantCalls := ""
+			if test.coordinate != "" {
+				wantCalls = "simctl location SIM-UDID set " + test.coordinate + "\n"
+			}
+			if test.wantError != "" {
+				if code != rootcmd.ExitError || stdout != "" || !strings.Contains(stderr, test.wantError) {
+					t.Fatalf("exit = %d, stdout = %q, stderr = %q; want setup rejection with %q", code, stdout, stderr, test.wantError)
+				}
+			} else {
+				if code != rootcmd.ExitSuccess || stderr != "" {
+					t.Fatalf("exit = %d, stderr = %q; want successful setup", code, stderr)
+				}
+				wantCalls += "simctl launch SIM-UDID com.example.app\n"
+				var output screenshotLocationOutput
+				if err := json.Unmarshal([]byte(stdout), &output); err != nil {
+					t.Fatalf("decode receipt: %v; stdout = %q", err, stdout)
+				}
+				location := output.Location
+				if location == nil || location.Latitude == nil || location.Longitude == nil || location.Status != "applied" || *location.Latitude != test.latitude || *location.Longitude != test.longitude {
+					t.Fatalf("location receipt = %+v; want acknowledged coordinates %s", location, test.coordinate)
+				}
+			}
+			calls, err := os.ReadFile(callLog)
+			if err != nil || string(calls) != wantCalls {
+				t.Fatalf("calls = %q, error = %v; want %q with no implicit location clear", calls, err, wantCalls)
+			}
+		})
+	}
 }

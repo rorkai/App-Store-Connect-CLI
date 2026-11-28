@@ -115,6 +115,15 @@ func checkLeafType(leaf *x509.Certificate, purpose signingPurpose) (string, erro
 	return matched.name, nil
 }
 
+// InstallerCertificateType checks certificate markers and key usage only.
+// It does not verify the issuer chain, expiration, or revocation.
+func InstallerCertificateType(leaf *x509.Certificate) (string, error) {
+	if leaf == nil || leaf.IsCA || leaf.KeyUsage&x509.KeyUsageDigitalSignature == 0 {
+		return "", fmt.Errorf("installer identity requires a leaf certificate permitting digital signatures")
+	}
+	return checkLeafType(leaf, purposeInstaller)
+}
+
 func withArticle(name string) string {
 	if name != "" && strings.ContainsRune("AEIOUaeiou", rune(name[0])) {
 		return "an " + name

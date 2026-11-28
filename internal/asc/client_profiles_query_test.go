@@ -4,8 +4,40 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"reflect"
 	"testing"
 )
+
+func TestGetProfilesPreservesProfileVersion(t *testing.T) {
+	const body = `{"data":[
+		{"type":"profiles","id":"profile-1","attributes":{"name":"Store","profileState":"ACTIVE","profileVersion":"1"}},
+		{"type":"profiles","id":"profile-2","attributes":{"name":"Development","profileVersion":null}},
+		{"type":"profiles","id":"profile-3","attributes":{"name":"Legacy"}}
+	],"links":{}}`
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet || req.URL.Path != "/v1/profiles" {
+			t.Fatalf("request = %s %s, want GET /v1/profiles", req.Method, req.URL.Path)
+		}
+	}, jsonResponse(http.StatusOK, body))
+	response, err := client.GetProfiles(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := json.Marshal(response)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got, want any
+	if err := json.Unmarshal(encoded, &got); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(body), &want); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("profile response changed returned attributes: got %s, want %s", encoded, body)
+	}
+}
 
 func TestProfileAttributesJSONPreservesSparseFields(t *testing.T) {
 	var attributes ProfileAttributes

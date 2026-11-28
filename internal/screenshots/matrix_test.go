@@ -330,6 +330,7 @@ func TestRunMatrixRejectsOutputAliasesResolvedFromMatrixPlanDirectory(t *testing
 }
 
 func TestRunMatrixWritesReviewAfterOutputRootSetupFailure(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
 	tests := []struct {
 		name      string
 		rawDir    string
@@ -379,6 +380,10 @@ func TestRunMatrixWritesReviewAfterOutputRootSetupFailure(t *testing.T) {
 			}
 			result, runErr := RunMatrixWithDependencies(context.Background(), matrixPath, matrixPlan, MatrixOptions{}, MatrixDependencies{
 				CheckDevice: func(context.Context, MatrixDevice) error { return nil },
+				RunPlan: func(context.Context, *Plan) (*RunResult, error) {
+					t.Error("plan ran despite unusable output root")
+					return nil, errors.New("unexpected plan execution")
+				},
 			})
 			if runErr == nil {
 				t.Fatal("RunMatrixWithDependencies() error = nil, want output-root failure")
@@ -2512,17 +2517,28 @@ func TestRunMatrixRestartsAppBeforeEveryCellAttempt(t *testing.T) {
 	matrixPath := filepath.Join(dir, "matrix.json")
 	xcrunLog := filepath.Join(dir, "xcrun.log")
 	captureCount := filepath.Join(dir, "capture-count")
+	versionCalls := filepath.Join(dir, "version-calls")
 	axeTemplate := filepath.Join(dir, "template.png")
 	writeMinimalPNG(t, axeTemplate, 10, 10)
-	writeMatrixTestFile(t, basePath, `{"version":1,"app":{"bundle_id":"com.example.app"},"steps":[{"action":"launch"},{"action":"screenshot","name":"home"}]}`)
+	writeMatrixTestFile(t, basePath, `{"version":1,"app":{"bundle_id":"com.example.app"},"steps":[{"action":"launch"},{"action":"long_press","x":1,"y":2},{"action":"screenshot","name":"home"}]}`)
 	writeMatrixTestFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"first","launch_arguments":["--fixture","first"]},{"id":"second","launch_arguments":["--fixture","second"]}],"execution":{"max_attempts":2,"retry_backoff_ms":0},"output":{"raw_dir":"raw","review_dir":"review"}}`)
 
 	writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
 set -eu
+if [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","state":"Booted","isAvailable":true}]}}'
+  exit 0
+fi
 printf '%s\n' "$*" >> "$XCRUN_LOG"
 `)
 	writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
 set -eu
+if [ "$1" = "--version" ]; then
+  printf 'probe\n' >> "$VERSION_CALLS"
+  printf '2.0.0\n'
+  exit 0
+fi
+if [ "$1" = "tap" ]; then exit 0; fi
 count=0
 if [ -f "$CAPTURE_COUNT" ]; then count=$(cat "$CAPTURE_COUNT"); fi
 count=$((count + 1))
@@ -2538,6 +2554,7 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("XCRUN_LOG", xcrunLog)
 	t.Setenv("CAPTURE_COUNT", captureCount)
+	t.Setenv("VERSION_CALLS", versionCalls)
 	t.Setenv("AXE_TEMPLATE_PNG", axeTemplate)
 
 	matrixPlan, err := LoadMatrixPlan(matrixPath)
@@ -2566,6 +2583,10 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 	}
 	if !reflect.DeepEqual(launches, wantLaunches) {
 		t.Fatalf("launches = %q, want %q", launches, wantLaunches)
+	}
+	probes, err := os.ReadFile(versionCalls)
+	if err != nil || string(probes) != "probe\n" {
+		t.Fatalf("version probes = %q, error = %v; want one preflight for all cells and attempts", probes, err)
 	}
 }
 
@@ -2612,10 +2633,15 @@ func TestRunMatrixAppliesAndClearsStatusBarOncePerCell(t *testing.T) {
 			writeMatrixTestFile(t, basePath, `{"version":1,"app":{"bundle_id":"com.example.app"},"defaults":{"status_bar":"screenshot"},"steps":[{"action":"launch"},{"action":"screenshot","name":"home"}]}`)
 			writeMatrixTestFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"first"},{"id":"second"}],"execution":{"max_attempts":2,"retry_backoff_ms":0},"output":{"raw_dir":"raw","review_dir":"review"}}`)
 			writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+if [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","state":"Booted","isAvailable":true}]}}'
+  exit 0
+fi
 printf 'launch\n' >> "$CALL_LOG"
 `)
 			writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
 set -eu
+if [ "$1" = "--version" ]; then printf '2.0.0\n'; exit 0; fi
 if [ "$2" = "status-bar" ]; then
   printf 'status-bar %s\n' "$3" >> "$CALL_LOG"
   if [ "$3" = "$AXE_FAIL" ]; then exit 1; fi
@@ -4687,6 +4713,7 @@ func TestRunPlanWithRootUsesPinnedCaptureScratch(t *testing.T) {
 	}
 	writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
 set -eu
+printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","state":"Booted","isAvailable":true}]}}'
 `)
 	writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
 set -eu

@@ -3,12 +3,9 @@ package assets
 import (
 	"bytes"
 	"compress/zlib"
-	"context"
 	"encoding/binary"
 	"errors"
 	"hash/crc32"
-	"net"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -20,14 +17,6 @@ import (
 
 type readerThatFailsAfterFirstRead struct {
 	readOnce bool
-}
-
-func TestDownloadHTTPStatusErrorExposesHTTPStatus(t *testing.T) {
-	err := &downloadHTTPStatusError{StatusCode: 503}
-
-	if got := err.HTTPStatusCode(); got != 503 {
-		t.Fatalf("HTTPStatusCode() = %d, want 503", got)
-	}
 }
 
 func (r *readerThatFailsAfterFirstRead) Read(p []byte) (int, error) {
@@ -614,41 +603,6 @@ func TestWriteScreenshotDownloadFailurePreservesExistingFile(t *testing.T) {
 	}
 	if len(entries) != 1 || entries[0].Name() != filepath.Base(path) {
 		t.Fatalf("output directory entries = %v, want only %q", entries, filepath.Base(path))
-	}
-}
-
-func TestIsRetryableDownloadError_ContextErrorsAreNotRetryable(t *testing.T) {
-	tests := []struct {
-		name string
-		err  error
-	}{
-		{
-			name: "deadline exceeded",
-			err:  &url.Error{Op: "Get", URL: "https://example.com", Err: context.DeadlineExceeded},
-		},
-		{
-			name: "context canceled",
-			err:  &url.Error{Op: "Get", URL: "https://example.com", Err: context.Canceled},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if isRetryableDownloadError(tt.err) {
-				t.Fatalf("expected non-retryable error for %q", tt.name)
-			}
-		})
-	}
-}
-
-func TestIsRetryableDownloadError_TransientNetworkErrorIsRetryable(t *testing.T) {
-	err := &url.Error{
-		Op:  "Get",
-		URL: "https://example.com",
-		Err: &net.DNSError{IsTimeout: true},
-	}
-	if !isRetryableDownloadError(err) {
-		t.Fatalf("expected retryable network error")
 	}
 }
 

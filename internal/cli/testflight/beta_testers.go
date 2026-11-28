@@ -102,6 +102,7 @@ func newBetaTestersListCommand(d *shared.Deps) *ffcli.Command {
 	include := fs.String("include", "", "Include related resources, comma-separated: "+strings.Join(betaTesterIncludeValues, ", "))
 	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"apps": "apps", "betaGroups": "betaGroups", "builds": "builds"})
 	fields := fs.String("fields", "", "Fields to include for beta testers, comma-separated: "+strings.Join(betaGroupTesterFieldsValues, ", "))
+	devices := fs.Bool("devices", false, "Request appDevices and show one row per reported device in table or markdown output")
 	output := d.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
@@ -124,6 +125,14 @@ asc testflight testers groups list --id "TESTER_ID" --paginate.
 A --next URL retains any include query from its original request; JSON output
 is still required to render those included resources.
 
+--devices requests appDevices (or adds it to --fields) and shows tester ID,
+model, platform, OS, and app build in table or markdown output. Table and markdown
+omit names and emails; JSON keeps Apple's response envelope. Device entries
+have no timestamp or app ID, so this view does not infer a latest installation
+or associate entries with individual apps. Filters select testers, not device
+entries. --paginate pages testers. With --devices, a --next URL must already
+select appDevices in fields[betaTesters]. CSV export is unchanged.
+
 Filter, --fields, --sort, and --include flags cannot be combined with --next: a
 links.next URL already carries the query it was produced from, so those values
 would never reach the request. Invalid values and these incompatible flag
@@ -138,6 +147,7 @@ Examples:
   asc testflight beta-testers list --app "APP_ID" --sort "-lastName"
   asc testflight beta-testers list --app "APP_ID" --include "betaGroups" --paginate --output json
   asc testflight beta-testers list --app "APP_ID" --fields "email,state"
+  asc testflight beta-testers list --app "APP_ID" --devices --paginate --output table
   asc testflight beta-testers list --app "APP_ID" --limit 25
   asc testflight beta-testers list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
@@ -176,6 +186,16 @@ Examples:
 			// these flags would be accepted and silently dropped.
 			if err := rejectBetaTestersNextFlagConflicts(d, fs, *next, command, "build-id", "group", "email", "first-name", "last-name", "invite-type", "sort", "include", "fields"); err != nil {
 				return err
+			}
+			if *devices {
+				if strings.TrimSpace(*next) != "" {
+					nextURL, err := url.Parse(strings.TrimSpace(*next))
+					if err != nil || !slices.Contains(shared.SplitCSV(nextURL.Query().Get("fields[betaTesters]")), "appDevices") {
+						return d.UsageError("--devices requires --next to include appDevices in fields[betaTesters]")
+					}
+				} else if !slices.Contains(fieldValues, "appDevices") {
+					fieldValues = append(fieldValues, "appDevices")
+				}
 			}
 			included, err := includedFields.ResolveWith(d, command, *next, shared.SplitCSV(*include))
 			if err != nil {
@@ -253,6 +273,16 @@ Examples:
 				opts = append(opts, asc.WithBetaTestersGroupIDs([]string{groupID}))
 			}
 
+			printTesters := func(response any) error {
+				if *devices {
+					testers, ok := response.(*asc.BetaTestersResponse)
+					if !ok {
+						return fmt.Errorf("beta-testers list: unexpected response type %T", response)
+					}
+					response = &asc.BetaTesterDevicesResponse{BetaTestersResponse: *testers}
+				}
+				return d.PrintOutput(response, *output.Output, *output.Pretty)
+			}
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.BetaTestersOption](200))
 				testers, err := d.PaginateWithSpinner(
@@ -268,7 +298,7 @@ Examples:
 					return fmt.Errorf("beta-testers list: %w", err)
 				}
 
-				return d.PrintOutput(testers, *output.Output, *output.Pretty)
+				return printTesters(testers)
 			}
 
 			testers, err := client.GetBetaTesters(requestCtx, resolvedAppID, opts...)
@@ -276,7 +306,7 @@ Examples:
 				return fmt.Errorf("beta-testers list: failed to fetch: %w", err)
 			}
 
-			return d.PrintOutput(testers, *output.Output, *output.Pretty)
+			return printTesters(testers)
 		},
 	}
 }

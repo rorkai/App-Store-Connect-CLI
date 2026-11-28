@@ -68,7 +68,7 @@ func verificationIPA(t *testing.T, executable []byte, method uint16, overrides m
 
 func verifyIPA(t *testing.T, ipa []byte, policy *trustPolicy) SignatureVerification {
 	t.Helper()
-	manifest, _ := inspectIPAVerifying(bytes.NewReader(ipa), int64(len(ipa)), false, false, policy)
+	manifest, _ := inspectIPAVerifying(bytes.NewReader(ipa), int64(len(ipa)), false, false, policy, false)
 	if manifest.SignatureVerification == nil {
 		t.Fatal("verification result is missing")
 	}

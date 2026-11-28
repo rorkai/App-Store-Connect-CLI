@@ -69,6 +69,11 @@ func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
 	id := bindBuilderIDFlag(fs, idFlagName, config.IDType, idUsage)
 	output := d.BindOutputFlags(fs)
 	validate := bindBuilderFlags(fs, config.Flags)
+	constraints := CommandConstraints{Rules: []ConstraintRule{{Kind: "required", Flags: []string{"--" + idFlagName}}}}
+	if config.ResolveApp {
+		constraints = CommandConstraints{DynamicRules: []string{"appIdFallback"}}
+	}
+	setCommandConstraints(fs, constraints)
 
 	timeout := builderTimeout(d, config.ContextTimeout)
 	errorPrefix := builderDefault(config.ErrorPrefix, commandErrorPrefixFromUsage(config.ShortUsage))
@@ -201,6 +206,21 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 	paginate := fs.Bool("paginate", false, PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 	validate := bindBuilderFlags(fs, config.Flags)
+	constraints := CommandConstraints{Rules: []ConstraintRule{
+		{Kind: "integerRange", Flags: []string{"--limit"}, Minimum: new(0), Maximum: new(limitMax)},
+		{Kind: "conflicts", WhenNonEmpty: "--next", Flags: []string{"--limit"}},
+	}}
+	for _, name := range config.NextConflicts {
+		constraints.Rules[1].Flags = append(constraints.Rules[1].Flags, "--"+name)
+	}
+	if !config.TopLevel {
+		if config.ResolveApp {
+			constraints.DynamicRules = []string{"appIdFallback"}
+		} else {
+			constraints.Rules = append(constraints.Rules, ConstraintRule{Kind: "anyOf", Flags: []string{"--" + parentFlagName, "--next"}})
+		}
+	}
+	setCommandConstraints(fs, constraints)
 
 	timeout := builderTimeout(d, config.ContextTimeout)
 	errorPrefix := builderDefault(config.ErrorPrefix, commandErrorPrefixFromUsage(config.ShortUsage))

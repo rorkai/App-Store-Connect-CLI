@@ -27,6 +27,7 @@ func newXcodeInstallCommand(d *shared.Deps) *ffcli.Command {
 
 	ipaPath := fs.String("ipa", "", "Path to an iOS IPA (required)")
 	deviceID := fs.String("device-id", "", "Exact CoreDevice identifier from devicectl list devices (required)")
+	launch := fs.Bool("launch", false, "Launch the verified installed bundle after installation")
 	timeout := fs.Duration("timeout", xcodeInstallDefaultTimeout, "Maximum duration for inspection, installation, and verification")
 	output := d.BindOutputFlags(fs)
 
@@ -44,6 +45,12 @@ also verifies the installed bundle's version and build. The original IPA is
 never modified, and output never includes raw device identifiers or paths. The
 default timeout is 5m; accepted values range from 5s through 10m.
 
+Use --launch to ask CoreDevice to start the verified installed bundle. Launch
+is never attempted after an install or verification failure. The optional launch
+receipt records CoreDevice acknowledgement, not app health or continued execution.
+A launch failure exits nonzero while preserving installed=true and verified=true.
+Without --launch, installation behavior and output are unchanged.
+
 Examples:
   asc xcode install --ipa .asc/artifacts/App.ipa --device-id COREDEVICE_IDENTIFIER
   asc xcode install --ipa .asc/artifacts/App.ipa --device-id COREDEVICE_IDENTIFIER --timeout 10m --output json
@@ -55,6 +62,7 @@ Examples:
 				IPAPath:  osPath(d, *ipaPath),
 				DeviceID: *deviceID,
 				Timeout:  *timeout,
+				Launch:   *launch,
 			}
 			if err := localxcode.ValidateInstallOptions(options); err != nil {
 				return d.UsageError(err.Error())
@@ -101,7 +109,7 @@ func installFailureDiagnostic(result *asc.XcodeInstallResult) string {
 
 func knownInstallFailureStage(value string) bool {
 	switch value {
-	case "input", "profile-preflight", "device-discovery", "materialization", "install", "verification":
+	case "input", "profile-preflight", "device-discovery", "materialization", "install", "verification", "launch":
 		return true
 	default:
 		return false
@@ -115,7 +123,7 @@ func knownInstallFailureCode(value string) bool {
 		"devicectl_unavailable", "private_output_failed", "device_not_found",
 		"device_unavailable", "profile_device_mismatch", "profile_device_membership_unavailable",
 		"device_discovery_failed", "device_discovery_invalid_response", "install_failed",
-		"install_invalid_response", "verification_failed":
+		"install_invalid_response", "verification_failed", "launch_failed":
 		return true
 	default:
 		return false
