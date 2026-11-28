@@ -1147,11 +1147,6 @@ func uploadPKGBuildAndWaitForID(ctx context.Context, d *shared.Deps, client *asc
 }
 
 func uploadBuildArtifactAndWaitForID(ctx context.Context, d *shared.Deps, client *asc.Client, appID, artifactPath string, fileInfo os.FileInfo, version, buildNumber string, platform asc.Platform, fileUTI asc.UTI, pollInterval time.Duration, uploadTimeout time.Duration, overrideUploadTimeout bool) (*publishUploadResult, error) {
-	allowUnreadableMetadata := false
-	if uninspected, ok := fileInfo.(publishIPAWithoutMetadata); ok {
-		fileInfo = uninspected.FileInfo
-		allowUnreadableMetadata = true
-	}
 	var (
 		artifactFile *os.File
 		openedInfo   os.FileInfo
@@ -1171,22 +1166,20 @@ func uploadBuildArtifactAndWaitForID(ctx context.Context, d *shared.Deps, client
 	}
 	if fileUTI == asc.UTIIPA {
 		info, inspectErr := shared.ExtractBundleInfoFromIPAFile(artifactFile)
-		if inspectErr != nil && (!allowUnreadableMetadata || errors.Is(inspectErr, shared.ErrInvalidIPAMetadata)) {
+		if inspectErr != nil {
 			return nil, fmt.Errorf("inspect IPA metadata before upload: %w", inspectErr)
 		}
-		if inspectErr == nil {
-			if info.Platform != "" && info.Platform != platform {
-				return nil, fmt.Errorf("IPA platform %s does not match upload platform %s", info.Platform, platform)
-			}
-			if info.BundleID == "" {
-				return nil, shared.WithDiagnostic(shared.NewValidationError(errors.New("IPA top-level app Info.plist is missing CFBundleIdentifier")), shared.DiagnosticInvalidInput, "--ipa")
-			}
-			lookupCtx, cancel := d.Timeout(ctx)
-			err := shared.ValidateIPAAppBundleID(lookupCtx, client, appID, info.BundleID)
-			cancel()
-			if err != nil {
-				return nil, err
-			}
+		if info.Platform != "" && info.Platform != platform {
+			return nil, fmt.Errorf("IPA platform %s does not match upload platform %s", info.Platform, platform)
+		}
+		if info.BundleID == "" {
+			return nil, shared.WithDiagnostic(shared.NewValidationError(errors.New("IPA top-level app Info.plist is missing CFBundleIdentifier")), shared.DiagnosticInvalidInput, "--ipa")
+		}
+		lookupCtx, cancel := d.Timeout(ctx)
+		err := shared.ValidateIPAAppBundleID(lookupCtx, client, appID, info.BundleID)
+		cancel()
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -1281,19 +1274,17 @@ func validatePublishPKGMetadata(d *shared.Deps, version, buildNumber string) err
 	return nil
 }
 
-type publishIPAWithoutMetadata struct{ os.FileInfo }
-
 func resolvePublishIPA(d *shared.Deps, ipaPath, version, buildNumber, platform string, platformWasSet bool) (os.FileInfo, shared.IPABundleInfo, error) {
 	fileInfo, err := validatePublishIPAPathFn(d.OSPath(ipaPath))
 	if err != nil {
 		return nil, shared.IPABundleInfo{}, err
 	}
-	info, metadataAvailable, err := shared.ResolveBundleInfoForIPA(d.OSPath(ipaPath), version, buildNumber)
+	info, err := shared.ResolveBundleInfoForIPA(d.OSPath(ipaPath), version, buildNumber)
 	if err != nil {
 		return nil, shared.IPABundleInfo{}, err
 	}
-	if !metadataAvailable {
-		fileInfo = publishIPAWithoutMetadata{fileInfo}
+	if info.BundleID == "" {
+		return nil, shared.IPABundleInfo{}, shared.WithDiagnostic(shared.NewValidationError(errors.New("IPA top-level app Info.plist is missing CFBundleIdentifier")), shared.DiagnosticInvalidInput, "--ipa")
 	}
 	if info.Platform == "" {
 		info.Platform = asc.Platform(platform)

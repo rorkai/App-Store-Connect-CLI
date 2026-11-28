@@ -35,11 +35,13 @@ func TestPublishCommandsCheckIPABundleBeforeReservation(t *testing.T) {
 		for _, test := range []struct {
 			name, appBundleID, wantError string
 			missingPlist, missingBundle  bool
+			unreadablePlist              bool
 			metadataChanged              bool
 			metadataAmbiguous            bool
 			metadataPlatform             string
 			inferMetadata                bool
 			wantValidation               bool
+			wantEarlyValidation          bool
 			appStatus                    int
 			wantRequests                 []string
 		}{
@@ -47,18 +49,23 @@ func TestPublishCommandsCheckIPABundleBeforeReservation(t *testing.T) {
 			{name: "match", appBundleID: "COM.EXAMPLE.APP", wantError: "stop at reservation", wantRequests: []string{"GET /v1/apps/123", "POST /v1/buildUploads"}},
 			{name: "missing app bundle", wantError: `selected app "123" has no bundle ID`, wantRequests: []string{"GET /v1/apps/123"}},
 			{name: "app read failure", appStatus: http.StatusForbidden, wantError: "app lookup refused", wantRequests: []string{"GET /v1/apps/123"}},
-			{name: "missing IPA bundle", missingBundle: true, wantValidation: true, wantError: "IPA top-level app Info.plist is missing CFBundleIdentifier"},
-			{name: "unreadable plist with overrides", missingPlist: true, wantError: "stop at reservation", wantRequests: []string{"POST /v1/buildUploads"}},
+			{name: "missing IPA bundle", missingBundle: true, wantValidation: true, wantEarlyValidation: true, wantError: "IPA top-level app Info.plist is missing CFBundleIdentifier"},
+			{name: "missing plist with overrides", missingPlist: true, wantValidation: true, wantEarlyValidation: true, wantError: "inspect IPA metadata: missing Info.plist in IPA"},
+			{name: "unreadable plist with overrides", unreadablePlist: true, wantValidation: true, wantEarlyValidation: true, wantError: "inspect IPA metadata: decode Info.plist:"},
 			{name: "inferred metadata becomes unreadable", metadataChanged: true, inferMetadata: true, wantError: "inspect IPA metadata before upload"},
 			{name: "readable metadata becomes unreadable with overrides", metadataChanged: true, wantError: "inspect IPA metadata before upload"},
-			{name: "unreadable metadata becomes ambiguous with overrides", missingPlist: true, metadataAmbiguous: true, wantError: "IPA has multiple top-level app Info.plist entries"},
-			{name: "unreadable metadata becomes simulator with overrides", missingPlist: true, metadataPlatform: "iPhoneSimulator", wantError: `unsupported IPA platform metadata CFBundleSupportedPlatforms="iPhoneSimulator"`},
+			{name: "readable metadata becomes ambiguous with overrides", metadataAmbiguous: true, wantError: "IPA has multiple top-level app Info.plist entries"},
+			{name: "readable metadata becomes simulator with overrides", metadataPlatform: "iPhoneSimulator", wantError: `unsupported IPA platform metadata CFBundleSupportedPlatforms="iPhoneSimulator"`},
 			{name: "readable platform changes with overrides", metadataPlatform: "AppleTVOS", appBundleID: "com.example.app", wantError: "IPA platform TV_OS does not match upload platform IOS"},
-			{name: "unreadable metadata becomes macOS with overrides", missingPlist: true, metadataPlatform: "MacOSX", appBundleID: "com.example.app", wantError: "IPA platform MAC_OS does not match upload platform IOS"},
+			{name: "readable metadata becomes macOS with overrides", metadataPlatform: "MacOSX", appBundleID: "com.example.app", wantError: "IPA platform MAC_OS does not match upload platform IOS"},
 		} {
 			t.Run(command.name+"/"+test.name, func(t *testing.T) {
 				t.Cleanup(overridePublishCommandTestHooks(t))
-				publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+				clientCalls := 0
+				publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) {
+					clientCalls++
+					return newPublishCommandTestClient(t), nil
+				}
 				lookupDeadline := time.Now().Add(10 * time.Second)
 				var requests []string
 				swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -95,6 +102,8 @@ func TestPublishCommandsCheckIPABundleBeforeReservation(t *testing.T) {
 					ipaPath = writePublishIPAFile(t, "Payload/Demo.app/Demo", []byte("app executable fixture"))
 				} else if test.missingBundle {
 					ipaPath = writePublishIPAFile(t, "Payload/Demo.app/Info.plist", []byte(`<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleVersion</key><string>42</string></dict></plist>`))
+				} else if test.unreadablePlist {
+					ipaPath = writePublishIPAFile(t, "Payload/Demo.app/Info.plist", []byte("not a plist"))
 				}
 				resolvePublishAppIDWithLookupFn = func(context.Context, *asc.Client, string) (string, error) {
 					var replacement string
@@ -154,6 +163,9 @@ func TestPublishCommandsCheckIPABundleBeforeReservation(t *testing.T) {
 						t.Fatalf("expected --ipa invalid-input validation error, got %v (%+v)", runErr, diagnostic)
 					}
 				}
+				if test.wantEarlyValidation && clientCalls != 0 {
+					t.Fatalf("created %d clients before rejecting invalid IPA", clientCalls)
+				}
 			})
 		}
 	}
@@ -184,9 +196,9 @@ func TestPublishCommandsSelectPrebuiltIPAPlatform(t *testing.T) {
 			{name: "legacy explicit", platform: "VISION_OS", wantPlatform: "VISION_OS", wantVersion: "1.2.3", wantBuild: "42"},
 			{name: "version overrides", marker: "XROS", wantPlatform: "VISION_OS", args: []string{"--version", "2.0", "--build-number", "99"}, wantVersion: "2.0", wantBuild: "99"},
 			{name: "mismatch with overrides", marker: "XROS", platform: "IOS", args: []string{"--version", "2.0", "--build-number", "99"}, wantError: "Error: --platform IOS does not match IPA platform VISION_OS\n"},
-			{name: "missing plist with overrides", missingInfoPlist: true, wantPlatform: "IOS", args: []string{"--version", "2.0", "--build-number", "99"}, wantVersion: "2.0", wantBuild: "99"},
-			{name: "missing plist with explicit platform", missingInfoPlist: true, platform: "VISION_OS", wantPlatform: "VISION_OS", args: []string{"--version", "2.0", "--build-number", "99"}, wantVersion: "2.0", wantBuild: "99"},
-			{name: "missing plist needs build number", missingInfoPlist: true, args: []string{"--version", "2.0"}, wantExtractionError: "--build-number required (failed to extract from IPA: missing Info.plist in IPA)"},
+			{name: "missing plist with overrides", missingInfoPlist: true, args: []string{"--version", "2.0", "--build-number", "99"}, wantExtractionError: "inspect IPA metadata: missing Info.plist in IPA"},
+			{name: "missing plist with explicit platform", missingInfoPlist: true, platform: "VISION_OS", args: []string{"--version", "2.0", "--build-number", "99"}, wantExtractionError: "inspect IPA metadata: missing Info.plist in IPA"},
+			{name: "missing plist needs build number", missingInfoPlist: true, args: []string{"--version", "2.0"}, wantExtractionError: "inspect IPA metadata: missing Info.plist in IPA"},
 		} {
 			if command.name == "appstore dry run" && test.wantError == "" && !test.missingInfoPlist {
 				continue
